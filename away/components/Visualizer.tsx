@@ -22,7 +22,7 @@ export const Visualizer: React.FC<VisualizerProps> = ({ noteLines, className = "
 		if (!ctx) return;
 
 		let animationFrameId: number;
-		const speed = 0.5;
+		const speed = 0.4;
 		const resizeCanvas = () => {
 			const parent = canvas.parentElement;
 			if (parent) {
