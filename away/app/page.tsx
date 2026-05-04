@@ -6,6 +6,7 @@ import { generatePiano } from "../lib/piano";
 import { useAudioEngine } from "../hooks/useAudioEngine";
 import { VisNote } from "../lib/types";
 import { Visualizer } from "@/components/Visualizer";
+import { Navigation } from "@/components/Navigation";
 
 export default function App() {
 	const [showKeys, setShowKeys] = useState(true);
@@ -41,6 +42,7 @@ export default function App() {
 			) : (
 				<>
 					<div className="absolute inset-0 z-10 flex flex-col">
+            <Navigation onLogout={() => setShowHomeScreen(true)} />
          			<Visualizer noteLines={noteLines} />
 						<Piano pianoKeys={pianoKeys} showKeys={showKeys} onPlayNote={playNote} onStopNote={stopNote} />
 					</div>
