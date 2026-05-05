@@ -1,6 +1,7 @@
 import { AccessIcon } from "@/components/AccessIcon";
 import type { Room, Accessibility } from "@/hooks/useRooms";
 import { DynamicLiquidGlass } from "../DynamicLiquidglass";
+import { useState } from "react";
 
 interface RoomListProps {
 	filter: Accessibility;
@@ -11,13 +12,23 @@ interface RoomListProps {
 }
 
 export default function RoomList({ filter, setFilter, filteredRooms, setShowCreate, handleJoinRoom }: RoomListProps) {
+	const [isHovered, setIsHovered] = useState(false);
 	return (
 		<div className="flex flex-col items-center justify-center px-8">
 			<div className="w-full max-w-5xl flex items-center justify-between mb-25">
 				<button onClick={() => setShowCreate(true)}>
-					<DynamicLiquidGlass width={198} height={69} radius={15} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={0.001}>
-						<div className="w-full h-full flex items-center justify-center text-white">Create Room</div>
-					</DynamicLiquidGlass>
+					<div onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
+						<DynamicLiquidGlass
+							width={198}
+							height={69}
+							radius={15}
+							refractionLevel={0.8}
+							specularOpacity={0.7}
+							glassBgOpacity={isHovered ? 0.15 : 0.001}
+						>
+							<div className="w-full h-full text-xl flex items-center justify-center text-white">Create Room</div>
+						</DynamicLiquidGlass>
+					</div>
 				</button>
 
 				<div className="flex gap-2">
@@ -28,8 +39,6 @@ export default function RoomList({ filter, setFilter, filteredRooms, setShowCrea
 					))}
 				</div>
 			</div>
-
-			{/* Rooms List Container - ADDED .custom-scrollbar HERE */}
 			<div
 				className="w-full max-w-6xl flex flex-col gap-4 relative custom-scrollbar"
 				style={{ maxHeight: "70vh", overflowY: "auto", padding: "10px", paddingRight: "15px" }}
@@ -63,7 +72,7 @@ export default function RoomList({ filter, setFilter, filteredRooms, setShowCrea
 
 										<div className="flex items-center gap-6 shrink-0 text-white/40 mt-10">
 											<div className="flex flex-col items-center gap-2">
-												<AccessIcon type={room.accessibility} glass={false} />
+												<AccessIcon type={room.accessibility} glass={false} text={false} />
 												<DynamicLiquidGlass width={107} height={46} radius={10} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={0.001}>
 													<div className="text-s font-mono flex items-start gap-1 mb-3">
 														<img src="/icons/Person.svg" alt="" />

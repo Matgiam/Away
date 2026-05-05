@@ -52,8 +52,8 @@ export default function CreateRoomModal({
 							<h2 className="text-center text-2xl font-semibold italic text-white/90 mb-10">Create your room</h2>
 
 							<div className="flex rounded-xl overflow-hidden border border-white/10 mb-4">
-								<div className="flex flex-col items-center justify-center px-5 py-4 bg-white/5 border-r border-white/10 shrink-0 gap-1">
-									<AccessIcon type={accessibility} glass={false} />
+								<div className="flex flex-col items-center justify-center px-3 py-5 bg-white/5 border-r border-white/10 gap-1">
+									<AccessIcon type={accessibility} glass={false} text={false} />
 									<span className="text-[10px] text-white/40 uppercase tracking-widest">Accessibility</span>
 								</div>
 								<div className="flex flex-1">
@@ -61,7 +61,7 @@ export default function CreateRoomModal({
 										<button
 											key={type}
 											onClick={() => setAccessibility(type)}
-											className={`flex-1 py-4 text-sm font-medium capitalize transition-all ${
+											className={`flex-1 py-4 font-medium capitalize transition-all ${
 												accessibility === type ? "text-white bg-white/10" : "text-white/35 hover:text-white/60 hover:bg-white/5"
 											}`}
 										>
@@ -73,10 +73,8 @@ export default function CreateRoomModal({
 
 							{accessibility === "private" && (
 								<div className="flex rounded-xl overflow-hidden border border-white/10 mb-4">
-									<div className="flex flex-col items-center justify-center px-5 py-4 bg-white/5 border-r border-white/10 shrink-0 gap-1">
-										<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
-											<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-										</svg>
+									<div className="flex flex-col items-center justify-center px-5 py-4 bg-white/5 border-r border-white/10 gap-1">
+										<img src="/icons/password.svg" alt="" />
 										<span className="text-[10px] text-white/40 uppercase tracking-widest">Password</span>
 									</div>
 									<input
@@ -84,18 +82,14 @@ export default function CreateRoomModal({
 										value={password}
 										onChange={(e) => setPassword(e.target.value)}
 										placeholder="Enter password..."
-										className="flex-1 bg-transparent px-5 py-4 text-white/80 text-sm placeholder:text-white/20 outline-none font-mono uppercase tracking-widest"
+										className="flex-1 bg-transparent px-5 py-4 text-white/80 text-sm placeholder:text-white/20 outline-none   tracking-widest"
 									/>
 								</div>
 							)}
 
 							<div className="flex rounded-xl overflow-hidden border border-white/10 mb-10">
 								<div className="flex flex-col items-center justify-center px-5 py-4 bg-white/5 border-r border-white/10 shrink-0 gap-1">
-									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-4 h-4">
-										<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-										<circle cx="9" cy="7" r="4" />
-										<path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-									</svg>
+									<img src="/icons/Person.svg" alt="" />
 									<span className="text-[10px] text-white/40 uppercase tracking-widest">Room size</span>
 								</div>
 								<div className="flex flex-1">
@@ -103,7 +97,7 @@ export default function CreateRoomModal({
 										<button
 											key={size}
 											onClick={() => setMaxPlayers(size)}
-											className={`flex-1 py-4 text-sm font-medium transition-all ${
+											className={`flex-1 py-4 text-m font-medium transition-all ${
 												maxPlayers === size ? "text-white bg-white/10" : "text-white/35 hover:text-white/60 hover:bg-white/5"
 											}`}
 										>
