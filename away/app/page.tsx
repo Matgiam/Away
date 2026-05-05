@@ -16,13 +16,12 @@ export default function App() {
 	const [showHomeScreen, setShowHomeScreen] = useState(true);
 	const pianoKeys = useMemo(() => generatePiano(), []);
 
-	const router = useRouter(); 
+	const router = useRouter();
 
 	const { playNote, stopNote, unlockAudio } = useAudioEngine(pianoKeys, setNoteLines);
 
 	const handleMultiplayerClick = () => {
-		const randomRoomId = Math.random().toString(20).substring(2, 7);
-		router.push(`/jam/${randomRoomId}`);
+		router.push("/multiplayer");
 	};
 
 	return (
@@ -45,10 +44,7 @@ export default function App() {
 								>
 									Solo mode
 								</p>
-								<p
-									className="text-2xl italic text-gray-400 cursor-pointer hover:text-white transition-colors mt-5"
-									onClick={handleMultiplayerClick} 
-								>
+								<p className="text-2xl italic text-gray-400 cursor-pointer hover:text-white transition-colors mt-5" onClick={handleMultiplayerClick}>
 									Multiplayer mode
 								</p>
 							</div>
