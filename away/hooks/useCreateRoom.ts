@@ -7,13 +7,21 @@ import type { Accessibility, Room, CreateStep } from "./useRooms";
 
 export type { CreateStep };
 
-const myTempId = `Player-${Math.floor(Math.random() * 9000 + 1000)}`;
+export function getOrCreatePlayerId(): string {
+	if (typeof window === "undefined") return "Player-0000";
+	const existing = sessionStorage.getItem("playerId");
+	if (existing) return existing;
+	const newId = `Player-${Math.floor(Math.random() * 9000)}`;
+	sessionStorage.setItem("playerId", newId);
+	return newId;
+}
+
+export const myTempId = getOrCreatePlayerId();
 
 export function useCreateRoom() {
 	const router = useRouter();
 	const [showCreate, setShowCreate] = useState(false);
 	const [createStep, setCreateStep] = useState<CreateStep>("settings");
-
 	const [accessibility, setAccessibility] = useState<Accessibility>("public");
 	const [password, setPassword] = useState("");
 	const [maxPlayers, setMaxPlayers] = useState(4);

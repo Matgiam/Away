@@ -12,6 +12,7 @@ import { Visualizer } from "@/components/Visualizer";
 import { Navigation } from "@/components/Navigation";
 import { SilkBackground } from "@/components/SilkBackground";
 import { useWebRTC } from "@/hooks/useWebRTC";
+import { getOrCreatePlayerId } from "@/hooks/useCreateRoom";
 
 export default function JamRoom() {
 	const params = useParams();
@@ -24,6 +25,7 @@ export default function JamRoom() {
 
 	const { playNote, stopNote, unlockAudio, connectMIDI } = useAudioEngine(pianoKeys, setNoteLines);
 	const activePeerNotes = useRef<Set<number>>(new Set());
+
 	const onReceivePeerNote = useCallback(
 		(note: number, velocity: number, isNoteOn: boolean) => {
 			if (isNoteOn) {
@@ -41,6 +43,7 @@ export default function JamRoom() {
 	);
 
 	const { createOffer, acceptOffer, acceptAnswer, addIceCandidate, sendNoteToPeer, isConnected } = useWebRTC(onReceivePeerNote);
+
 	const handleLocalPlay = useCallback(
 		(note: number, velocity: number = 127) => {
 			playNote(note, velocity);
@@ -58,11 +61,11 @@ export default function JamRoom() {
 	);
 
 	const [usersOnline, setUsersOnline] = useState<string[]>([]);
-	const myTempId = useRef(`Player-${Math.floor(Math.random() * 1000)}`);
+	const myTempId = useRef(getOrCreatePlayerId());
 	const isConnecting = useRef(false);
-	const handleClick = useCallback(() => {
-		unlockAudio();
-	}, [unlockAudio]);
+
+	const handleClick = useCallback(() => unlockAudio(), [unlockAudio]);
+
 	const createOfferRef = useRef(createOffer);
 	const acceptOfferRef = useRef(acceptOffer);
 	const acceptAnswerRef = useRef(acceptAnswer);
@@ -76,6 +79,7 @@ export default function JamRoom() {
 		addIceCandidateRef.current = addIceCandidate;
 		unlockAudioRef.current = unlockAudio;
 	}, [createOffer, acceptOffer, acceptAnswer, addIceCandidate, unlockAudio]);
+
 	const connectMIDIRef = useRef(connectMIDI);
 	const handleLocalPlayRef = useRef(handleLocalPlay);
 	const handleLocalStopRef = useRef(handleLocalStop);
@@ -89,6 +93,7 @@ export default function JamRoom() {
 	useEffect(() => {
 		handleLocalStopRef.current = handleLocalStop;
 	}, [handleLocalStop]);
+
 	useEffect(() => {
 		if (isConnected) {
 			unlockAudio();
@@ -116,7 +121,6 @@ export default function JamRoom() {
 
 		room.on("broadcast", { event: "webrtc-signal" }, async ({ payload }) => {
 			if (payload.senderId === myTempId.current) return;
-
 			if (payload.type === "ready-to-connect" && !isConnecting.current) {
 				isConnecting.current = true;
 				createOfferRef.current(sendSignal);
@@ -147,23 +151,32 @@ export default function JamRoom() {
 			supabase.removeChannel(room);
 		};
 	}, [roomId]);
-	useEffect(() => {
-		return () => {
-			const hostedRoomId = sessionStorage.getItem("hostedRoomId");
-			if (hostedRoomId === roomId) {
-				supabase.from("rooms").delete().eq("id", roomId);
-				sessionStorage.removeItem("hostedRoomId");
+
+	const handleLeave = useCallback(async () => {
+		const hostedRoomId = sessionStorage.getItem("hostedRoomId");
+
+		if (hostedRoomId === roomId) {
+			await supabase.from("rooms").delete().eq("id", roomId);
+			sessionStorage.removeItem("hostedRoomId");
+		} else {
+			const { data } = await supabase.from("rooms").select("current_players").eq("id", roomId).single();
+
+			if (data && data.current_players <= 1) {
+				await supabase.from("rooms").delete().eq("id", roomId);
+			} else {
+				await supabase.rpc("decrement_players", { room_id: roomId });
 			}
-		};
-	}, [roomId]);
+		}
+
+		router.push("/multiplayer");
+	}, [roomId, router]);
 	return (
 		<div className="h-screen w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative" onClick={handleClick}>
 			<SilkBackground color="#0b0416" scale={1} noiseIntensity={1.3} speed={3} rotation={270} />
 			<div className="absolute inset-0 z-10 flex flex-col">
-				<Navigation onLogout={() => router.push("/")} />
-				<div className="absolute top-20 left-10 z-50 ">
-					{isConnected ? "connected!" : "connection...."}
-
+				<Navigation onLogout={handleLeave} />
+				<div className="absolute top-20 left-10 z-50">
+					{isConnected ? "connected!" : "connecting...."}
 					<ul className="space-y-1">
 						{usersOnline.map((user) => (
 							<li key={user} className="flex items-center space-x-2 text-sm font-mono">

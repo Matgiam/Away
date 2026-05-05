@@ -37,6 +37,7 @@ export function useJoinRoom() {
 			.from("rooms")
 			.update({ current_players: joiningRoom.current_players + 1 })
 			.eq("id", joiningRoom.id);
+
 		router.push(`/jam/${joiningRoom.id}`);
 	};
 
