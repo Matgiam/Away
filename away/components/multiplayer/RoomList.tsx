@@ -41,13 +41,10 @@ export default function RoomList({ filter, setFilter, filteredRooms, setShowCrea
 			</div>
 			<div
 				className="w-full max-w-6xl flex flex-col gap-4 relative custom-scrollbar"
-				style={{ maxHeight: "70vh", overflowY: "auto", padding: "10px", paddingRight: "15px" }}
+				style={{ maxHeight: "65vh", overflowY: "auto", padding: "10px", paddingRight: "15px" }}
 			>
 				{filteredRooms.length === 0 ? (
-					<div className="flex flex-col items-center justify-center py-20 text-white/20">
-						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="w-12 h-12 mb-4 opacity-30">
-							<path d="M9 17H5a2 2 0 0 0-2 2v0a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v0a2 2 0 0 0-2-2h-4M12 3v14M8 7l4-4 4 4" />
-						</svg>
+					<div className="flex flex-col items-center justify-center py-20 text-white">
 						<p className="text-sm">No rooms yet. Be the first to create one.</p>
 					</div>
 				) : (
@@ -70,7 +67,7 @@ export default function RoomList({ filter, setFilter, filteredRooms, setShowCrea
 											{room.name}
 										</div>
 
-										<div className="flex items-center gap-6 shrink-0 text-white/40 mt-10">
+										<div className="flex items-center gap-6 shrink-0 text-white mt-10">
 											<div className="flex flex-col items-center gap-2">
 												<AccessIcon type={room.accessibility} glass={false} text={false} />
 												<DynamicLiquidGlass width={107} height={46} radius={10} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={0.001}>
