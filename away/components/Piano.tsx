@@ -6,7 +6,7 @@ import { PianoKey } from "../lib/types";
 interface PianoProps {
   pianoKeys: PianoKey[];
   showKeys: boolean;
-  onPlayNote: (midi: number) => void;
+  onPlayNote: (midi: number, velocity: number) => void; 
   onStopNote: (midi: number) => void;
 }
 
@@ -36,7 +36,7 @@ export const Piano: React.FC<PianoProps> = ({ pianoKeys, showKeys, onPlayNote, o
   }, [onStopNote]);
 
   const handleMouseDownOnKey = useCallback((midi: number) => {
-    onPlayNote(midi);
+    onPlayNote(midi, 127); 
     activeKeyRef.current = midi;
   }, [onPlayNote]);
 
@@ -45,7 +45,7 @@ export const Piano: React.FC<PianoProps> = ({ pianoKeys, showKeys, onPlayNote, o
       if (activeKeyRef.current !== null) {
         onStopNote(activeKeyRef.current);
       }
-      onPlayNote(midi);
+      onPlayNote(midi, 127); 
       activeKeyRef.current = midi;
     }
   }, [onPlayNote, onStopNote]);
@@ -64,9 +64,7 @@ export const Piano: React.FC<PianoProps> = ({ pianoKeys, showKeys, onPlayNote, o
             onMouseDown={() => handleMouseDownOnKey(key.midi)}
             onMouseEnter={() => handleMouseEnterOnKey(key.midi)}
             className="piano-key white"
-          >
-            {/* {showKeys && <span className="note-label">{key.noteName.replace(/[0-9]/g, "")}</span>} */}
-          </div>
+          />
         ))}
       </div>
 
