@@ -5,10 +5,7 @@ import * as Tone from "tone";
 import { initAudioContext, createSampler, createReverb } from "../lib/audio";
 import { VisNote, PianoKey } from "../lib/types";
 
-export const useAudioEngine = (
-	pianoKeys: PianoKey[],
-	setNoteLines: React.Dispatch<React.SetStateAction<VisNote[]>>
-) => {
+export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispatch<React.SetStateAction<VisNote[]>>) => {
 	const audioStartedRef = useRef(false);
 	const samplerRef = useRef<Tone.Sampler | null>(null);
 	const reverbRef = useRef<Tone.Reverb | null>(null);
@@ -16,18 +13,32 @@ export const useAudioEngine = (
 	const sustainedNotesRef = useRef<Set<number>>(new Set());
 	const isSustainOnRef = useRef(false);
 	const visNotesRef = useRef<VisNote[]>([]);
+	const initializedRef = useRef(false);
+
+	const unlockAudio = useCallback(async () => {
+		if (audioStartedRef.current) return;
+		try {
+			await Tone.start();
+			audioStartedRef.current = true;
+		} catch (error) {
+			console.error("Browser blocked audio start:", error);
+		}
+	}, []);
 
 	const playNote = useCallback(
 		(midi: number, vel: number = 0.7) => {
-			if (!audioStartedRef.current || !samplerRef.current || activeNotesRef.current[midi]) return;
+			if (activeNotesRef.current[midi]) return;
 
 			activeNotesRef.current[midi] = true;
 			sustainedNotesRef.current.delete(midi);
 
 			const keyEl = document.querySelector(`[data-midi="${midi}"]`);
 			keyEl?.classList.add("active");
+			const normalizedVel = vel > 1 ? vel / 127 : vel;
 
-			samplerRef.current.triggerAttack(Tone.Frequency(midi, "midi").toNote(), Tone.immediate(), vel);
+			if (audioStartedRef.current && samplerRef.current) {
+				samplerRef.current.triggerAttack(Tone.Frequency(midi, "midi").toNote(), Tone.immediate(), normalizedVel);
+			}
 
 			const keyInfo = pianoKeys.find((k) => k.midi === midi);
 			if (keyInfo) {
@@ -57,11 +68,11 @@ export const useAudioEngine = (
 				setNoteLines([...visNotesRef.current]);
 			}
 		},
-		[pianoKeys, setNoteLines]
+		[pianoKeys, setNoteLines],
 	);
 
 	const stopNote = useCallback((midi: number) => {
-		if (!samplerRef.current || !activeNotesRef.current[midi]) return;
+		if (!activeNotesRef.current[midi]) return;
 
 		activeNotesRef.current[midi] = false;
 		const keyEl = document.querySelector(`[data-midi="${midi}"]`);
@@ -72,60 +83,57 @@ export const useAudioEngine = (
 
 		if (isSustainOnRef.current) {
 			sustainedNotesRef.current.add(midi);
-		} else {
+		} else if (samplerRef.current) {
 			samplerRef.current.triggerRelease(Tone.Frequency(midi, "midi").toNote(), Tone.immediate());
 		}
 	}, []);
+	const connectMIDI = useCallback(
+		(onPlay: (note: number, velocity: number) => void = playNote, onStop: (note: number) => void = stopNote) => {
+			const nav = navigator as any;
+			nav.requestMIDIAccess?.().then((m: any) => {
+				m.inputs.forEach((i: any) => {
+					i.onmidimessage = (msg: any) => {
+						unlockAudio();
+						const [cmd, note, vel] = msg.data;
+						const command = cmd >> 4;
 
-	const connectMIDI = useCallback(() => {
-		const nav = navigator as any;
-		nav.requestMIDIAccess?.().then((m: any) => {
-			m.inputs.forEach((i: any) => {
-				i.onmidimessage = (msg: any) => {
-					const [cmd, note, vel] = msg.data;
-					const command = cmd >> 4;
-					if (command === 11 && note === 64) {
-						const pedalPressed = vel >= 64;
-						isSustainOnRef.current = pedalPressed;
-						if (!pedalPressed) {
-							sustainedNotesRef.current.forEach((sustainedMidi) => {
-								samplerRef.current?.triggerRelease(Tone.Frequency(sustainedMidi, "midi").toNote(), Tone.immediate());
-							});
-							sustainedNotesRef.current.clear();
+						if (command === 11 && note === 64) {
+							const pedalPressed = vel >= 64;
+							isSustainOnRef.current = pedalPressed;
+							if (!pedalPressed) {
+								sustainedNotesRef.current.forEach((sustainedMidi) => {
+									samplerRef.current?.triggerRelease(Tone.Frequency(sustainedMidi, "midi").toNote(), Tone.immediate());
+								});
+								sustainedNotesRef.current.clear();
+							}
+						} else if (command === 9 && vel > 0) {
+							onPlay(note, vel);
+						} else if (command === 8 || (command === 9 && vel === 0)) {
+							onStop(note);
 						}
-					} else if (command === 9 && vel > 0) playNote(note, vel / 127);
-					else if (command === 8 || (command === 9 && vel === 0)) stopNote(note);
-				};
+					};
+				});
 			});
-		});
-	}, [playNote, stopNote]);
-
-	const loadInitialInstrument = useCallback((instKey: string) => {
-		samplerRef.current = createSampler(instKey, () => {
-			connectMIDI();
-		}).connect(reverbRef.current!);
-	}, [connectMIDI]);
-
-	const initAudio = useCallback(async () => {
-		await initAudioContext();
-		reverbRef.current = createReverb(0.2);
-		Tone.Destination.volume.value = -5;
-		loadInitialInstrument("grand_piano");
-	}, [loadInitialInstrument]);
-
-	const unlockAudio = useCallback(async () => {
-		if (audioStartedRef.current) return;
-		try {
-			await Tone.start();
-			audioStartedRef.current = true;
-		} catch (error) {
-			console.error("Browser blocked audio start:", error);
-		}
-	}, []);
+		},
+		[playNote, stopNote, unlockAudio],
+	);
 
 	useEffect(() => {
-		initAudio();
-	}, [initAudio]);
+		if (initializedRef.current) return;
+		initializedRef.current = true;
 
-	return { playNote, stopNote, unlockAudio };
+		const init = async () => {
+			await initAudioContext();
+			reverbRef.current = createReverb(0.2);
+			Tone.Destination.volume.value = -5;
+
+			const sampler = createSampler("grand_piano", () => {
+				connectMIDI(playNote, stopNote);
+			});
+			samplerRef.current = sampler.connect(reverbRef.current);
+		};
+		init();
+	}, [connectMIDI, playNote, stopNote]);
+
+	return { playNote, stopNote, unlockAudio, connectMIDI };
 };

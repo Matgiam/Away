@@ -2,20 +2,20 @@ import * as Tone from "tone";
 import { instruments } from "./types";
 
 export const initAudioContext = async () => {
-  const context = new Tone.Context({ latencyHint: "interactive" });
-  Tone.setContext(context);
-  Tone.context.lookAhead = 0;
+	const context = new Tone.Context({ latencyHint: "interactive" });
+	Tone.setContext(context);
+	Tone.context.lookAhead = 0;
 };
 
-export const createSampler = (instKey: string, onload: () => void) => {
-  return new Tone.Sampler({
-	urls: instruments[instKey].urls,
+export const createSampler = (instKey: string, onload: () => void): Tone.Sampler => {
+	return new Tone.Sampler({
+		urls: instruments[instKey].urls,
 		baseUrl: instruments[instKey].baseUrl,
-    release: 1.5,
-    onload,
-  });
+		release: 1.5,
+		onload,
+	});
 };
 
-export const createReverb = (wet: number) => {
-  return new Tone.Reverb({ decay: 2, wet }).toDestination();
+export const createReverb = (wet: number): Tone.Reverb => {
+	return new Tone.Reverb({ decay: 2, wet }).toDestination();
 };
