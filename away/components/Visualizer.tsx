@@ -32,6 +32,8 @@ export const Visualizer: React.FC<VisualizerProps> = ({ noteLines, className = "
 			}
 		};
 		window.addEventListener("resize", resizeCanvas);
+		const resizeObserver = new ResizeObserver(resizeCanvas);
+		resizeObserver.observe(canvas.parentElement!);
 		resizeCanvas();
 
 		const draw = () => {
@@ -83,6 +85,7 @@ export const Visualizer: React.FC<VisualizerProps> = ({ noteLines, className = "
 
 		return () => {
 			window.removeEventListener("resize", resizeCanvas);
+			resizeObserver.disconnect();
 			cancelAnimationFrame(animationFrameId);
 		};
 	}, []);
@@ -93,5 +96,3 @@ export const Visualizer: React.FC<VisualizerProps> = ({ noteLines, className = "
 		</div>
 	);
 };
-
-
