@@ -13,6 +13,9 @@ import { Navigation } from "@/components/Navigation";
 import { SilkBackground } from "@/components/SilkBackground";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import { getOrCreatePlayerId } from "@/hooks/useCreateRoom";
+import { ChatPanel } from "@/components/ChatPanel";
+import { useChat } from "@/hooks/useChat";
+import type { ChatMessage } from "@/hooks/useChat";
 
 export default function JamRoom() {
 	const params = useParams();
@@ -64,6 +67,39 @@ export default function JamRoom() {
 	const myTempId = useRef(getOrCreatePlayerId());
 	const isConnecting = useRef(false);
 
+	
+	const { messages, isChatOpen, setIsChatOpen, addMessage } = useChat(myTempId.current);
+	const roomChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+	const handleOpenChat = useCallback(() => {
+		setIsChatOpen(true);
+	}, [setIsChatOpen]);
+
+	const handleCloseChat = useCallback(() => {
+		setIsChatOpen(false);
+	}, [setIsChatOpen]);
+
+	const handleSendMessage = useCallback(
+		(text: string) => {
+			const channel = roomChannelRef.current;
+			if (!channel) return;
+			const msg: ChatMessage = {
+				id: Math.random().toString(36).substring(2),
+				senderId: myTempId.current,
+				senderName: myTempId.current,
+				text,
+				timestamp: Date.now(),
+			};
+			addMessage(msg);
+			channel.send({
+				type: "broadcast",
+				event: "chat-message",
+				payload: msg,
+			});
+		},
+		[addMessage],
+	);
+
 	const handleClick = useCallback(() => unlockAudio(), [unlockAudio]);
 
 	const createOfferRef = useRef(createOffer);
@@ -104,12 +140,19 @@ export default function JamRoom() {
 		}
 	}, [isConnected, unlockAudio]);
 
+	const addMessageRef = useRef(addMessage);
+	useEffect(() => {
+		addMessageRef.current = addMessage;
+	}, [addMessage]);
+
 	useEffect(() => {
 		unlockAudioRef.current();
 
 		const room = supabase.channel(`jam-room-${roomId}`, {
 			config: { presence: { key: myTempId.current } },
 		});
+
+		roomChannelRef.current = room;
 
 		const sendSignal = (payload: any) => {
 			room.send({
@@ -134,6 +177,11 @@ export default function JamRoom() {
 			}
 		});
 
+		room.on("broadcast", { event: "chat-message" }, ({ payload }) => {
+			if (payload.senderId === myTempId.current) return;
+			addMessageRef.current(payload as ChatMessage);
+		});
+
 		room.on("presence", { event: "sync" }, () => {
 			setUsersOnline(Object.keys(room.presenceState()));
 		});
@@ -147,47 +195,61 @@ export default function JamRoom() {
 
 		return () => {
 			isConnecting.current = false;
+			roomChannelRef.current = null;
 			room.untrack();
 			supabase.removeChannel(room);
 		};
 	}, [roomId]);
 
+	useEffect(() => {
+		return () => {
+			const hostedRoomId = sessionStorage.getItem("hostedRoomId");
+			if (hostedRoomId === roomId) {
+				supabase.from("rooms").delete().eq("id", roomId);
+				sessionStorage.removeItem("hostedRoomId");
+			}
+		};
+	}, [roomId]);
+
 	const handleLeave = useCallback(async () => {
 		const hostedRoomId = sessionStorage.getItem("hostedRoomId");
-
 		if (hostedRoomId === roomId) {
 			await supabase.from("rooms").delete().eq("id", roomId);
 			sessionStorage.removeItem("hostedRoomId");
 		} else {
 			const { data } = await supabase.from("rooms").select("current_players").eq("id", roomId).single();
-
 			if (data && data.current_players <= 1) {
 				await supabase.from("rooms").delete().eq("id", roomId);
 			} else {
 				await supabase.rpc("decrement_players", { room_id: roomId });
 			}
 		}
-
 		router.push("/multiplayer");
 	}, [roomId, router]);
+
 	return (
 		<div className="h-screen w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative" onClick={handleClick}>
 			<SilkBackground color="#0b0416" scale={1} noiseIntensity={1.3} speed={3} rotation={270} />
-			<div className="absolute inset-0 z-10 flex flex-col">
-				<Navigation onLogout={handleLeave} />
-				<div className="absolute top-20 left-10 z-50">
-					{isConnected ? "connected!" : "connecting...."}
-					<ul className="space-y-1">
-						{usersOnline.map((user) => (
-							<li key={user} className="flex items-center space-x-2 text-sm font-mono">
-								<span className={user === myTempId.current ? "text-white" : "text-gray-400"}>{user}</span>
-								<span className="font-mono text-gray-200">{user === myTempId.current ? "(You)" : ""}</span>
-							</li>
-						))}
-					</ul>
+
+			<div className="absolute inset-0 z-10 flex flex-row">
+				<div className="flex flex-col flex-1 min-w-0 transition-all duration-300">
+					<Navigation onLogout={handleLeave} isChatOpen={isChatOpen} onToggleChat={isChatOpen ? handleCloseChat : handleOpenChat} />
+					<div className="absolute top-20 left-10 z-50">
+						{isConnected ? "connected!" : "connecting...."}
+						<ul className="space-y-1">
+							{usersOnline.map((user) => (
+								<li key={user} className="flex items-center space-x-2 text-sm font-mono">
+									<span className={user === myTempId.current ? "text-white" : "text-gray-400"}>{user}</span>
+									<span className="font-mono text-gray-200">{user === myTempId.current ? "(You)" : ""}</span>
+								</li>
+							))}
+						</ul>
+					</div>
+					<Visualizer noteLines={noteLines} />
+					<Piano pianoKeys={pianoKeys} showKeys={showKeys} onPlayNote={handleLocalPlay} onStopNote={handleLocalStop} />
 				</div>
-				<Visualizer noteLines={noteLines} />
-				<Piano pianoKeys={pianoKeys} showKeys={showKeys} onPlayNote={handleLocalPlay} onStopNote={handleLocalStop} />
+
+				{isChatOpen && <ChatPanel messages={messages} myId={myTempId.current} onSend={handleSendMessage} onClose={handleCloseChat} />}
 			</div>
 		</div>
 	);

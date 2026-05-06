@@ -1,8 +1,13 @@
 import React from "react";
-import { Settings, Piano, Music, Volume2 } from "lucide-react";
 import { DynamicLiquidGlass } from "./DynamicLiquidglass";
 
-export const Navigation = ({ onLogout }: { onLogout?: () => void }) => {
+interface NavigationProps {
+	onLogout?: () => void;
+	isChatOpen?: boolean;
+	onToggleChat?: () => void;
+}
+
+export const Navigation = ({ onLogout, isChatOpen, onToggleChat }: NavigationProps) => {
 	return (
 		<>
 			<div style={{ position: "absolute", top: "2%", right: "1%", zIndex: 50 }}>
@@ -23,15 +28,32 @@ export const Navigation = ({ onLogout }: { onLogout?: () => void }) => {
 					</DynamicLiquidGlass>
 
 					<DynamicLiquidGlass width={67} height={67} radius={15} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={0.001}>
-						<img src="/icons/Wrench.svg" alt="Icon 1" style={{ width: "35px", height: "35px", objectFit: "contain" }} />
+						<img src="/icons/Wrench.svg" alt="Settings" style={{ width: "35px", height: "35px", objectFit: "contain" }} />
 					</DynamicLiquidGlass>
 
 					<div onClick={onLogout} className="cursor-pointer" style={{ pointerEvents: "auto" }}>
 						<DynamicLiquidGlass width={67} height={67} radius={15} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={0.001}>
-							<img src="/icons/Logout.svg" alt="Icon 2" style={{ width: "35px", height: "35px", objectFit: "contain" }} />
+							<img src="/icons/Logout.svg" alt="Logout" style={{ width: "35px", height: "35px", objectFit: "contain" }} />
 						</DynamicLiquidGlass>
 					</div>
 				</div>
+				{onToggleChat && (
+					<div onClick={onToggleChat} className="cursor-pointer relative mt-5">
+						<DynamicLiquidGlass
+							width={160}
+							height={60}
+							radius={15}
+							refractionLevel={0.8}
+							specularOpacity={0.7}
+							glassBgOpacity={isChatOpen ? 0.15 : 0.001}
+						>
+							<div className="w-full h-full text-xl flex items-center justify-center text-white gap-2">
+								Open chat
+								<img src="/icons/message.svg" alt="" />
+							</div>
+						</DynamicLiquidGlass>
+					</div>
+				)}
 			</div>
 		</>
 	);
