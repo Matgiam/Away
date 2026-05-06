@@ -1,4 +1,5 @@
 import React from "react";
+import { createClient } from "@/lib/supabase/client";
 import { DynamicLiquidGlass } from "./DynamicLiquidglass";
 
 interface NavigationProps {

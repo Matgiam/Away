@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 
 import { Piano } from "@/components/Piano";
 import { generatePiano } from "@/lib/piano";
@@ -66,9 +67,38 @@ export default function JamRoom() {
 	const [usersOnline, setUsersOnline] = useState<string[]>([]);
 	const myTempId = useRef(getOrCreatePlayerId());
 	const isConnecting = useRef(false);
+	
+	const [user, setUser] = useState<any>(null);
+	const [isLoggedIn, setIsLoggedIn] = useState(false);
+	const [myName, setMyName] = useState("");
+
+	useEffect(() => {
+		const checkUser = async () => {
+			const supabaseClient = createClient();
+			const { data } = await supabaseClient.auth.getUser();
+			if (data.user) {
+				setUser(data.user);
+				setIsLoggedIn(true);
+				setMyName(data.user.email?.split('@')[0] || data.user.id.substring(0, 8));
+				sessionStorage.setItem("away_user", JSON.stringify({ id: data.user.id, email: data.user.email }));
+			} else {
+				const savedUser = sessionStorage.getItem("away_user");
+				if (savedUser) {
+					const parsed = JSON.parse(savedUser);
+					setMyName(parsed.email?.split('@')[0] || parsed.id.substring(0, 8));
+				}
+			}
+		};
+		checkUser();
+	}, []);
 
 	
 	const { messages, isChatOpen, setIsChatOpen, addMessage } = useChat(myTempId.current);
+
+	const handleLoginClick = useCallback(() => {
+		sessionStorage.setItem("redirect_after_login", `/jam/${roomId}`);
+		router.push("/auth/login");
+	}, [router, roomId]);
 	const roomChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
 	const handleOpenChat = useCallback(() => {
@@ -85,8 +115,8 @@ export default function JamRoom() {
 			if (!channel) return;
 			const msg: ChatMessage = {
 				id: Math.random().toString(36).substring(2),
-				senderId: myTempId.current,
-				senderName: myTempId.current,
+				senderId: isLoggedIn ? user?.id || myTempId.current : myTempId.current,
+				senderName: isLoggedIn ? myName : myTempId.current,
 				text,
 				timestamp: Date.now(),
 			};
@@ -97,7 +127,7 @@ export default function JamRoom() {
 				payload: msg,
 			});
 		},
-		[addMessage],
+		[addMessage, isLoggedIn, user, myName],
 	);
 
 	const handleClick = useCallback(() => unlockAudio(), [unlockAudio]);
@@ -237,19 +267,30 @@ export default function JamRoom() {
 					<div className="absolute top-20 left-10 z-50">
 						{isConnected ? "connected!" : "connecting...."}
 						<ul className="space-y-1">
-							{usersOnline.map((user) => (
-								<li key={user} className="flex items-center space-x-2 text-sm font-mono">
-									<span className={user === myTempId.current ? "text-white" : "text-gray-400"}>{user}</span>
-									<span className="font-mono text-gray-200">{user === myTempId.current ? "(You)" : ""}</span>
-								</li>
-							))}
+					{usersOnline.map((user) => (
+						<li key={user} className="flex items-center space-x-2 text-sm font-mono">
+							<span className={user === (isLoggedIn ? user || myTempId.current : myTempId.current) ? "text-white" : "text-gray-400"}>
+								{user === (isLoggedIn ? user || myTempId.current : myTempId.current) ? myName || "You" : user}
+							</span>
+						</li>
+					))}
 						</ul>
 					</div>
 					<Visualizer noteLines={noteLines} />
 					<Piano pianoKeys={pianoKeys} showKeys={showKeys} onPlayNote={handleLocalPlay} onStopNote={handleLocalStop} />
 				</div>
 
-				{isChatOpen && <ChatPanel messages={messages} myId={myTempId.current} onSend={handleSendMessage} onClose={handleCloseChat} />}
+				{isChatOpen && (
+				<ChatPanel 
+					messages={messages} 
+					myId={isLoggedIn ? user?.id || myTempId.current : myTempId.current} 
+					myName={myName}
+					isLoggedIn={isLoggedIn}
+					onSend={handleSendMessage} 
+					onClose={handleCloseChat}
+					onLoginClick={handleLoginClick}
+				/>
+			)}
 			</div>
 		</div>
 	);
