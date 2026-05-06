@@ -24,6 +24,9 @@ export default function App() {
 	const handleMultiplayerClick = () => {
 		router.push("/multiplayer");
 	};
+	const handleProfileClick = () => {
+		router.push("/protected/profile");
+	};
 
 	return (
 		<div className="h-screen w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative">
@@ -47,6 +50,9 @@ export default function App() {
 								</p>
 								<p className="text-2xl italic text-gray-400 cursor-pointer hover:text-white transition-colors mt-5" onClick={handleMultiplayerClick}>
 									Multiplayer mode
+								</p>
+								<p className="text-2xl italic text-gray-400 cursor-pointer hover:text-white transition-colors mt-5" onClick={handleProfileClick}>
+									Profile
 								</p>
 							</div>
 						</div>
