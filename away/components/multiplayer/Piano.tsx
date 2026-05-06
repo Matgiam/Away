@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useMemo, useCallback, useEffect } from "react";
-import { PianoKey } from "../lib/types";
+import { PianoKey } from "@/lib/types";
 
 interface PianoProps {
   pianoKeys: PianoKey[];

@@ -1,5 +1,5 @@
 import { useRouter } from "next/navigation";
-import { DynamicLiquidGlass } from "@/components/DynamicLiquidglass";
+import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
 
 export default function BackButton() {
 	const router = useRouter();

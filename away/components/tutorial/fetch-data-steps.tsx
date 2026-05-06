@@ -1,5 +1,5 @@
-import { TutorialStep } from "./tutorial-step";
-import { CodeBlock } from "./code-block";
+import { TutorialStep } from "@/components/tutorial/tutorial-step";
+import { CodeBlock } from "@/components/tutorial/code-block";
 
 const create = `create table notes (
   id bigserial primary key,

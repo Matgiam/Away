@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import { VisNote } from "../lib/types";
+import { VisNote } from "@/lib/types";
 
 interface VisualizerProps {
 	noteLines: VisNote[];

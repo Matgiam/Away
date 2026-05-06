@@ -1,6 +1,6 @@
 import { useState } from "react"; // 1. Import useState
 import type { Accessibility } from "@/hooks/useRooms";
-import { DynamicLiquidGlass } from "./DynamicLiquidglass";
+import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
 
 interface AccessIconProps {
 	type: "public" | "private" | "friends";

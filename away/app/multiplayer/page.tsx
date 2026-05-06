@@ -1,6 +1,6 @@
 "use client";
 
-import { SilkBackground } from "@/components/SilkBackground";
+import { SilkBackground } from "@/components/effects/SilkBackground";
 import { useRooms } from "@/hooks/useRooms";
 import { useCreateRoom } from "@/hooks/useCreateRoom";
 import { useJoinRoom } from "@/hooks/useJoinRoom";

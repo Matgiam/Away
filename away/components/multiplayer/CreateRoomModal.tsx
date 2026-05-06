@@ -1,4 +1,4 @@
-import { AccessIcon } from "@/components/AccessIcon";
+import { AccessIcon } from "@/components/ui/AccessIcon";
 import type { Accessibility, CreateStep } from "@/hooks/useRooms";
 
 interface CreateRoomModalProps {

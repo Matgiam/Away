@@ -1,6 +1,6 @@
-import { AccessIcon } from "@/components/AccessIcon";
+import { AccessIcon } from "@/components/ui/AccessIcon";
 import type { Room, Accessibility } from "@/hooks/useRooms";
-import { DynamicLiquidGlass } from "../DynamicLiquidglass";
+import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
 import { useState } from "react";
 
 interface RoomListProps {

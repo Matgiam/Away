@@ -5,16 +5,16 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { createClient } from "@/lib/supabase/client";
 
-import { Piano } from "@/components/Piano";
+import { Piano } from "@/components/multiplayer/Piano";
 import { generatePiano } from "@/lib/piano";
 import { useAudioEngine } from "@/hooks/useAudioEngine";
 import { VisNote } from "@/lib/types";
-import { Visualizer } from "@/components/Visualizer";
-import { Navigation } from "@/components/Navigation";
-import { SilkBackground } from "@/components/SilkBackground";
+import { Visualizer } from "@/components/multiplayer/Visualizer";
+import { Navigation } from "@/components/layout/Navigation";
+import { SilkBackground } from "@/components/effects/SilkBackground";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import { getOrCreatePlayerId } from "@/hooks/useCreateRoom";
-import { ChatPanel } from "@/components/ChatPanel";
+import { ChatPanel } from "@/components/chat/ChatPanel";
 import { useChat } from "@/hooks/useChat";
 import type { ChatMessage } from "@/hooks/useChat";
 

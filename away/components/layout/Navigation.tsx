@@ -1,6 +1,6 @@
 import React from "react";
 import { createClient } from "@/lib/supabase/client";
-import { DynamicLiquidGlass } from "./DynamicLiquidglass";
+import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
 
 interface NavigationProps {
 	onLogout?: () => void;

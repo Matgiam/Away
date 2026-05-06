@@ -2,13 +2,13 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Piano } from "../components/Piano";
+import { Piano } from "@/components/multiplayer/Piano";
 import { generatePiano } from "../lib/piano";
 import { useAudioEngine } from "../hooks/useAudioEngine";
 import { VisNote } from "../lib/types";
-import { Visualizer } from "@/components/Visualizer";
-import { Navigation } from "@/components/Navigation";
-import { SilkBackground } from "@/components/SilkBackground";
+import { Visualizer } from "@/components/multiplayer/Visualizer";
+import { Navigation } from "@/components/layout/Navigation";
+import { SilkBackground } from "@/components/effects/SilkBackground";
 // ChatPanel removed - not needed on home page
 
 export default function App() {
