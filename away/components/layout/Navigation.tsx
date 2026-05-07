@@ -1,14 +1,14 @@
 import React from "react";
-import { createClient } from "@/lib/supabase/client";
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
 
 interface NavigationProps {
 	onLogout?: () => void;
 	isChatOpen?: boolean;
 	onToggleChat?: () => void;
+	chatAnchorRef?: React.RefObject<HTMLDivElement>;
 }
 
-export const Navigation = ({ onLogout, isChatOpen, onToggleChat }: NavigationProps) => {
+export const Navigation = ({ onLogout, isChatOpen, onToggleChat, chatAnchorRef }: NavigationProps) => {
 	return (
 		<>
 			<div style={{ position: "absolute", top: "2%", right: "1%", zIndex: 50 }}>
@@ -38,7 +38,8 @@ export const Navigation = ({ onLogout, isChatOpen, onToggleChat }: NavigationPro
 						</DynamicLiquidGlass>
 					</div>
 				</div>
-				{onToggleChat && (
+
+				{onToggleChat && !isChatOpen && (
 					<div onClick={onToggleChat} className="cursor-pointer relative mt-5">
 						<DynamicLiquidGlass
 							width={160}
@@ -55,6 +56,9 @@ export const Navigation = ({ onLogout, isChatOpen, onToggleChat }: NavigationPro
 						</DynamicLiquidGlass>
 					</div>
 				)}
+
+		
+				<div ref={chatAnchorRef} style={{ height: 0 }} />
 			</div>
 		</>
 	);

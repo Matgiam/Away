@@ -39,6 +39,25 @@ export default function JamRoom() {
 	const [isLoggedIn, setIsLoggedIn] = useState(false);
 	const [myName, setMyName] = useState("");
 
+	const chatAnchorRef = useRef<HTMLDivElement>(null);
+	const [chatTopPx, setChatTopPx] = useState(0);
+
+	useEffect(() => {
+		const updateChatTop = () => {
+			if (chatAnchorRef.current) {
+				const rect = chatAnchorRef.current.getBoundingClientRect();
+				setChatTopPx(rect.bottom + 12);
+			}
+		};
+
+		updateChatTop();
+
+		const observer = new ResizeObserver(updateChatTop);
+		observer.observe(document.documentElement);
+
+		return () => observer.disconnect();
+	}, []);
+
 	useEffect(() => {
 		const checkUser = async () => {
 			const supabaseClient = createClient();
@@ -78,7 +97,6 @@ export default function JamRoom() {
 			if (isNoteOn) {
 				if (activePeerNotes.current.has(note)) return;
 				activePeerNotes.current.add(note);
-
 				playNote(note, velocity, peerColorRef.current);
 			} else {
 				if (activePeerNotes.current.has(note)) {
@@ -283,29 +301,37 @@ export default function JamRoom() {
 		<div className="h-screen w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative" onClick={handleClick}>
 			<SilkBackground color="#0b0416" scale={1} noiseIntensity={1.3} speed={3} rotation={270} />
 
-			<div className="absolute inset-0 z-10 flex flex-row">
-				<div className="flex flex-col flex-1 min-w-0 transition-all duration-300">
-					<Navigation onLogout={handleLeave} isChatOpen={isChatOpen} onToggleChat={isChatOpen ? handleCloseChat : handleOpenChat} />
+			<Navigation onLogout={handleLeave} isChatOpen={isChatOpen} onToggleChat={isChatOpen ? handleCloseChat : handleOpenChat} />
 
-					{/* ✅ PlayerList replaces the old raw user list */}
+			<div className="absolute inset-0 flex flex-row items-stretch">
+				<div className="flex flex-col flex-1 min-w-0">
 					<div className="absolute top-6 left-8 z-50">
 						<PlayerList players={players} onAddFriend={(id) => console.log("add friend", id)} />
 					</div>
-
 					<Visualizer noteLines={noteLines} />
 					<Piano pianoKeys={pianoKeys} showKeys={showKeys} onPlayNote={handleLocalPlay} onStopNote={handleLocalStop} />
 				</div>
 
-				{isChatOpen && (
-					<ChatPanel
-						messages={messages}
-						myId={isLoggedIn ? user?.id || myTempId.current : myTempId.current}
-						myName={myName}
-						isLoggedIn={isLoggedIn}
-						onSend={handleSendMessage}
-						onClose={handleCloseChat}
-						onLoginClick={handleLoginClick}
-					/>
+				{isChatOpen && chatTopPx > 0 && (
+					<div
+						className="flex flex-col border-l border-white/8 bg-[#0a0118]/80 backdrop-blur-xl"
+						style={{
+							width: "300px",
+							flexShrink: 0,
+							marginTop: `${chatTopPx}px`,
+							zIndex: 60,
+						}}
+					>
+						<ChatPanel
+							messages={messages}
+							myId={isLoggedIn ? user?.id || myTempId.current : myTempId.current}
+							myName={myName}
+							isLoggedIn={isLoggedIn}
+							onSend={handleSendMessage}
+							onClose={handleCloseChat}
+							onLoginClick={handleLoginClick}
+						/>
+					</div>
 				)}
 			</div>
 		</div>
