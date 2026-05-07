@@ -4,7 +4,6 @@ import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { createClient } from "@/lib/supabase/client";
-
 import { Piano } from "@/components/multiplayer/Piano";
 import { generatePiano } from "@/lib/piano";
 import { useAudioEngine } from "@/hooks/useAudioEngine";
@@ -16,6 +15,8 @@ import { useWebRTC } from "@/hooks/useWebRTC";
 import { getOrCreatePlayerId } from "@/hooks/useCreateRoom";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { useChat } from "@/hooks/useChat";
+import { PlayerList } from "@/components/multiplayer/PlayerList";
+import { PLAYER_COLORS, getColorIndex } from "@/lib/playerColors";
 import type { ChatMessage } from "@/hooks/useChat";
 
 export default function JamRoom() {
@@ -30,12 +31,55 @@ export default function JamRoom() {
 	const { playNote, stopNote, unlockAudio, connectMIDI } = useAudioEngine(pianoKeys, setNoteLines);
 	const activePeerNotes = useRef<Set<number>>(new Set());
 
+	const [usersOnline, setUsersOnline] = useState<string[]>([]);
+	const myTempId = useRef(getOrCreatePlayerId());
+	const isConnecting = useRef(false);
+
+	const [user, setUser] = useState<any>(null);
+	const [isLoggedIn, setIsLoggedIn] = useState(false);
+	const [myName, setMyName] = useState("");
+
+	useEffect(() => {
+		const checkUser = async () => {
+			const supabaseClient = createClient();
+			const { data } = await supabaseClient.auth.getUser();
+			if (data.user) {
+				setUser(data.user);
+				setIsLoggedIn(true);
+				setMyName(data.user.email?.split("@")[0] || data.user.id.substring(0, 8));
+				sessionStorage.setItem("away_user", JSON.stringify({ id: data.user.id, email: data.user.email }));
+			} else {
+				const savedUser = sessionStorage.getItem("away_user");
+				if (savedUser) {
+					const parsed = JSON.parse(savedUser);
+					setMyName(parsed.email?.split("@")[0] || parsed.id.substring(0, 8));
+				}
+			}
+		};
+		checkUser();
+	}, []);
+
+	const myColorIndex = useMemo(() => getColorIndex(usersOnline, myTempId.current), [usersOnline]);
+	const myColor = useMemo(() => PLAYER_COLORS[myColorIndex % PLAYER_COLORS.length], [myColorIndex]);
+	const peerColorIndex = useMemo(() => (myColorIndex === 0 ? 1 : 0), [myColorIndex]);
+	const peerColor = useMemo(() => PLAYER_COLORS[peerColorIndex % PLAYER_COLORS.length], [peerColorIndex]);
+
+	const peerColorRef = useRef(peerColor);
+	useEffect(() => {
+		peerColorRef.current = peerColor;
+	}, [peerColor]);
+	const myColorRef = useRef(myColor);
+	useEffect(() => {
+		myColorRef.current = myColor;
+	}, [myColor]);
+
 	const onReceivePeerNote = useCallback(
 		(note: number, velocity: number, isNoteOn: boolean) => {
 			if (isNoteOn) {
 				if (activePeerNotes.current.has(note)) return;
 				activePeerNotes.current.add(note);
-				playNote(note, velocity);
+
+				playNote(note, velocity, peerColorRef.current);
 			} else {
 				if (activePeerNotes.current.has(note)) {
 					activePeerNotes.current.delete(note);
@@ -50,7 +94,7 @@ export default function JamRoom() {
 
 	const handleLocalPlay = useCallback(
 		(note: number, velocity: number = 127) => {
-			playNote(note, velocity);
+			playNote(note, velocity, myColorRef.current);
 			sendNoteToPeer(note, velocity, true);
 		},
 		[playNote, sendNoteToPeer],
@@ -64,47 +108,18 @@ export default function JamRoom() {
 		[stopNote, sendNoteToPeer],
 	);
 
-	const [usersOnline, setUsersOnline] = useState<string[]>([]);
-	const myTempId = useRef(getOrCreatePlayerId());
-	const isConnecting = useRef(false);
-	
-	const [user, setUser] = useState<any>(null);
-	const [isLoggedIn, setIsLoggedIn] = useState(false);
-	const [myName, setMyName] = useState("");
-
-	useEffect(() => {
-		const checkUser = async () => {
-			const supabaseClient = createClient();
-			const { data } = await supabaseClient.auth.getUser();
-			if (data.user) {
-				setUser(data.user);
-				setIsLoggedIn(true);
-				setMyName(data.user.email?.split('@')[0] || data.user.id.substring(0, 8));
-				sessionStorage.setItem("away_user", JSON.stringify({ id: data.user.id, email: data.user.email }));
-			} else {
-				const savedUser = sessionStorage.getItem("away_user");
-				if (savedUser) {
-					const parsed = JSON.parse(savedUser);
-					setMyName(parsed.email?.split('@')[0] || parsed.id.substring(0, 8));
-				}
-			}
-		};
-		checkUser();
-	}, []);
-
-	
 	const { messages, isChatOpen, setIsChatOpen, addMessage } = useChat(myTempId.current);
 
 	const handleLoginClick = useCallback(() => {
 		sessionStorage.setItem("redirect_after_login", `/jam/${roomId}`);
 		router.push("/auth/login");
 	}, [router, roomId]);
+
 	const roomChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
 	const handleOpenChat = useCallback(() => {
 		setIsChatOpen(true);
 	}, [setIsChatOpen]);
-
 	const handleCloseChat = useCallback(() => {
 		setIsChatOpen(false);
 	}, [setIsChatOpen]);
@@ -121,11 +136,7 @@ export default function JamRoom() {
 				timestamp: Date.now(),
 			};
 			addMessage(msg);
-			channel.send({
-				type: "broadcast",
-				event: "chat-message",
-				payload: msg,
-			});
+			channel.send({ type: "broadcast", event: "chat-message", payload: msg });
 		},
 		[addMessage, isLoggedIn, user, myName],
 	);
@@ -181,7 +192,6 @@ export default function JamRoom() {
 		const room = supabase.channel(`jam-room-${roomId}`, {
 			config: { presence: { key: myTempId.current } },
 		});
-
 		roomChannelRef.current = room;
 
 		const sendSignal = (payload: any) => {
@@ -213,7 +223,7 @@ export default function JamRoom() {
 		});
 
 		room.on("presence", { event: "sync" }, () => {
-			setUsersOnline(Object.keys(room.presenceState()));
+			setUsersOnline(Object.keys(room.presenceState()).sort());
 		});
 
 		room.subscribe(async (status) => {
@@ -257,6 +267,18 @@ export default function JamRoom() {
 		router.push("/multiplayer");
 	}, [roomId, router]);
 
+	const players = useMemo(
+		() =>
+			usersOnline.map((userId, index) => ({
+				id: userId,
+				displayName: userId === myTempId.current ? myName || userId : userId,
+				colorIndex: index,
+				isMe: userId === myTempId.current,
+				isFriend: false,
+			})),
+		[usersOnline, myName],
+	);
+
 	return (
 		<div className="h-screen w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative" onClick={handleClick}>
 			<SilkBackground color="#0b0416" scale={1} noiseIntensity={1.3} speed={3} rotation={270} />
@@ -264,33 +286,27 @@ export default function JamRoom() {
 			<div className="absolute inset-0 z-10 flex flex-row">
 				<div className="flex flex-col flex-1 min-w-0 transition-all duration-300">
 					<Navigation onLogout={handleLeave} isChatOpen={isChatOpen} onToggleChat={isChatOpen ? handleCloseChat : handleOpenChat} />
-					<div className="absolute top-20 left-10 z-50">
-						{isConnected ? "connected!" : "connecting...."}
-						<ul className="space-y-1">
-					{usersOnline.map((user) => (
-						<li key={user} className="flex items-center space-x-2 text-sm font-mono">
-							<span className={user === (isLoggedIn ? user || myTempId.current : myTempId.current) ? "text-white" : "text-gray-400"}>
-								{user === (isLoggedIn ? user || myTempId.current : myTempId.current) ? myName || "You" : user}
-							</span>
-						</li>
-					))}
-						</ul>
+
+					{/* ✅ PlayerList replaces the old raw user list */}
+					<div className="absolute top-6 left-8 z-50">
+						<PlayerList players={players} onAddFriend={(id) => console.log("add friend", id)} />
 					</div>
+
 					<Visualizer noteLines={noteLines} />
 					<Piano pianoKeys={pianoKeys} showKeys={showKeys} onPlayNote={handleLocalPlay} onStopNote={handleLocalStop} />
 				</div>
 
 				{isChatOpen && (
-				<ChatPanel 
-					messages={messages} 
-					myId={isLoggedIn ? user?.id || myTempId.current : myTempId.current} 
-					myName={myName}
-					isLoggedIn={isLoggedIn}
-					onSend={handleSendMessage} 
-					onClose={handleCloseChat}
-					onLoginClick={handleLoginClick}
-				/>
-			)}
+					<ChatPanel
+						messages={messages}
+						myId={isLoggedIn ? user?.id || myTempId.current : myTempId.current}
+						myName={myName}
+						isLoggedIn={isLoggedIn}
+						onSend={handleSendMessage}
+						onClose={handleCloseChat}
+						onLoginClick={handleLoginClick}
+					/>
+				)}
 			</div>
 		</div>
 	);

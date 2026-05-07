@@ -9,7 +9,6 @@ import { VisNote } from "../lib/types";
 import { Visualizer } from "@/components/multiplayer/Visualizer";
 import { Navigation } from "@/components/layout/Navigation";
 import { SilkBackground } from "@/components/effects/SilkBackground";
-// ChatPanel removed - not needed on home page
 
 export default function App() {
 	const [showKeys, setShowKeys] = useState(true);

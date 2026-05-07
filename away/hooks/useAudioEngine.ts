@@ -4,7 +4,7 @@ import { useRef, useCallback, useEffect } from "react";
 import * as Tone from "tone";
 import { initAudioContext, createSampler, createReverb } from "../lib/audio";
 import { VisNote, PianoKey } from "../lib/types";
-
+import { PLAYER_COLORS } from "@/lib/playerColors";
 export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispatch<React.SetStateAction<VisNote[]>>) => {
 	const audioStartedRef = useRef(false);
 	const samplerRef = useRef<Tone.Sampler | null>(null);
@@ -26,14 +26,18 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 	}, []);
 
 	const playNote = useCallback(
-		(midi: number, vel: number = 0.7) => {
+		(midi: number, vel: number = 0.7, colorOverride?: string) => {
 			if (activeNotesRef.current[midi]) return;
 
 			activeNotesRef.current[midi] = true;
 			sustainedNotesRef.current.delete(midi);
 
-			const keyEl = document.querySelector(`[data-midi="${midi}"]`);
-			keyEl?.classList.add("active");
+			const keyEl = document.querySelector(`[data-midi="${midi}"]`) as HTMLElement | null;
+			if (keyEl) {
+				keyEl.style.setProperty("--active-color", colorOverride ?? PLAYER_COLORS[0]);
+				keyEl.classList.add("active");
+			}
+
 			const normalizedVel = vel > 1 ? vel / 127 : vel;
 
 			if (audioStartedRef.current && samplerRef.current) {
@@ -59,7 +63,7 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 					endTime: null,
 					isBlack: keyInfo.isBlack,
 					whiteKeyIndex: keyInfo.whiteKeyIndex,
-					color: keyInfo.color,
+					color: colorOverride ?? keyInfo.color,
 					x,
 					w,
 				};

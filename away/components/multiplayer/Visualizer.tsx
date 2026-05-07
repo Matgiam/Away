@@ -64,7 +64,8 @@ export const Visualizer: React.FC<VisualizerProps> = ({ noteLines, className = "
 				}
 
 				const gradient = ctx.createLinearGradient(x, yEnd, x + w, yEnd);
-				gradient.addColorStop(0, "rgba(252, 0, 25, 0.6)");
+
+				gradient.addColorStop(0, note.color);
 
 				ctx.fillStyle = gradient;
 
