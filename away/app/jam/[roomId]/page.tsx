@@ -16,8 +16,21 @@ import { getOrCreatePlayerId } from "@/hooks/useCreateRoom";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { useChat } from "@/hooks/useChat";
 import { PlayerList } from "@/components/multiplayer/PlayerList";
-import { PLAYER_COLORS, getColorIndex } from "@/lib/playerColors";
+import { PLAYER_COLORS, getSolidColor } from "@/lib/playerColors";
 import type { ChatMessage } from "@/hooks/useChat";
+
+type PresencePlayer = {
+	displayName: string;
+	joinedAt: number;
+};
+
+type PlayerEntry = {
+	id: string;
+	displayName: string;
+	colorIndex: number;
+	isMe: boolean;
+	isFriend: boolean;
+};
 
 export default function JamRoom() {
 	const params = useParams();
@@ -31,13 +44,17 @@ export default function JamRoom() {
 	const { playNote, stopNote, unlockAudio, connectMIDI } = useAudioEngine(pianoKeys, setNoteLines);
 	const activePeerNotes = useRef<Set<number>>(new Set());
 
-	const [usersOnline, setUsersOnline] = useState<string[]>([]);
 	const myTempId = useRef(getOrCreatePlayerId());
 	const isConnecting = useRef(false);
+	const joinedAtRef = useRef(Date.now());
 
 	const [user, setUser] = useState<any>(null);
 	const [isLoggedIn, setIsLoggedIn] = useState(false);
 	const [myName, setMyName] = useState("");
+
+	const [players, setPlayers] = useState<PlayerEntry[]>([]);
+
+	const roomChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
 	const chatAnchorRef = useRef<HTMLDivElement>(null);
 	const [chatTopPx, setChatTopPx] = useState(0);
@@ -57,11 +74,9 @@ export default function JamRoom() {
 
 	useEffect(() => {
 		const REFRESH_KEY = "jamRoomRefreshed";
-
 		const wasRefreshed = sessionStorage.getItem(REFRESH_KEY);
 		if (wasRefreshed === roomId) {
 			sessionStorage.removeItem(REFRESH_KEY);
-
 			const cleanup = async () => {
 				const hostedRoomId = sessionStorage.getItem("hostedRoomId");
 				if (hostedRoomId === roomId) {
@@ -77,19 +92,14 @@ export default function JamRoom() {
 				}
 				router.replace("/multiplayer");
 			};
-
 			cleanup();
 			return;
 		}
-
 		const handleBeforeUnload = () => {
 			sessionStorage.setItem(REFRESH_KEY, roomId);
 		};
-
 		window.addEventListener("beforeunload", handleBeforeUnload);
-		return () => {
-			window.removeEventListener("beforeunload", handleBeforeUnload);
-		};
+		return () => window.removeEventListener("beforeunload", handleBeforeUnload);
 	}, [roomId, router]);
 
 	useEffect(() => {
@@ -99,7 +109,8 @@ export default function JamRoom() {
 			if (data.user) {
 				setUser(data.user);
 				setIsLoggedIn(true);
-				setMyName(data.user.email?.split("@")[0] || data.user.id.substring(0, 8));
+				const name = data.user.email?.split("@")[0] || data.user.id.substring(0, 8);
+				setMyName(name);
 				sessionStorage.setItem("away_user", JSON.stringify({ id: data.user.id, email: data.user.email }));
 			} else {
 				const savedUser = sessionStorage.getItem("away_user");
@@ -112,26 +123,54 @@ export default function JamRoom() {
 		checkUser();
 	}, []);
 
-	const myColorIndex = useMemo(() => getColorIndex(usersOnline, myTempId.current), [usersOnline]);
-	const myColor = useMemo(() => PLAYER_COLORS[myColorIndex % PLAYER_COLORS.length], [myColorIndex]);
-	const peerColorIndex = useMemo(() => (myColorIndex === 0 ? 1 : 0), [myColorIndex]);
-	const peerColor = useMemo(() => PLAYER_COLORS[peerColorIndex % PLAYER_COLORS.length], [peerColorIndex]);
-
-	const peerColorRef = useRef(peerColor);
+	const myNameRef = useRef(myName);
 	useEffect(() => {
-		peerColorRef.current = peerColor;
-	}, [peerColor]);
+		myNameRef.current = myName;
+		const channel = roomChannelRef.current;
+		if (channel && myName) {
+			channel.track({
+				displayName: myName,
+				joinedAt: joinedAtRef.current,
+			});
+		}
+	}, [myName]);
+
+	const myColorIndex = useMemo(() => players.findIndex((p) => p.id === myTempId.current), [players]);
+	const myColor = useMemo(() => PLAYER_COLORS[Math.max(myColorIndex, 0) % PLAYER_COLORS.length], [myColorIndex]);
+	const mySolidColor = useMemo(() => getSolidColor(Math.max(myColorIndex, 0)), [myColorIndex]);
+
+	const peerColorIndex = useMemo(() => {
+		const idx = players.findIndex((p) => p.id !== myTempId.current);
+		return idx === -1 ? (myColorIndex === 0 ? 1 : 0) : idx;
+	}, [players, myColorIndex]);
+
+	const peerColor = useMemo(() => PLAYER_COLORS[peerColorIndex % PLAYER_COLORS.length], [peerColorIndex]);
+	const peerSolidColor = useMemo(() => getSolidColor(peerColorIndex), [peerColorIndex]);
+
 	const myColorRef = useRef(myColor);
+	const mySolidColorRef = useRef(mySolidColor);
+	const peerColorRef = useRef(peerColor);
+	const peerSolidColorRef = useRef(peerSolidColor);
+
 	useEffect(() => {
 		myColorRef.current = myColor;
 	}, [myColor]);
+	useEffect(() => {
+		mySolidColorRef.current = mySolidColor;
+	}, [mySolidColor]);
+	useEffect(() => {
+		peerColorRef.current = peerColor;
+	}, [peerColor]);
+	useEffect(() => {
+		peerSolidColorRef.current = peerSolidColor;
+	}, [peerSolidColor]);
 
 	const onReceivePeerNote = useCallback(
 		(note: number, velocity: number, isNoteOn: boolean) => {
 			if (isNoteOn) {
 				if (activePeerNotes.current.has(note)) return;
 				activePeerNotes.current.add(note);
-				playNote(note, velocity, peerColorRef.current);
+				playNote(note, velocity, peerColorRef.current, peerSolidColorRef.current);
 			} else {
 				if (activePeerNotes.current.has(note)) {
 					activePeerNotes.current.delete(note);
@@ -144,18 +183,9 @@ export default function JamRoom() {
 
 	const { createOffer, acceptOffer, acceptAnswer, addIceCandidate, sendNoteToPeer, isConnected } = useWebRTC(onReceivePeerNote);
 
-	const prevIsConnected = useRef(false);
-	useEffect(() => {
-		if (prevIsConnected.current === true && isConnected === false) {
-			isConnecting.current = false;
-			activePeerNotes.current.clear();
-		}
-		prevIsConnected.current = isConnected;
-	}, [isConnected]);
-
 	const handleLocalPlay = useCallback(
 		(note: number, velocity: number = 127) => {
-			playNote(note, velocity, myColorRef.current);
+			playNote(note, velocity, myColorRef.current, mySolidColorRef.current);
 			sendNoteToPeer(note, velocity, true);
 		},
 		[playNote, sendNoteToPeer],
@@ -175,8 +205,6 @@ export default function JamRoom() {
 		sessionStorage.setItem("redirect_after_login", `/jam/${roomId}`);
 		router.push("/auth/login");
 	}, [router, roomId]);
-
-	const roomChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
 	const handleOpenChat = useCallback(() => {
 		setIsChatOpen(true);
@@ -232,6 +260,15 @@ export default function JamRoom() {
 		handleLocalStopRef.current = handleLocalStop;
 	}, [handleLocalStop]);
 
+	const prevIsConnected = useRef(false);
+	useEffect(() => {
+		if (prevIsConnected.current === true && isConnected === false) {
+			isConnecting.current = false;
+			activePeerNotes.current.clear();
+		}
+		prevIsConnected.current = isConnected;
+	}, [isConnected]);
+
 	useEffect(() => {
 		if (isConnected) {
 			unlockAudio();
@@ -284,12 +321,36 @@ export default function JamRoom() {
 		});
 
 		room.on("presence", { event: "sync" }, () => {
-			setUsersOnline(Object.keys(room.presenceState()).sort());
+			const state = room.presenceState<PresencePlayer>();
+
+			const entries = Object.entries(state).map(([userId, presences]) => {
+				const data = presences[0] as PresencePlayer;
+				return {
+					id: userId,
+					displayName: data?.displayName || userId,
+					joinedAt: data?.joinedAt ?? 0,
+				};
+			});
+
+			entries.sort((a, b) => a.joinedAt - b.joinedAt);
+
+			setPlayers(
+				entries.map((e, index) => ({
+					id: e.id,
+					displayName: e.displayName,
+					colorIndex: index,
+					isMe: e.id === myTempId.current,
+					isFriend: false,
+				})),
+			);
 		});
 
 		room.subscribe(async (status) => {
 			if (status === "SUBSCRIBED") {
-				await room.track({ status: "online" });
+				await room.track({
+					displayName: myNameRef.current || myTempId.current,
+					joinedAt: joinedAtRef.current,
+				});
 				sendSignal({ type: "ready-to-connect" });
 			}
 		});
@@ -327,18 +388,6 @@ export default function JamRoom() {
 		}
 		router.push("/multiplayer");
 	}, [roomId, router]);
-
-	const players = useMemo(
-		() =>
-			usersOnline.map((userId, index) => ({
-				id: userId,
-				displayName: userId === myTempId.current ? myName || userId : userId,
-				colorIndex: index,
-				isMe: userId === myTempId.current,
-				isFriend: false,
-			})),
-		[usersOnline, myName],
-	);
 
 	return (
 		<div className="h-screen w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative" onClick={handleClick}>

@@ -4,7 +4,8 @@ import { useRef, useCallback, useEffect } from "react";
 import * as Tone from "tone";
 import { initAudioContext, createSampler, createReverb } from "../lib/audio";
 import { VisNote, PianoKey } from "../lib/types";
-import { PLAYER_COLORS } from "@/lib/playerColors";
+import { PLAYER_COLORS, PLAYER_COLORS_SOLID } from "@/lib/playerColors";
+
 export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispatch<React.SetStateAction<VisNote[]>>) => {
 	const audioStartedRef = useRef(false);
 	const samplerRef = useRef<Tone.Sampler | null>(null);
@@ -26,7 +27,7 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 	}, []);
 
 	const playNote = useCallback(
-		(midi: number, vel: number = 0.7, colorOverride?: string) => {
+		(midi: number, vel: number = 0.7, colorOverride?: string, solidColorOverride?: string) => {
 			if (activeNotesRef.current[midi]) return;
 
 			activeNotesRef.current[midi] = true;
@@ -34,7 +35,8 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 
 			const keyEl = document.querySelector(`[data-midi="${midi}"]`) as HTMLElement | null;
 			if (keyEl) {
-				keyEl.style.setProperty("--active-color", colorOverride ?? PLAYER_COLORS[0]);
+				const solidColor = solidColorOverride ?? PLAYER_COLORS_SOLID[0];
+				keyEl.style.setProperty("--active-color", solidColor);
 				keyEl.classList.add("active");
 			}
 
@@ -56,6 +58,8 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 					x = keyInfo.whiteKeyIndex * whiteKeyWidth + whiteKeyWidth * 0.125;
 				}
 
+				const noteColor = colorOverride ?? keyInfo.color;
+
 				const newNote: VisNote = {
 					id: Math.random().toString(),
 					midi,
@@ -63,7 +67,7 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 					endTime: null,
 					isBlack: keyInfo.isBlack,
 					whiteKeyIndex: keyInfo.whiteKeyIndex,
-					color: colorOverride ?? keyInfo.color,
+					color: noteColor,
 					x,
 					w,
 				};
@@ -91,6 +95,7 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 			samplerRef.current.triggerRelease(Tone.Frequency(midi, "midi").toNote(), Tone.immediate());
 		}
 	}, []);
+
 	const connectMIDI = useCallback(
 		(onPlay: (note: number, velocity: number) => void = playNote, onStop: (note: number) => void = stopNote) => {
 			const nav = navigator as any;
