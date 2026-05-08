@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import type { Accessibility, Room, CreateStep } from "./useRooms";
 
 export type { CreateStep };
@@ -14,6 +15,22 @@ export function getOrCreatePlayerId(): string {
 	const newId = `Player-${Math.floor(Math.random() * 9000)}`;
 	sessionStorage.setItem("playerId", newId);
 	return newId;
+}
+
+export async function getDisplayName(): Promise<string> {
+	if (typeof window === "undefined") return "Player-0000";
+	try {
+		const supabaseClient = createClient();
+		const { data } = await supabaseClient.auth.getUser();
+		if (data.user) {
+			return (
+				(data.user.user_metadata?.username as string | undefined) ||
+				data.user.email?.split("@")[0] ||
+				data.user.id.substring(0, 8)
+			);
+		}
+	} catch {}
+	return getOrCreatePlayerId();
 }
 
 export const myTempId = getOrCreatePlayerId();
@@ -30,11 +47,12 @@ export function useCreateRoom() {
 	const handleCreateRoom = async () => {
 		if (!roomName.trim()) return;
 
+		const hostName = await getDisplayName();
 		const roomId = Math.random().toString(36).substring(2, 7);
 		const newRoom: Room = {
 			id: roomId,
 			name: roomName.trim(),
-			host: myTempId,
+			host: hostName,
 			accessibility,
 			password: accessibility === "private" ? password : null,
 			max_players: maxPlayers,

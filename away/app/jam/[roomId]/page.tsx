@@ -76,7 +76,17 @@ export default function JamRoom() {
 
 	const [user, setUser] = useState<any>(null);
 	const [isLoggedIn, setIsLoggedIn] = useState(false);
-	const [myName, setMyName] = useState("");
+	const [myName, setMyName] = useState(() => {
+		if (typeof window === "undefined") return "";
+		try {
+			const saved = sessionStorage.getItem("away_user");
+			if (saved) {
+				const parsed = JSON.parse(saved);
+				return parsed.username || parsed.email?.split("@")[0] || parsed.id?.substring(0, 8) || "";
+			}
+		} catch {}
+		return "";
+	});
 
 	const [players, setPlayers] = useState<PlayerEntry[]>([]);
 	const playersRef = useRef<PlayerEntry[]>([]);
@@ -127,15 +137,15 @@ export default function JamRoom() {
 			if (data.user) {
 				setUser(data.user);
 				setIsLoggedIn(true);
-				const name = data.user.email?.split("@")[0] || data.user.id.substring(0, 8);
-				setMyName(name);
-				sessionStorage.setItem("away_user", JSON.stringify({ id: data.user.id, email: data.user.email }));
-			} else {
-				const savedUser = sessionStorage.getItem("away_user");
-				if (savedUser) {
-					const parsed = JSON.parse(savedUser);
-					setMyName(parsed.email?.split("@")[0] || parsed.id.substring(0, 8));
-				}
+				const username =
+					(data.user.user_metadata?.username as string | undefined) ||
+					data.user.email?.split("@")[0] ||
+					data.user.id.substring(0, 8);
+				setMyName(username);
+				sessionStorage.setItem(
+					"away_user",
+					JSON.stringify({ id: data.user.id, email: data.user.email, username }),
+				);
 			}
 		};
 		checkUser();
