@@ -21,9 +21,15 @@ export type VisNote = {
 
 export const THEME_COLOR = "rgba(219, 83, 97, 0.5)";
 
-export const instruments: Record<string, { name: string; urls: Record<string, string>; baseUrl: string }> = {
-	grand_piano: {
-		name: "Acoustic Grand Piano",
+export type Instrument = {
+	name: string;
+	urls: Record<string, string>;
+	baseUrl: string;
+};
+
+export const instruments: Record<string, Instrument> = {
+	salamander_grand: {
+		name: "Salamander Grand Piano",
 		urls: {
 			A0: "A0.mp3",
 			C1: "C1.mp3",
@@ -58,4 +64,18 @@ export const instruments: Record<string, { name: string; urls: Record<string, st
 		},
 		baseUrl: "https://tonejs.github.io/audio/salamander/",
 	},
+	casio_ep: {
+		name: "Casio Electric Piano",
+		urls: {
+			A1: "A1.mp3",
+			A2: "A2.mp3",
+			C4: "C4.mp3",
+			"D#4": "Ds4.mp3",
+			"F#4": "Fs4.mp3",
+			A4: "A4.mp3",
+		},
+		baseUrl: "https://tonejs.github.io/audio/casio/",
+	},
 };
+
+export const DEFAULT_SOUNDFONT = "salamander_grand";

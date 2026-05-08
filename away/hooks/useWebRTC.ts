@@ -78,7 +78,6 @@ export function useWebRTC(myId: string, onReceiveNote: ReceivedNoteHandler) {
 	const createPeerConnection = useCallback(
 		(peerId: string, sendSignal: (s: SignalPayload) => void): PeerInfo => {
 			const pc = new RTCPeerConnection(ICE_CONFIG);
-			// "polite" peer is the higher id — backs off on collision (perfect negotiation lite)
 			const polite = myId < peerId ? false : true;
 			const info: PeerInfo = { pc, dc: null, iceQueue: [], makingOffer: false, polite };
 			peersRef.current.set(peerId, info);
@@ -129,10 +128,7 @@ export function useWebRTC(myId: string, onReceiveNote: ReceivedNoteHandler) {
 			}
 
 			const offerCollision = info.makingOffer || info.pc.signalingState !== "stable";
-			if (offerCollision && !info.polite) {
-				// impolite peer ignores the incoming offer
-				return;
-			}
+			if (offerCollision && !info.polite) return;
 
 			try {
 				await info.pc.setRemoteDescription(new RTCSessionDescription(offer));
@@ -187,7 +183,6 @@ export function useWebRTC(myId: string, onReceiveNote: ReceivedNoteHandler) {
 	}, []);
 
 	const hasPeer = useCallback((peerId: string) => peersRef.current.has(peerId), []);
-
 	const knownPeerIds = useCallback(() => Array.from(peersRef.current.keys()), []);
 
 	useEffect(() => {

@@ -32,6 +32,19 @@ type PlayerEntry = {
 	isFriend: boolean;
 };
 
+async function decrementOrDelete(roomId: string) {
+	const { data } = await supabase.from("rooms").select("current_players").eq("id", roomId).single();
+	if (!data) return;
+	if (data.current_players <= 1) {
+		await supabase.from("rooms").delete().eq("id", roomId);
+	} else {
+		await supabase
+			.from("rooms")
+			.update({ current_players: data.current_players - 1 })
+			.eq("id", roomId);
+	}
+}
+
 export default function JamRoom() {
 	const params = useParams();
 	const router = useRouter();
@@ -44,7 +57,20 @@ export default function JamRoom() {
 	const myTempId = useRef(getOrCreatePlayerId());
 	const joinedAtRef = useRef(Date.now());
 
-	const { playNote, stopNote, unlockAudio, connectMIDI, releaseAllForPlayer, midiDevices, midiError } = useAudioEngine(pianoKeys, setNoteLines);
+	const {
+		playNote,
+		stopNote,
+		unlockAudio,
+		connectMIDI,
+		releaseAllForPlayer,
+		midiDevices,
+		midiError,
+		soundfonts,
+		currentSoundfont,
+		loadedSoundfonts,
+		loadingSoundfont,
+		selectSoundfont,
+	} = useAudioEngine(pianoKeys, setNoteLines);
 
 	const [user, setUser] = useState<any>(null);
 	const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -74,22 +100,15 @@ export default function JamRoom() {
 		return () => observer.disconnect();
 	}, []);
 
-	// Refresh handling: don't auto-delete the room — only decrement.
 	useEffect(() => {
 		const REFRESH_KEY = "jamRoomRefreshed";
 		const wasRefreshed = sessionStorage.getItem(REFRESH_KEY);
 		if (wasRefreshed === roomId) {
 			sessionStorage.removeItem(REFRESH_KEY);
-			const cleanup = async () => {
-				const { data } = await supabase.from("rooms").select("current_players").eq("id", roomId).single();
-				if (data && data.current_players <= 1) {
-					await supabase.from("rooms").delete().eq("id", roomId);
-				} else {
-					await supabase.rpc("decrement_players", { room_id: roomId });
-				}
+			(async () => {
+				await decrementOrDelete(roomId);
 				router.replace("/multiplayer");
-			};
-			cleanup();
+			})();
 			return;
 		}
 		const handleBeforeUnload = () => {
@@ -210,7 +229,6 @@ export default function JamRoom() {
 
 	const handleClick = useCallback(() => unlockAudio(), [unlockAudio]);
 
-	// Refs for stable handlers in the room useEffect
 	const initiateConnectionRef = useRef(initiateConnection);
 	const handleOfferRef = useRef(handleOffer);
 	const handleAnswerRef = useRef(handleAnswer);
@@ -261,7 +279,6 @@ export default function JamRoom() {
 		addMessageRef.current = addMessage;
 	}, [addMessage]);
 
-	// Wire MIDI to local-play (broadcasts to all peers) once on mount
 	useEffect(() => {
 		unlockAudio();
 		connectMIDIRef.current(
@@ -328,7 +345,6 @@ export default function JamRoom() {
 
 			const presentIds = new Set(newPlayers.map((p) => p.id));
 
-			// Initiate connection to any new peer (lower id is impolite/initiator)
 			newPlayers.forEach((p) => {
 				if (p.id === myTempId.current) return;
 				if (hasPeerRef.current(p.id)) return;
@@ -337,7 +353,6 @@ export default function JamRoom() {
 				}
 			});
 
-			// Tear down peers that left
 			knownPeerIdsRef.current().forEach((pid) => {
 				if (!presentIds.has(pid)) {
 					releaseAllForPlayerRef.current(pid);
@@ -365,12 +380,7 @@ export default function JamRoom() {
 	}, [roomId]);
 
 	const handleLeave = useCallback(async () => {
-		const { data } = await supabase.from("rooms").select("current_players").eq("id", roomId).single();
-		if (data && data.current_players <= 1) {
-			await supabase.from("rooms").delete().eq("id", roomId);
-		} else {
-			await supabase.rpc("decrement_players", { room_id: roomId });
-		}
+		await decrementOrDelete(roomId);
 		sessionStorage.removeItem("hostedRoomId");
 		router.push("/multiplayer");
 	}, [roomId, router]);
@@ -392,6 +402,11 @@ export default function JamRoom() {
 						(note) => handleLocalStopRef.current(note),
 					)
 				}
+				soundfonts={soundfonts}
+				currentSoundfont={currentSoundfont}
+				loadedSoundfonts={loadedSoundfonts}
+				loadingSoundfont={loadingSoundfont}
+				onSelectSoundfont={selectSoundfont}
 			/>
 
 			<div className="absolute inset-0 flex flex-row items-stretch">

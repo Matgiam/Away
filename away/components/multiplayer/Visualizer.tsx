@@ -23,18 +23,23 @@ export const Visualizer: React.FC<VisualizerProps> = ({ noteLines, className = "
 
 		let animationFrameId: number;
 		const speed = 0.4;
+
 		const resizeCanvas = () => {
 			const parent = canvas.parentElement;
-			if (parent) {
-				canvas.width = parent.clientWidth * window.devicePixelRatio;
-				canvas.height = parent.clientHeight * window.devicePixelRatio;
-				ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-			}
+			if (!parent) return;
+			const dpr = window.devicePixelRatio || 1;
+			canvas.width = parent.clientWidth * dpr;
+			canvas.height = parent.clientHeight * dpr;
+			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 		};
+
 		window.addEventListener("resize", resizeCanvas);
 		const resizeObserver = new ResizeObserver(resizeCanvas);
 		resizeObserver.observe(canvas.parentElement!);
 		resizeCanvas();
+
+		const WHITE_NOTE_RATIO = 0.9;
+		const BLACK_NOTE_RATIO = 0.6;
 
 		const draw = () => {
 			const width = canvas.offsetWidth;
@@ -44,6 +49,9 @@ export const Visualizer: React.FC<VisualizerProps> = ({ noteLines, className = "
 			ctx.clearRect(0, 0, width, height);
 
 			const whiteKeyWidth = width / 52;
+			const whiteNoteWidth = whiteKeyWidth * WHITE_NOTE_RATIO;
+			const whiteSideMargin = (whiteKeyWidth - whiteNoteWidth) / 2;
+			const blackNoteWidth = whiteKeyWidth * BLACK_NOTE_RATIO;
 
 			for (let i = 0; i < noteLinesRef.current.length; i++) {
 				const note = noteLinesRef.current[i];
@@ -54,23 +62,17 @@ export const Visualizer: React.FC<VisualizerProps> = ({ noteLines, className = "
 
 				if (yStart < -100) continue;
 
-				let x, w;
+				let x: number, w: number;
 				if (note.isBlack) {
-					w = whiteKeyWidth * 0.55;
+					w = blackNoteWidth;
 					x = (note.whiteKeyIndex + 1) * whiteKeyWidth - w / 2;
 				} else {
-					w = whiteKeyWidth * 0.75;
-					x = note.whiteKeyIndex * whiteKeyWidth + whiteKeyWidth * 0.125;
+					w = whiteNoteWidth;
+					x = note.whiteKeyIndex * whiteKeyWidth + whiteSideMargin;
 				}
 
-				const gradient = ctx.createLinearGradient(x, yEnd, x + w, yEnd);
-
-				gradient.addColorStop(0, note.color);
-
-				ctx.fillStyle = gradient;
-
+				ctx.fillStyle = note.color;
 				ctx.beginPath();
-
 				if (ctx.roundRect) {
 					ctx.roundRect(x, yEnd, w, noteHeight, [6, 6, 6, 6]);
 				} else {
