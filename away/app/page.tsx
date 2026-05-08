@@ -18,21 +18,16 @@ export default function App() {
 
 	const router = useRouter();
 
-	const { playNote, stopNote, unlockAudio } = useAudioEngine(pianoKeys, setNoteLines);
+	const { playNote, stopNote, unlockAudio, connectMIDI, midiDevices, midiError } = useAudioEngine(pianoKeys, setNoteLines);
 
-	const handleMultiplayerClick = () => {
-		router.push("/multiplayer");
-	};
-	const handleProfileClick = () => {
-		router.push("/protected/profile");
-	};
+	const handleMultiplayerClick = () => router.push("/multiplayer");
+	const handleProfileClick = () => router.push("/protected/profile");
 
 	return (
 		<div className="h-screen w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative">
 			{showHomeScreen ? (
 				<>
 					<SilkBackground color="#0b0416" scale={0.8} noiseIntensity={1.3} speed={3} rotation={180} />
-
 					<div className="absolute inset-0 z-10">
 						<div className="absolute bottom-0 left-0 right-0 h-32"></div>
 						<div className="absolute right-30 mt-30">
@@ -61,7 +56,7 @@ export default function App() {
 				<>
 					<SilkBackground color="#0b0416" scale={1} noiseIntensity={1.3} speed={3} rotation={270} />
 					<div className="absolute inset-0 z-10 flex flex-col">
-						<Navigation onLogout={() => setShowHomeScreen(true)} />
+						<Navigation onLogout={() => setShowHomeScreen(true)} midiDevices={midiDevices} midiError={midiError} onRetryMidi={() => connectMIDI()} />
 						<Visualizer noteLines={noteLines} />
 						<Piano pianoKeys={pianoKeys} showKeys={showKeys} onPlayNote={playNote} onStopNote={stopNote} />
 					</div>

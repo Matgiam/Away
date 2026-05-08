@@ -41,18 +41,20 @@ export default function JamRoom() {
 	const [noteLines, setNoteLines] = useState<VisNote[]>([]);
 	const pianoKeys = useMemo(() => generatePiano(), []);
 
-	const { playNote, stopNote, unlockAudio, connectMIDI } = useAudioEngine(pianoKeys, setNoteLines);
-	const activePeerNotes = useRef<Set<number>>(new Set());
-
 	const myTempId = useRef(getOrCreatePlayerId());
-	const isConnecting = useRef(false);
 	const joinedAtRef = useRef(Date.now());
+
+	const { playNote, stopNote, unlockAudio, connectMIDI, releaseAllForPlayer, midiDevices, midiError } = useAudioEngine(pianoKeys, setNoteLines);
 
 	const [user, setUser] = useState<any>(null);
 	const [isLoggedIn, setIsLoggedIn] = useState(false);
 	const [myName, setMyName] = useState("");
 
 	const [players, setPlayers] = useState<PlayerEntry[]>([]);
+	const playersRef = useRef<PlayerEntry[]>([]);
+	useEffect(() => {
+		playersRef.current = players;
+	}, [players]);
 
 	const roomChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
@@ -72,23 +74,18 @@ export default function JamRoom() {
 		return () => observer.disconnect();
 	}, []);
 
+	// Refresh handling: don't auto-delete the room — only decrement.
 	useEffect(() => {
 		const REFRESH_KEY = "jamRoomRefreshed";
 		const wasRefreshed = sessionStorage.getItem(REFRESH_KEY);
 		if (wasRefreshed === roomId) {
 			sessionStorage.removeItem(REFRESH_KEY);
 			const cleanup = async () => {
-				const hostedRoomId = sessionStorage.getItem("hostedRoomId");
-				if (hostedRoomId === roomId) {
+				const { data } = await supabase.from("rooms").select("current_players").eq("id", roomId).single();
+				if (data && data.current_players <= 1) {
 					await supabase.from("rooms").delete().eq("id", roomId);
-					sessionStorage.removeItem("hostedRoomId");
 				} else {
-					const { data } = await supabase.from("rooms").select("current_players").eq("id", roomId).single();
-					if (data && data.current_players <= 1) {
-						await supabase.from("rooms").delete().eq("id", roomId);
-					} else {
-						await supabase.rpc("decrement_players", { room_id: roomId });
-					}
+					await supabase.rpc("decrement_players", { room_id: roomId });
 				}
 				router.replace("/multiplayer");
 			};
@@ -139,64 +136,49 @@ export default function JamRoom() {
 	const myColor = useMemo(() => PLAYER_COLORS[Math.max(myColorIndex, 0) % PLAYER_COLORS.length], [myColorIndex]);
 	const mySolidColor = useMemo(() => getSolidColor(Math.max(myColorIndex, 0)), [myColorIndex]);
 
-	const peerColorIndex = useMemo(() => {
-		const idx = players.findIndex((p) => p.id !== myTempId.current);
-		return idx === -1 ? (myColorIndex === 0 ? 1 : 0) : idx;
-	}, [players, myColorIndex]);
-
-	const peerColor = useMemo(() => PLAYER_COLORS[peerColorIndex % PLAYER_COLORS.length], [peerColorIndex]);
-	const peerSolidColor = useMemo(() => getSolidColor(peerColorIndex), [peerColorIndex]);
-
 	const myColorRef = useRef(myColor);
 	const mySolidColorRef = useRef(mySolidColor);
-	const peerColorRef = useRef(peerColor);
-	const peerSolidColorRef = useRef(peerSolidColor);
-
 	useEffect(() => {
 		myColorRef.current = myColor;
 	}, [myColor]);
 	useEffect(() => {
 		mySolidColorRef.current = mySolidColor;
 	}, [mySolidColor]);
-	useEffect(() => {
-		peerColorRef.current = peerColor;
-	}, [peerColor]);
-	useEffect(() => {
-		peerSolidColorRef.current = peerSolidColor;
-	}, [peerSolidColor]);
 
 	const onReceivePeerNote = useCallback(
-		(note: number, velocity: number, isNoteOn: boolean) => {
+		(peerId: string, note: number, velocity: number, isNoteOn: boolean) => {
+			const player = playersRef.current.find((p) => p.id === peerId);
+			const colorIndex = player?.colorIndex ?? 0;
+			const peerColor = PLAYER_COLORS[colorIndex % PLAYER_COLORS.length];
+			const peerSolid = getSolidColor(colorIndex);
 			if (isNoteOn) {
-				if (activePeerNotes.current.has(note)) return;
-				activePeerNotes.current.add(note);
-				playNote(note, velocity, peerColorRef.current, peerSolidColorRef.current);
+				playNote(note, velocity, peerId, peerColor, peerSolid);
 			} else {
-				if (activePeerNotes.current.has(note)) {
-					activePeerNotes.current.delete(note);
-					stopNote(note);
-				}
+				stopNote(note, peerId);
 			}
 		},
 		[playNote, stopNote],
 	);
 
-	const { createOffer, acceptOffer, acceptAnswer, addIceCandidate, sendNoteToPeer, isConnected } = useWebRTC(onReceivePeerNote);
+	const { initiateConnection, handleOffer, handleAnswer, handleCandidate, removePeer, broadcastNote, hasPeer, knownPeerIds } = useWebRTC(
+		myTempId.current,
+		onReceivePeerNote,
+	);
 
 	const handleLocalPlay = useCallback(
 		(note: number, velocity: number = 127) => {
-			playNote(note, velocity, myColorRef.current, mySolidColorRef.current);
-			sendNoteToPeer(note, velocity, true);
+			playNote(note, velocity, "self", myColorRef.current, mySolidColorRef.current);
+			broadcastNote(note, velocity, true);
 		},
-		[playNote, sendNoteToPeer],
+		[playNote, broadcastNote],
 	);
 
 	const handleLocalStop = useCallback(
 		(note: number) => {
-			stopNote(note);
-			sendNoteToPeer(note, 0, false);
+			stopNote(note, "self");
+			broadcastNote(note, 0, false);
 		},
-		[stopNote, sendNoteToPeer],
+		[stopNote, broadcastNote],
 	);
 
 	const { messages, isChatOpen, setIsChatOpen, addMessage } = useChat(myTempId.current);
@@ -206,12 +188,8 @@ export default function JamRoom() {
 		router.push("/auth/login");
 	}, [router, roomId]);
 
-	const handleOpenChat = useCallback(() => {
-		setIsChatOpen(true);
-	}, [setIsChatOpen]);
-	const handleCloseChat = useCallback(() => {
-		setIsChatOpen(false);
-	}, [setIsChatOpen]);
+	const handleOpenChat = useCallback(() => setIsChatOpen(true), [setIsChatOpen]);
+	const handleCloseChat = useCallback(() => setIsChatOpen(false), [setIsChatOpen]);
 
 	const handleSendMessage = useCallback(
 		(text: string) => {
@@ -232,61 +210,67 @@ export default function JamRoom() {
 
 	const handleClick = useCallback(() => unlockAudio(), [unlockAudio]);
 
-	const createOfferRef = useRef(createOffer);
-	const acceptOfferRef = useRef(acceptOffer);
-	const acceptAnswerRef = useRef(acceptAnswer);
-	const addIceCandidateRef = useRef(addIceCandidate);
-	const unlockAudioRef = useRef(unlockAudio);
-
-	useEffect(() => {
-		createOfferRef.current = createOffer;
-		acceptOfferRef.current = acceptOffer;
-		acceptAnswerRef.current = acceptAnswer;
-		addIceCandidateRef.current = addIceCandidate;
-		unlockAudioRef.current = unlockAudio;
-	}, [createOffer, acceptOffer, acceptAnswer, addIceCandidate, unlockAudio]);
-
-	const connectMIDIRef = useRef(connectMIDI);
+	// Refs for stable handlers in the room useEffect
+	const initiateConnectionRef = useRef(initiateConnection);
+	const handleOfferRef = useRef(handleOffer);
+	const handleAnswerRef = useRef(handleAnswer);
+	const handleCandidateRef = useRef(handleCandidate);
+	const removePeerRef = useRef(removePeer);
+	const hasPeerRef = useRef(hasPeer);
+	const knownPeerIdsRef = useRef(knownPeerIds);
+	const releaseAllForPlayerRef = useRef(releaseAllForPlayer);
 	const handleLocalPlayRef = useRef(handleLocalPlay);
 	const handleLocalStopRef = useRef(handleLocalStop);
+	const connectMIDIRef = useRef(connectMIDI);
+	const addMessageRef = useRef(addMessage);
 
 	useEffect(() => {
-		connectMIDIRef.current = connectMIDI;
-	}, [connectMIDI]);
+		initiateConnectionRef.current = initiateConnection;
+	}, [initiateConnection]);
+	useEffect(() => {
+		handleOfferRef.current = handleOffer;
+	}, [handleOffer]);
+	useEffect(() => {
+		handleAnswerRef.current = handleAnswer;
+	}, [handleAnswer]);
+	useEffect(() => {
+		handleCandidateRef.current = handleCandidate;
+	}, [handleCandidate]);
+	useEffect(() => {
+		removePeerRef.current = removePeer;
+	}, [removePeer]);
+	useEffect(() => {
+		hasPeerRef.current = hasPeer;
+	}, [hasPeer]);
+	useEffect(() => {
+		knownPeerIdsRef.current = knownPeerIds;
+	}, [knownPeerIds]);
+	useEffect(() => {
+		releaseAllForPlayerRef.current = releaseAllForPlayer;
+	}, [releaseAllForPlayer]);
 	useEffect(() => {
 		handleLocalPlayRef.current = handleLocalPlay;
 	}, [handleLocalPlay]);
 	useEffect(() => {
 		handleLocalStopRef.current = handleLocalStop;
 	}, [handleLocalStop]);
-
-	const prevIsConnected = useRef(false);
 	useEffect(() => {
-		if (prevIsConnected.current === true && isConnected === false) {
-			isConnecting.current = false;
-			activePeerNotes.current.clear();
-		}
-		prevIsConnected.current = isConnected;
-	}, [isConnected]);
-
-	useEffect(() => {
-		if (isConnected) {
-			unlockAudio();
-			connectMIDIRef.current(
-				(note, vel) => handleLocalPlayRef.current(note, vel),
-				(note) => handleLocalStopRef.current(note),
-			);
-		}
-	}, [isConnected, unlockAudio]);
-
-	const addMessageRef = useRef(addMessage);
+		connectMIDIRef.current = connectMIDI;
+	}, [connectMIDI]);
 	useEffect(() => {
 		addMessageRef.current = addMessage;
 	}, [addMessage]);
 
+	// Wire MIDI to local-play (broadcasts to all peers) once on mount
 	useEffect(() => {
-		unlockAudioRef.current();
+		unlockAudio();
+		connectMIDIRef.current(
+			(note, vel) => handleLocalPlayRef.current(note, vel),
+			(note) => handleLocalStopRef.current(note),
+		);
+	}, [unlockAudio]);
 
+	useEffect(() => {
 		const room = supabase.channel(`jam-room-${roomId}`, {
 			config: { presence: { key: myTempId.current } },
 		});
@@ -302,16 +286,15 @@ export default function JamRoom() {
 
 		room.on("broadcast", { event: "webrtc-signal" }, async ({ payload }) => {
 			if (payload.senderId === myTempId.current) return;
-			if (payload.type === "ready-to-connect" && !isConnecting.current) {
-				isConnecting.current = true;
-				createOfferRef.current(sendSignal);
-			} else if (payload.type === "offer") {
-				isConnecting.current = true;
-				acceptOfferRef.current(payload.offer, sendSignal);
+			if (payload.targetId && payload.targetId !== myTempId.current) return;
+
+			const senderId = payload.senderId as string;
+			if (payload.type === "offer") {
+				await handleOfferRef.current(senderId, payload.offer, sendSignal);
 			} else if (payload.type === "answer") {
-				acceptAnswerRef.current(payload.answer);
+				await handleAnswerRef.current(senderId, payload.answer);
 			} else if (payload.type === "candidate") {
-				addIceCandidateRef.current(payload.candidate);
+				await handleCandidateRef.current(senderId, payload.candidate);
 			}
 		});
 
@@ -334,15 +317,33 @@ export default function JamRoom() {
 
 			entries.sort((a, b) => a.joinedAt - b.joinedAt);
 
-			setPlayers(
-				entries.map((e, index) => ({
-					id: e.id,
-					displayName: e.displayName,
-					colorIndex: index,
-					isMe: e.id === myTempId.current,
-					isFriend: false,
-				})),
-			);
+			const newPlayers: PlayerEntry[] = entries.map((e, index) => ({
+				id: e.id,
+				displayName: e.displayName,
+				colorIndex: index,
+				isMe: e.id === myTempId.current,
+				isFriend: false,
+			}));
+			setPlayers(newPlayers);
+
+			const presentIds = new Set(newPlayers.map((p) => p.id));
+
+			// Initiate connection to any new peer (lower id is impolite/initiator)
+			newPlayers.forEach((p) => {
+				if (p.id === myTempId.current) return;
+				if (hasPeerRef.current(p.id)) return;
+				if (myTempId.current < p.id) {
+					initiateConnectionRef.current(p.id, sendSignal);
+				}
+			});
+
+			// Tear down peers that left
+			knownPeerIdsRef.current().forEach((pid) => {
+				if (!presentIds.has(pid)) {
+					releaseAllForPlayerRef.current(pid);
+					removePeerRef.current(pid);
+				}
+			});
 		});
 
 		room.subscribe(async (status) => {
@@ -351,41 +352,26 @@ export default function JamRoom() {
 					displayName: myNameRef.current || myTempId.current,
 					joinedAt: joinedAtRef.current,
 				});
-				sendSignal({ type: "ready-to-connect" });
 			}
 		});
 
 		return () => {
-			isConnecting.current = false;
 			roomChannelRef.current = null;
-			room.untrack();
+			try {
+				room.untrack();
+			} catch {}
 			supabase.removeChannel(room);
 		};
 	}, [roomId]);
 
-	useEffect(() => {
-		return () => {
-			const hostedRoomId = sessionStorage.getItem("hostedRoomId");
-			if (hostedRoomId === roomId) {
-				supabase.from("rooms").delete().eq("id", roomId);
-				sessionStorage.removeItem("hostedRoomId");
-			}
-		};
-	}, [roomId]);
-
 	const handleLeave = useCallback(async () => {
-		const hostedRoomId = sessionStorage.getItem("hostedRoomId");
-		if (hostedRoomId === roomId) {
+		const { data } = await supabase.from("rooms").select("current_players").eq("id", roomId).single();
+		if (data && data.current_players <= 1) {
 			await supabase.from("rooms").delete().eq("id", roomId);
-			sessionStorage.removeItem("hostedRoomId");
 		} else {
-			const { data } = await supabase.from("rooms").select("current_players").eq("id", roomId).single();
-			if (data && data.current_players <= 1) {
-				await supabase.from("rooms").delete().eq("id", roomId);
-			} else {
-				await supabase.rpc("decrement_players", { room_id: roomId });
-			}
+			await supabase.rpc("decrement_players", { room_id: roomId });
 		}
+		sessionStorage.removeItem("hostedRoomId");
 		router.push("/multiplayer");
 	}, [roomId, router]);
 
@@ -398,6 +384,14 @@ export default function JamRoom() {
 				isChatOpen={isChatOpen}
 				onToggleChat={isChatOpen ? handleCloseChat : handleOpenChat}
 				chatAnchorRef={chatAnchorRef}
+				midiDevices={midiDevices}
+				midiError={midiError}
+				onRetryMidi={() =>
+					connectMIDIRef.current(
+						(note, vel) => handleLocalPlayRef.current(note, vel),
+						(note) => handleLocalStopRef.current(note),
+					)
+				}
 			/>
 
 			<div className="absolute inset-0 flex flex-row items-stretch">
