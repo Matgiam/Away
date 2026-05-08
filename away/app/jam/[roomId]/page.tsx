@@ -70,6 +70,8 @@ export default function JamRoom() {
 		loadedSoundfonts,
 		loadingSoundfont,
 		selectSoundfont,
+		masterVolume,
+		setMasterVolume,
 	} = useAudioEngine(pianoKeys, setNoteLines);
 
 	const [user, setUser] = useState<any>(null);
@@ -407,6 +409,10 @@ export default function JamRoom() {
 				loadedSoundfonts={loadedSoundfonts}
 				loadingSoundfont={loadingSoundfont}
 				onSelectSoundfont={selectSoundfont}
+				masterVolume={masterVolume}
+				onMasterVolumeChange={setMasterVolume}
+				username={myName}
+				onUsernameChange={setMyName}
 			/>
 
 			<div className="absolute inset-0 flex flex-row items-stretch">

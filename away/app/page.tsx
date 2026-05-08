@@ -30,6 +30,8 @@ export default function App() {
 		loadedSoundfonts,
 		loadingSoundfont,
 		selectSoundfont,
+		masterVolume,
+		setMasterVolume,
 	} = useAudioEngine(pianoKeys, setNoteLines);
 
 	const handleMultiplayerClick = () => router.push("/multiplayer");
@@ -78,6 +80,8 @@ export default function App() {
 							loadedSoundfonts={loadedSoundfonts}
 							loadingSoundfont={loadingSoundfont}
 							onSelectSoundfont={selectSoundfont}
+							masterVolume={masterVolume}
+							onMasterVolumeChange={setMasterVolume}
 						/>
 						<Visualizer noteLines={noteLines} />
 						<Piano pianoKeys={pianoKeys} showKeys={showKeys} onPlayNote={playNote} onStopNote={stopNote} />

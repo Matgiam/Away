@@ -1,3 +1,5 @@
+"use client";
+
 import { useRouter } from "next/navigation";
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
 

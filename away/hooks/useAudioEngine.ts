@@ -2,19 +2,26 @@
 
 import { useRef, useCallback, useEffect, useState } from "react";
 import * as Tone from "tone";
-import { initAudioContext, createSampler, createReverb } from "../lib/audio";
+import { initAudioContext, createSampler, createReverb, createMasterVolume } from "../lib/audio";
 import { VisNote, PianoKey, instruments, DEFAULT_SOUNDFONT } from "../lib/types";
 import { PLAYER_COLORS_SOLID } from "@/lib/playerColors";
 
 const SELF = "self";
+const DEFAULT_VOLUME_PERCENT = 75;
 
 export type SoundfontOption = { key: string; name: string };
+
+function percentToDb(percent: number): number {
+	if (percent <= 0) return -Infinity;
+	return 40 * Math.log10(percent / 100);
+}
 
 export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispatch<React.SetStateAction<VisNote[]>>) => {
 	const audioStartedRef = useRef(false);
 	const samplersRef = useRef<Map<string, Tone.Sampler>>(new Map());
 	const samplerRef = useRef<Tone.Sampler | null>(null);
 	const reverbRef = useRef<Tone.Reverb | null>(null);
+	const masterVolumeNodeRef = useRef<Tone.Volume | null>(null);
 
 	const noteHoldersRef = useRef<Map<number, Set<string>>>(new Map());
 	const sustainedNotesRef = useRef<Set<number>>(new Set());
@@ -28,6 +35,21 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 	const [currentSoundfont, setCurrentSoundfont] = useState<string>(DEFAULT_SOUNDFONT);
 	const [loadedSoundfonts, setLoadedSoundfonts] = useState<string[]>([]);
 	const [loadingSoundfont, setLoadingSoundfont] = useState<string | null>(null);
+
+	const [masterVolume, setMasterVolumeState] = useState<number>(DEFAULT_VOLUME_PERCENT);
+
+	const setMasterVolume = useCallback((percent: number) => {
+		const clamped = Math.max(0, Math.min(100, percent));
+		setMasterVolumeState(clamped);
+		const node = masterVolumeNodeRef.current;
+		if (!node) return;
+		if (clamped === 0) {
+			node.mute = true;
+		} else {
+			node.mute = false;
+			node.volume.rampTo(percentToDb(clamped), 0.02);
+		}
+	}, []);
 
 	const soundfonts: SoundfontOption[] = Object.entries(instruments).map(([key, val]) => ({
 		key,
@@ -226,8 +248,9 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 
 		const init = async () => {
 			await initAudioContext();
-			reverbRef.current = createReverb(0.2);
-			Tone.Destination.volume.value = -5;
+
+			masterVolumeNodeRef.current = createMasterVolume(percentToDb(DEFAULT_VOLUME_PERCENT));
+			reverbRef.current = createReverb(0.2, masterVolumeNodeRef.current);
 
 			setLoadingSoundfont(DEFAULT_SOUNDFONT);
 			const sampler = createSampler(DEFAULT_SOUNDFONT, () => {
@@ -255,5 +278,7 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		loadedSoundfonts,
 		loadingSoundfont,
 		selectSoundfont,
+		masterVolume,
+		setMasterVolume,
 	};
 };

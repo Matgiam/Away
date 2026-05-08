@@ -11,3 +11,15 @@ export function hasEnvVars() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
 }
+
+export function getSiteURL() {
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL;
+  if (explicit) return explicit.replace(/\/$/, "");
+
+  const vercel = process.env.NEXT_PUBLIC_VERCEL_URL;
+  if (vercel) return `https://${vercel}`;
+
+  if (typeof window !== "undefined") return window.location.origin;
+
+  return "http://localhost:3000";
+}

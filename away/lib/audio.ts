@@ -16,6 +16,16 @@ export const createSampler = (instKey: string, onload: () => void): Tone.Sampler
 	});
 };
 
-export const createReverb = (wet: number): Tone.Reverb => {
-	return new Tone.Reverb({ decay: 2, wet }).toDestination();
+export const createMasterVolume = (db: number): Tone.Volume => {
+	return new Tone.Volume(db).toDestination();
+};
+
+export const createReverb = (wet: number, output?: Tone.ToneAudioNode): Tone.Reverb => {
+	const reverb = new Tone.Reverb({ decay: 2, wet });
+	if (output) {
+		reverb.connect(output);
+	} else {
+		reverb.toDestination();
+	}
+	return reverb;
 };
