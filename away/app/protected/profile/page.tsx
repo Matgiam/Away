@@ -4,15 +4,17 @@ import { SilkBackground } from "@/components/effects/SilkBackground";
 import BackButton from "@/components/multiplayer/BackButton";
 import { DisconnectButton } from "./DisconnectButton";
 import { FriendsPanel } from "./FriendsPanel";
+import { TrackVisit } from "./TrackVisit";
 
 const TOTAL_ACHIEVEMENTS = 20;
 const UNLOCKED_ACHIEVEMENTS = [0, 5];
 
-const STATS = {
-	timePlayed: "70h20m50s",
-	notesPlayed: 153427,
-	connexions: 150,
-};
+function formatTime(seconds: number): string {
+	const h = Math.floor(seconds / 3600);
+	const m = Math.floor((seconds % 3600) / 60);
+	const s = seconds % 60;
+	return `${h}h${m.toString().padStart(2, "0")}m${s.toString().padStart(2, "0")}s`;
+}
 
 function GoogleLogo() {
 	return (
@@ -78,6 +80,12 @@ export default async function ProfilePage() {
 
 	const { data: profile } = await supabase.from("profiles").select("username").eq("id", user.id).maybeSingle();
 
+	const { data: stats } = await supabase
+		.from("user_stats")
+		.select("time_played_seconds, notes_played, connexions")
+		.eq("user_id", user.id)
+		.maybeSingle();
+
 	const username =
 		profile?.username ||
 		(user.user_metadata?.username as string | undefined) ||
@@ -87,6 +95,7 @@ export default async function ProfilePage() {
 
 	return (
 		<div className="h-screen w-full bg-[#050505] text-gray-200 overflow-hidden relative">
+			<TrackVisit userId={user.id} />
 			<SilkBackground color="#0b0416" scale={0.8} noiseIntensity={1.3} speed={3} rotation={180} />
 			<BackButton />
 
@@ -149,15 +158,15 @@ export default async function ProfilePage() {
 						<dl className="space-y-2">
 							<div className="flex items-center justify-between">
 								<dt className="text-white/70 text-sm">Time played</dt>
-								<dd className="text-white font-semibold">{STATS.timePlayed}</dd>
+								<dd className="text-white font-semibold">{formatTime(stats?.time_played_seconds ?? 0)}</dd>
 							</div>
 							<div className="flex items-center justify-between">
 								<dt className="text-white/70 text-sm">Notes played</dt>
-								<dd className="text-white font-semibold">{STATS.notesPlayed.toLocaleString("en-US").replace(/,/g, "")}</dd>
+								<dd className="text-white font-semibold">{(stats?.notes_played ?? 0).toLocaleString("en-US").replace(/,/g, "")}</dd>
 							</div>
 							<div className="flex items-center justify-between">
 								<dt className="text-white/70 text-sm">Connexions</dt>
-								<dd className="text-white font-semibold">{STATS.connexions}</dd>
+								<dd className="text-white font-semibold">{stats?.connexions ?? 0}</dd>
 							</div>
 						</dl>
 					</section>

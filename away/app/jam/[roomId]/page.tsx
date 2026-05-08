@@ -20,6 +20,7 @@ import { PLAYER_COLORS, getSolidColor } from "@/lib/playerColors";
 import type { ChatMessage } from "@/hooks/useChat";
 import { useFriends } from "@/hooks/useFriends";
 import { sendFriendRequest, updateMyUsername } from "@/lib/friends";
+import { saveSessionStats } from "@/lib/stats";
 
 type PresencePlayer = {
 	displayName: string;
@@ -60,6 +61,7 @@ export default function JamRoom() {
 
 	const myTempId = useRef(getOrCreatePlayerId());
 	const joinedAtRef = useRef(Date.now());
+	const notesPlayedRef = useRef(0);
 
 	const {
 		playNote,
@@ -261,6 +263,7 @@ export default function JamRoom() {
 
 	const handleLocalPlay = useCallback(
 		(note: number, velocity: number = 127) => {
+			notesPlayedRef.current += 1;
 			playNote(note, velocity, "self", myColorRef.current, mySolidColorRef.current);
 			broadcastNote(note, velocity, true);
 		},
@@ -450,6 +453,11 @@ export default function JamRoom() {
 		});
 
 		return () => {
+			const uid = myUserIdRef.current;
+			if (uid) {
+				const elapsed = Math.round((Date.now() - joinedAtRef.current) / 1000);
+				saveSessionStats(uid, elapsed, notesPlayedRef.current);
+			}
 			roomChannelRef.current = null;
 			try {
 				room.untrack();
@@ -459,6 +467,11 @@ export default function JamRoom() {
 	}, [roomId]);
 
 	const handleLeave = useCallback(async () => {
+		const userId = myUserIdRef.current;
+		if (userId) {
+			const elapsed = Math.round((Date.now() - joinedAtRef.current) / 1000);
+			await saveSessionStats(userId, elapsed, notesPlayedRef.current);
+		}
 		await decrementOrDelete(roomId);
 		sessionStorage.removeItem("hostedRoomId");
 		router.push("/multiplayer");
