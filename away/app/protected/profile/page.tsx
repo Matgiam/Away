@@ -3,16 +3,7 @@ import { redirect } from "next/navigation";
 import { SilkBackground } from "@/components/effects/SilkBackground";
 import BackButton from "@/components/multiplayer/BackButton";
 import { DisconnectButton } from "./DisconnectButton";
-
-type Friend = { name: string; online: boolean };
-
-const FRIENDS: Friend[] = [
-	{ name: "FLAR0", online: true },
-	{ name: "DR4GON", online: true },
-	{ name: "MIRU", online: true },
-	{ name: "WAZO", online: false },
-	{ name: "Trinity", online: false },
-];
+import { FriendsPanel } from "./FriendsPanel";
 
 const TOTAL_ACHIEVEMENTS = 20;
 const UNLOCKED_ACHIEVEMENTS = [0, 5];
@@ -84,7 +75,13 @@ export default async function ProfilePage() {
 	}
 
 	const user = data.user;
-	const username = (user.user_metadata?.username as string | undefined) || (user.email ? user.email.split("@")[0] : "Player");
+
+	const { data: profile } = await supabase.from("profiles").select("username").eq("id", user.id).maybeSingle();
+
+	const username =
+		profile?.username ||
+		(user.user_metadata?.username as string | undefined) ||
+		(user.email ? user.email.split("@")[0] : "Player");
 	const displayName = username.charAt(0).toUpperCase() + username.slice(1);
 	const provider = (user.app_metadata?.provider as string | undefined) || "email";
 
@@ -123,23 +120,7 @@ export default async function ProfilePage() {
 					</section>
 
 					<section className="col-span-3 row-span-1 rounded-2xl border border-white/8 bg-[#0a0118]/70 backdrop-blur-xl p-5 flex flex-col min-w-0">
-						<div className="flex items-baseline gap-2 mb-4 shrink-0">
-							<h2 className="text-white font-semibold text-lg">Friends</h2>
-							<span className="text-white/40 text-xs">({FRIENDS.length})</span>
-						</div>
-
-						<ul className="space-y-2.5 overflow-y-auto min-h-0">
-							{FRIENDS.map((f) => (
-								<li key={f.name} className="flex items-center justify-between">
-									<span className="text-white text-sm tracking-wide truncate">{f.name}</span>
-									<span
-										className={`shrink-0 w-2.5 h-2.5 rounded-full ${
-											f.online ? "bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.6)]" : "bg-white/20"
-										}`}
-									/>
-								</li>
-							))}
-						</ul>
+						<FriendsPanel userId={user.id} />
 					</section>
 
 					<section className="col-span-6 row-span-2 rounded-2xl border border-white/8 bg-[#0a0118]/70 backdrop-blur-xl p-5 flex flex-col min-w-0">

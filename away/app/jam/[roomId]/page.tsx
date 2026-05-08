@@ -18,14 +18,18 @@ import { useChat } from "@/hooks/useChat";
 import { PlayerList } from "@/components/multiplayer/PlayerList";
 import { PLAYER_COLORS, getSolidColor } from "@/lib/playerColors";
 import type { ChatMessage } from "@/hooks/useChat";
+import { useFriends } from "@/hooks/useFriends";
+import { sendFriendRequest, updateMyUsername } from "@/lib/friends";
 
 type PresencePlayer = {
 	displayName: string;
 	joinedAt: number;
+	userId?: string;
 };
 
 type PlayerEntry = {
 	id: string;
+	userId?: string;
 	displayName: string;
 	colorIndex: number;
 	isMe: boolean;
@@ -94,6 +98,8 @@ export default function JamRoom() {
 		playersRef.current = players;
 	}, [players]);
 
+	const [pendingFriendIds, setPendingFriendIds] = useState<Set<string>>(new Set());
+
 	const roomChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
 	const chatAnchorRef = useRef<HTMLDivElement>(null);
@@ -152,6 +158,7 @@ export default function JamRoom() {
 	}, []);
 
 	const myNameRef = useRef(myName);
+	const myUserIdRef = useRef<string | null>(null);
 	useEffect(() => {
 		myNameRef.current = myName;
 		const channel = roomChannelRef.current;
@@ -159,9 +166,65 @@ export default function JamRoom() {
 			channel.track({
 				displayName: myName,
 				joinedAt: joinedAtRef.current,
+				userId: myUserIdRef.current ?? undefined,
 			});
 		}
 	}, [myName]);
+
+	useEffect(() => {
+		myUserIdRef.current = user?.id ?? null;
+		const channel = roomChannelRef.current;
+		if (channel && myNameRef.current) {
+			channel.track({
+				displayName: myNameRef.current,
+				joinedAt: joinedAtRef.current,
+				userId: user?.id ?? undefined,
+			});
+		}
+	}, [user]);
+
+	const { friends } = useFriends(user?.id ?? null);
+	const friendUserIdsRef = useRef<Set<string>>(new Set());
+	useEffect(() => {
+		friendUserIdsRef.current = new Set(friends.map((f) => f.userId));
+		setPlayers((prev) =>
+			prev.map((p) => ({
+				...p,
+				isFriend: !!p.userId && friendUserIdsRef.current.has(p.userId),
+			})),
+		);
+	}, [friends]);
+
+	const handleAddFriend = useCallback(
+		async (targetUserId: string) => {
+			if (!user) return;
+			setPendingFriendIds((prev) => new Set(prev).add(targetUserId));
+			const result = await sendFriendRequest(targetUserId);
+			if (!result.ok) {
+				setPendingFriendIds((prev) => {
+					const next = new Set(prev);
+					next.delete(targetUserId);
+					return next;
+				});
+			}
+		},
+		[user],
+	);
+
+	const handleUsernameChange = useCallback(
+		(next: string) => {
+			setMyName(next);
+			if (isLoggedIn) updateMyUsername(next);
+			try {
+				const saved = sessionStorage.getItem("away_user");
+				if (saved) {
+					const parsed = JSON.parse(saved);
+					sessionStorage.setItem("away_user", JSON.stringify({ ...parsed, username: next }));
+				}
+			} catch {}
+		},
+		[isLoggedIn],
+	);
 
 	const myColorIndex = useMemo(() => players.findIndex((p) => p.id === myTempId.current), [players]);
 	const myColor = useMemo(() => PLAYER_COLORS[Math.max(myColorIndex, 0) % PLAYER_COLORS.length], [myColorIndex]);
@@ -335,23 +398,26 @@ export default function JamRoom() {
 		room.on("presence", { event: "sync" }, () => {
 			const state = room.presenceState<PresencePlayer>();
 
-			const entries = Object.entries(state).map(([userId, presences]) => {
+			const entries = Object.entries(state).map(([presenceKey, presences]) => {
 				const data = presences[0] as PresencePlayer;
 				return {
-					id: userId,
-					displayName: data?.displayName || userId,
+					id: presenceKey,
+					userId: data?.userId,
+					displayName: data?.displayName || presenceKey,
 					joinedAt: data?.joinedAt ?? 0,
 				};
 			});
 
 			entries.sort((a, b) => a.joinedAt - b.joinedAt);
 
+			const friendIds = friendUserIdsRef.current;
 			const newPlayers: PlayerEntry[] = entries.map((e, index) => ({
 				id: e.id,
+				userId: e.userId,
 				displayName: e.displayName,
 				colorIndex: index,
 				isMe: e.id === myTempId.current,
-				isFriend: false,
+				isFriend: !!e.userId && friendIds.has(e.userId),
 			}));
 			setPlayers(newPlayers);
 
@@ -378,6 +444,7 @@ export default function JamRoom() {
 				await room.track({
 					displayName: myNameRef.current || myTempId.current,
 					joinedAt: joinedAtRef.current,
+					userId: myUserIdRef.current ?? undefined,
 				});
 			}
 		});
@@ -422,13 +489,18 @@ export default function JamRoom() {
 				masterVolume={masterVolume}
 				onMasterVolumeChange={setMasterVolume}
 				username={myName}
-				onUsernameChange={setMyName}
+				onUsernameChange={handleUsernameChange}
 			/>
 
 			<div className="absolute inset-0 flex flex-row items-stretch">
 				<div className="flex flex-col flex-1 min-w-0">
 					<div className="absolute top-6 left-8 z-50">
-						<PlayerList players={players} onAddFriend={(id) => console.log("add friend", id)} />
+						<PlayerList
+							players={players}
+							canAddFriend={isLoggedIn}
+							pendingFriendIds={pendingFriendIds}
+							onAddFriend={handleAddFriend}
+						/>
 					</div>
 					<Visualizer noteLines={noteLines} />
 					<Piano pianoKeys={pianoKeys} showKeys={showKeys} onPlayNote={handleLocalPlay} onStopNote={handleLocalStop} />

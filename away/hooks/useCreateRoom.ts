@@ -23,7 +23,9 @@ export async function getDisplayName(): Promise<string> {
 		const supabaseClient = createClient();
 		const { data } = await supabaseClient.auth.getUser();
 		if (data.user) {
+			const { data: profile } = await supabaseClient.from("profiles").select("username").eq("id", data.user.id).maybeSingle();
 			return (
+				profile?.username ||
 				(data.user.user_metadata?.username as string | undefined) ||
 				data.user.email?.split("@")[0] ||
 				data.user.id.substring(0, 8)

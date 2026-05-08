@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Piano } from "@/components/multiplayer/Piano";
@@ -10,12 +10,14 @@ import { VisNote } from "../lib/types";
 import { Visualizer } from "@/components/multiplayer/Visualizer";
 import { Navigation } from "@/components/layout/Navigation";
 import { SilkBackground } from "@/components/effects/SilkBackground";
+import { updateMyUsername } from "@/lib/friends";
 
 export default function HomeClient() {
 	const [showKeys, setShowKeys] = useState(true);
 	const [noteLines, setNoteLines] = useState<VisNote[]>([]);
 	const [showHomeScreen, setShowHomeScreen] = useState(true);
 	const [username, setUsername] = useState("");
+	const [isLoggedIn, setIsLoggedIn] = useState(false);
 	const pianoKeys = useMemo(() => generatePiano(), []);
 
 	const router = useRouter();
@@ -41,7 +43,10 @@ export default function HomeClient() {
 			const supabase = createClient();
 			const { data } = await supabase.auth.getUser();
 			if (data.user) {
+				setIsLoggedIn(true);
+				const { data: profile } = await supabase.from("profiles").select("username").eq("id", data.user.id).maybeSingle();
 				const name =
+					profile?.username ||
 					(data.user.user_metadata?.username as string | undefined) ||
 					data.user.email?.split("@")[0] ||
 					data.user.id.substring(0, 8);
@@ -54,6 +59,21 @@ export default function HomeClient() {
 		};
 		loadUser();
 	}, []);
+
+	const handleUsernameChange = useCallback(
+		(next: string) => {
+			setUsername(next);
+			if (isLoggedIn) updateMyUsername(next);
+			try {
+				const saved = sessionStorage.getItem("away_user");
+				if (saved) {
+					const parsed = JSON.parse(saved);
+					sessionStorage.setItem("away_user", JSON.stringify({ ...parsed, username: next }));
+				}
+			} catch {}
+		},
+		[isLoggedIn],
+	);
 
 	const handleMultiplayerClick = () => router.push("/multiplayer");
 	const handleProfileClick = () => router.push("/protected/profile");
@@ -104,7 +124,7 @@ export default function HomeClient() {
 							masterVolume={masterVolume}
 							onMasterVolumeChange={setMasterVolume}
 							username={username}
-							onUsernameChange={setUsername}
+							onUsernameChange={handleUsernameChange}
 						/>
 						<Visualizer noteLines={noteLines} />
 						<Piano pianoKeys={pianoKeys} showKeys={showKeys} onPlayNote={playNote} onStopNote={stopNote} />
