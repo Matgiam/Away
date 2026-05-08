@@ -144,6 +144,15 @@ export default function JamRoom() {
 
 	const { createOffer, acceptOffer, acceptAnswer, addIceCandidate, sendNoteToPeer, isConnected } = useWebRTC(onReceivePeerNote);
 
+	const prevIsConnected = useRef(false);
+	useEffect(() => {
+		if (prevIsConnected.current === true && isConnected === false) {
+			isConnecting.current = false;
+			activePeerNotes.current.clear();
+		}
+		prevIsConnected.current = isConnected;
+	}, [isConnected]);
+
 	const handleLocalPlay = useCallback(
 		(note: number, velocity: number = 127) => {
 			playNote(note, velocity, myColorRef.current);
