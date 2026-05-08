@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import HomeClient from "./HomeClient";
 
@@ -6,9 +5,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
 	const { code } = await searchParams;
 
 	if (code) {
-		const supabase = await createClient();
-		await supabase.auth.exchangeCodeForSession(code);
-		redirect("/");
+		redirect(`/auth/callback?code=${encodeURIComponent(code)}&next=/`);
 	}
 
 	return <HomeClient />;
