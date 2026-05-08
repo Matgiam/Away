@@ -5,9 +5,8 @@ interface NavigationProps {
 	onLogout?: () => void;
 	isChatOpen?: boolean;
 	onToggleChat?: () => void;
-	chatAnchorRef?: React.RefObject<HTMLDivElement>;
+	chatAnchorRef?: React.RefObject<HTMLDivElement | null>;
 }
-
 export const Navigation = ({ onLogout, isChatOpen, onToggleChat, chatAnchorRef }: NavigationProps) => {
 	return (
 		<>
@@ -57,7 +56,6 @@ export const Navigation = ({ onLogout, isChatOpen, onToggleChat, chatAnchorRef }
 					</div>
 				)}
 
-		
 				<div ref={chatAnchorRef} style={{ height: 0 }} />
 			</div>
 		</>
