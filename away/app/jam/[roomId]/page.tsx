@@ -49,14 +49,48 @@ export default function JamRoom() {
 				setChatTopPx(rect.bottom + 12);
 			}
 		};
-
 		updateChatTop();
-
 		const observer = new ResizeObserver(updateChatTop);
 		observer.observe(document.documentElement);
-
 		return () => observer.disconnect();
 	}, []);
+
+	useEffect(() => {
+		const REFRESH_KEY = "jamRoomRefreshed";
+
+		const wasRefreshed = sessionStorage.getItem(REFRESH_KEY);
+		if (wasRefreshed === roomId) {
+			sessionStorage.removeItem(REFRESH_KEY);
+
+			const cleanup = async () => {
+				const hostedRoomId = sessionStorage.getItem("hostedRoomId");
+				if (hostedRoomId === roomId) {
+					await supabase.from("rooms").delete().eq("id", roomId);
+					sessionStorage.removeItem("hostedRoomId");
+				} else {
+					const { data } = await supabase.from("rooms").select("current_players").eq("id", roomId).single();
+					if (data && data.current_players <= 1) {
+						await supabase.from("rooms").delete().eq("id", roomId);
+					} else {
+						await supabase.rpc("decrement_players", { room_id: roomId });
+					}
+				}
+				router.replace("/multiplayer");
+			};
+
+			cleanup();
+			return;
+		}
+
+		const handleBeforeUnload = () => {
+			sessionStorage.setItem(REFRESH_KEY, roomId);
+		};
+
+		window.addEventListener("beforeunload", handleBeforeUnload);
+		return () => {
+			window.removeEventListener("beforeunload", handleBeforeUnload);
+		};
+	}, [roomId, router]);
 
 	useEffect(() => {
 		const checkUser = async () => {
@@ -301,7 +335,12 @@ export default function JamRoom() {
 		<div className="h-screen w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative" onClick={handleClick}>
 			<SilkBackground color="#0b0416" scale={1} noiseIntensity={1.3} speed={3} rotation={270} />
 
-			<Navigation onLogout={handleLeave} isChatOpen={isChatOpen} onToggleChat={isChatOpen ? handleCloseChat : handleOpenChat} />
+			<Navigation
+				onLogout={handleLeave}
+				isChatOpen={isChatOpen}
+				onToggleChat={isChatOpen ? handleCloseChat : handleOpenChat}
+				chatAnchorRef={chatAnchorRef}
+			/>
 
 			<div className="absolute inset-0 flex flex-row items-stretch">
 				<div className="flex flex-col flex-1 min-w-0">
