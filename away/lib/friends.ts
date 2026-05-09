@@ -12,6 +12,12 @@ export type PendingRequest = {
 	username: string;
 };
 
+export type OutgoingRequest = {
+	friendshipId: string;
+	addresseeId: string;
+	username: string;
+};
+
 type FriendshipRow = {
 	id: string;
 	requester_id: string;
@@ -67,14 +73,46 @@ export async function fetchPendingRequests(userId: string): Promise<PendingReque
 	}));
 }
 
+export async function fetchOutgoingRequests(userId: string): Promise<OutgoingRequest[]> {
+	const supabase = createClient();
+	const { data } = await supabase
+		.from("friendships")
+		.select(FRIENDSHIP_SELECT)
+		.eq("status", "pending")
+		.eq("requester_id", userId);
+
+	if (!data) return [];
+
+	return (data as unknown as FriendshipRow[]).map((f) => ({
+		friendshipId: f.id,
+		addresseeId: f.addressee_id,
+		username: f.addressee?.username ?? "Unknown",
+	}));
+}
+
 export async function sendFriendRequest(addresseeId: string): Promise<{ ok: boolean; error?: string }> {
 	const supabase = createClient();
 	const { data: userData } = await supabase.auth.getUser();
 	if (!userData.user) return { ok: false, error: "Not authenticated" };
 	if (userData.user.id === addresseeId) return { ok: false, error: "Cannot add yourself" };
 
+	const myId = userData.user.id;
+
+	const { data: incoming } = await supabase
+		.from("friendships")
+		.select("id")
+		.eq("status", "pending")
+		.eq("requester_id", addresseeId)
+		.eq("addressee_id", myId)
+		.maybeSingle();
+
+	if (incoming) {
+		const ok = await acceptFriendRequest(incoming.id);
+		return ok ? { ok: true } : { ok: false, error: "Could not accept existing request" };
+	}
+
 	const { error } = await supabase.from("friendships").insert({
-		requester_id: userData.user.id,
+		requester_id: myId,
 		addressee_id: addresseeId,
 		status: "pending",
 	});

@@ -2,23 +2,33 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { fetchFriends, fetchPendingRequests, type Friend, type PendingRequest } from "@/lib/friends";
+import {
+	fetchFriends,
+	fetchOutgoingRequests,
+	fetchPendingRequests,
+	type Friend,
+	type OutgoingRequest,
+	type PendingRequest,
+} from "@/lib/friends";
 
 export function useFriends(userId: string | null) {
 	const [friends, setFriends] = useState<Friend[]>([]);
 	const [pending, setPending] = useState<PendingRequest[]>([]);
+	const [outgoing, setOutgoing] = useState<OutgoingRequest[]>([]);
 	const [loading, setLoading] = useState(true);
 
 	const refresh = useCallback(async () => {
 		if (!userId) {
 			setFriends([]);
 			setPending([]);
+			setOutgoing([]);
 			setLoading(false);
 			return;
 		}
-		const [f, p] = await Promise.all([fetchFriends(userId), fetchPendingRequests(userId)]);
+		const [f, p, o] = await Promise.all([fetchFriends(userId), fetchPendingRequests(userId), fetchOutgoingRequests(userId)]);
 		setFriends(f);
 		setPending(p);
+		setOutgoing(o);
 		setLoading(false);
 	}, [userId]);
 
@@ -58,5 +68,5 @@ export function useFriends(userId: string | null) {
 		};
 	}, [userId, refresh]);
 
-	return { friends, pending, loading, refresh };
+	return { friends, pending, outgoing, loading, refresh };
 }

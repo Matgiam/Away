@@ -15,15 +15,34 @@ interface PlayerListProps {
 	players: Player[];
 	canAddFriend?: boolean;
 	pendingFriendIds?: Set<string>;
+	incomingRequestByUserId?: Map<string, string>;
 	onAddFriend?: (userId: string) => void;
+	onAcceptFriend?: (friendshipId: string) => void;
+	onDeclineFriend?: (friendshipId: string) => void;
 }
 
-export const PlayerList: React.FC<PlayerListProps> = ({ players, canAddFriend = false, pendingFriendIds, onAddFriend }) => {
+export const PlayerList: React.FC<PlayerListProps> = ({
+	players,
+	canAddFriend = false,
+	pendingFriendIds,
+	incomingRequestByUserId,
+	onAddFriend,
+	onAcceptFriend,
+	onDeclineFriend,
+}) => {
 	return (
 		<div className="flex flex-col gap-4">
 			{players.map((player) => {
-				const isPending = !!player.userId && !!pendingFriendIds?.has(player.userId);
-				const canRequest = canAddFriend && !player.isMe && !!player.userId && !player.isFriend && !isPending && !!onAddFriend;
+				const incomingFriendshipId = player.userId ? incomingRequestByUserId?.get(player.userId) : undefined;
+				const isOutgoing = !!player.userId && !!pendingFriendIds?.has(player.userId);
+				const canRequest =
+					canAddFriend &&
+					!player.isMe &&
+					!!player.userId &&
+					!player.isFriend &&
+					!isOutgoing &&
+					!incomingFriendshipId &&
+					!!onAddFriend;
 
 				return (
 					<div key={player.id} className="flex flex-col gap-1.5">
@@ -34,7 +53,30 @@ export const PlayerList: React.FC<PlayerListProps> = ({ players, canAddFriend = 
 								<img src="/icons/friends.svg" alt="" className="w-7 h-5 opacity-80" aria-label="Friend" />
 							)}
 
-							{!player.isMe && isPending && <span className="text-white/40 text-xs italic">Request sent</span>}
+							{!player.isMe && !player.isFriend && incomingFriendshipId && (
+								<div className="flex items-center gap-1.5">
+									<button
+										onClick={() => onAcceptFriend?.(incomingFriendshipId)}
+										className="text-green-400 hover:text-green-300 text-xs px-2 py-0.5 rounded hover:bg-white/10 transition-colors"
+										aria-label="Accept"
+									>
+										✓ Accept
+									</button>
+									{onDeclineFriend && (
+										<button
+											onClick={() => onDeclineFriend(incomingFriendshipId)}
+											className="text-red-400/80 hover:text-red-300 text-xs px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors"
+											aria-label="Decline"
+										>
+											✕
+										</button>
+									)}
+								</div>
+							)}
+
+							{!player.isMe && !player.isFriend && !incomingFriendshipId && isOutgoing && (
+								<span className="text-white/40 text-xs italic">Request sent</span>
+							)}
 
 							{canRequest && (
 								<button

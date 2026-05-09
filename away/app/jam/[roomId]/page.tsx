@@ -17,7 +17,7 @@ import { PlayerList } from "@/components/multiplayer/PlayerList";
 import { PLAYER_COLORS, getSolidColor } from "@/lib/playerColors";
 import type { ChatMessage } from "@/hooks/useChat";
 import { useFriends } from "@/hooks/useFriends";
-import { sendFriendRequest, updateMyUsername } from "@/lib/friends";
+import { acceptFriendRequest, removeFriendship, sendFriendRequest, updateMyUsername } from "@/lib/friends";
 import { saveSessionStats } from "@/lib/stats";
 
 type PresencePlayer = {
@@ -183,7 +183,7 @@ export default function JamRoom() {
 		}
 	}, [user]);
 
-	const { friends } = useFriends(user?.id ?? null);
+	const { friends, pending: incomingFriendRequests, outgoing: outgoingFriendRequests } = useFriends(user?.id ?? null);
 	const friendUserIdsRef = useRef<Set<string>>(new Set());
 	useEffect(() => {
 		friendUserIdsRef.current = new Set(friends.map((f) => f.userId));
@@ -194,6 +194,22 @@ export default function JamRoom() {
 			})),
 		);
 	}, [friends]);
+
+	const incomingRequestByUserId = useMemo(
+		() => new Map(incomingFriendRequests.map((r) => [r.requesterId, r.friendshipId])),
+		[incomingFriendRequests],
+	);
+
+	const outgoingUserIds = useMemo(
+		() => new Set(outgoingFriendRequests.map((r) => r.addresseeId)),
+		[outgoingFriendRequests],
+	);
+
+	const combinedPendingIds = useMemo(() => {
+		const next = new Set(outgoingUserIds);
+		pendingFriendIds.forEach((id) => next.add(id));
+		return next;
+	}, [outgoingUserIds, pendingFriendIds]);
 
 	const handleAddFriend = useCallback(
 		async (targetUserId: string) => {
@@ -210,6 +226,14 @@ export default function JamRoom() {
 		},
 		[user],
 	);
+
+	const handleAcceptFriend = useCallback((friendshipId: string) => {
+		acceptFriendRequest(friendshipId);
+	}, []);
+
+	const handleDeclineFriend = useCallback((friendshipId: string) => {
+		removeFriendship(friendshipId);
+	}, []);
 
 	const handleUsernameChange = useCallback(
 		(next: string) => {
@@ -516,8 +540,11 @@ export default function JamRoom() {
 						<PlayerList
 							players={players}
 							canAddFriend={isLoggedIn}
-							pendingFriendIds={pendingFriendIds}
+							pendingFriendIds={combinedPendingIds}
+							incomingRequestByUserId={incomingRequestByUserId}
 							onAddFriend={handleAddFriend}
+							onAcceptFriend={handleAcceptFriend}
+							onDeclineFriend={handleDeclineFriend}
 						/>
 					</div>
 					<Visualizer noteLines={noteLines} />
