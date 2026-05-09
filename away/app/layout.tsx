@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter, Lobster } from "next/font/google";
 import "./globals.css";
 import { AudioEngineProvider } from "@/components/providers/AudioEngineProvider";
+import { PresenceTracker } from "@/components/providers/PresenceTracker";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,6 +42,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${lobster.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <PresenceTracker />
         <AudioEngineProvider>{children}</AudioEngineProvider>
       </body>
     </html>
