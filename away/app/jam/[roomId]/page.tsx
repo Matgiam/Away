@@ -16,6 +16,7 @@ import { useChat } from "@/hooks/useChat";
 import { PlayerList } from "@/components/multiplayer/PlayerList";
 import { PLAYER_COLORS, getSolidColor } from "@/lib/playerColors";
 import type { ChatMessage } from "@/hooks/useChat";
+import { sendRoomMessage } from "@/lib/messages";
 import { useFriends } from "@/hooks/useFriends";
 import { acceptFriendRequest, removeFriendship, sendFriendRequest, updateMyUsername } from "@/lib/friends";
 import { saveSessionStats } from "@/lib/stats";
@@ -300,7 +301,7 @@ export default function JamRoom() {
 		[stopNote, broadcastNote],
 	);
 
-	const { messages, isChatOpen, setIsChatOpen, addMessage } = useChat(myTempId.current);
+	const { messages, isChatOpen, setIsChatOpen, addMessage } = useChat(roomId);
 
 	const handleLoginClick = useCallback(async () => {
 		await decrementOrDelete(roomId);
@@ -313,19 +314,19 @@ export default function JamRoom() {
 
 	const handleSendMessage = useCallback(
 		(text: string) => {
-			const channel = roomChannelRef.current;
-			if (!channel) return;
 			const msg: ChatMessage = {
-				id: Math.random().toString(36).substring(2),
+				id: (typeof crypto !== "undefined" && "randomUUID" in crypto
+					? crypto.randomUUID()
+					: Math.random().toString(36).substring(2)),
 				senderId: isLoggedIn ? user?.id || myTempId.current : myTempId.current,
 				senderName: isLoggedIn ? myName : myTempId.current,
 				text,
 				timestamp: Date.now(),
 			};
 			addMessage(msg);
-			channel.send({ type: "broadcast", event: "chat-message", payload: msg });
+			sendRoomMessage(roomId, msg);
 		},
-		[addMessage, isLoggedIn, user, myName],
+		[addMessage, isLoggedIn, user, myName, roomId],
 	);
 
 	const handleClick = useCallback(() => unlockAudio(), [unlockAudio]);
@@ -341,7 +342,6 @@ export default function JamRoom() {
 	const handleLocalPlayRef = useRef(handleLocalPlay);
 	const handleLocalStopRef = useRef(handleLocalStop);
 	const connectMIDIRef = useRef(connectMIDI);
-	const addMessageRef = useRef(addMessage);
 
 	useEffect(() => {
 		initiateConnectionRef.current = initiateConnection;
@@ -376,9 +376,6 @@ export default function JamRoom() {
 	useEffect(() => {
 		connectMIDIRef.current = connectMIDI;
 	}, [connectMIDI]);
-	useEffect(() => {
-		addMessageRef.current = addMessage;
-	}, [addMessage]);
 
 	useEffect(() => {
 		unlockAudio();
@@ -417,11 +414,6 @@ export default function JamRoom() {
 			} else if (payload.type === "candidate") {
 				await handleCandidateRef.current(senderId, payload.candidate);
 			}
-		});
-
-		room.on("broadcast", { event: "chat-message" }, ({ payload }) => {
-			if (payload.senderId === myTempId.current) return;
-			addMessageRef.current(payload as ChatMessage);
 		});
 
 		room.on("presence", { event: "sync" }, () => {
