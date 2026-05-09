@@ -50,11 +50,16 @@ export function useCreateRoom() {
 		if (!roomName.trim()) return;
 
 		const hostName = await getDisplayName();
+		const supabaseClient = createClient();
+		const { data: userData } = await supabaseClient.auth.getUser();
+		const hostUserId = userData.user?.id ?? null;
+
 		const roomId = Math.random().toString(36).substring(2, 7);
 		const newRoom: Room = {
 			id: roomId,
 			name: roomName.trim(),
 			host: hostName,
+			host_user_id: hostUserId,
 			accessibility,
 			password: accessibility === "private" ? password : null,
 			max_players: maxPlayers,

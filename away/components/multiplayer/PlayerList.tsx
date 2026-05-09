@@ -31,11 +31,7 @@ export const PlayerList: React.FC<PlayerListProps> = ({ players, canAddFriend = 
 							<span className="text-white font-bold text-base tracking-wide">{player.displayName}</span>
 
 							{!player.isMe && player.isFriend && (
-								<svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" className="w-5 h-5 opacity-60" aria-label="Friend">
-									<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-									<circle cx="9" cy="7" r="4" />
-									<path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-								</svg>
+								<img src="/icons/friends.svg" alt="" className="w-7 h-5 opacity-80" aria-label="Friend" />
 							)}
 
 							{!player.isMe && isPending && <span className="text-white/40 text-xs italic">Request sent</span>}
