@@ -278,8 +278,9 @@ export default function JamRoom() {
 
 	const { messages, isChatOpen, setIsChatOpen, addMessage } = useChat(myTempId.current);
 
-	const handleLoginClick = useCallback(() => {
-		sessionStorage.setItem("redirect_after_login", `/jam/${roomId}`);
+	const handleLoginClick = useCallback(async () => {
+		await decrementOrDelete(roomId);
+		sessionStorage.removeItem("hostedRoomId");
 		router.push("/auth/login");
 	}, [router, roomId]);
 
