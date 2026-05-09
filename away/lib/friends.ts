@@ -23,35 +23,40 @@ type FriendshipRow = {
 	requester_id: string;
 	addressee_id: string;
 	status: string;
-	requester: { id: string; username: string | null } | null;
-	addressee: { id: string; username: string | null } | null;
 };
 
-const FRIENDSHIP_SELECT = `
-	id,
-	requester_id,
-	addressee_id,
-	status,
-	requester:profiles!friendships_requester_id_fkey(id, username),
-	addressee:profiles!friendships_addressee_id_fkey(id, username)
-`;
+const FRIENDSHIP_COLUMNS = "id, requester_id, addressee_id, status";
+
+async function fetchUsernamesByIds(ids: string[]): Promise<Map<string, string>> {
+	const map = new Map<string, string>();
+	if (ids.length === 0) return map;
+	const supabase = createClient();
+	const { data } = await supabase.from("profiles").select("id, username").in("id", ids);
+	if (!data) return map;
+	for (const p of data as { id: string; username: string | null }[]) {
+		map.set(p.id, p.username ?? "Unknown");
+	}
+	return map;
+}
 
 export async function fetchFriends(userId: string): Promise<Friend[]> {
 	const supabase = createClient();
 	const { data } = await supabase
 		.from("friendships")
-		.select(FRIENDSHIP_SELECT)
+		.select(FRIENDSHIP_COLUMNS)
 		.eq("status", "accepted")
 		.or(`requester_id.eq.${userId},addressee_id.eq.${userId}`);
 
-	if (!data) return [];
+	const rows = (data as FriendshipRow[] | null) ?? [];
+	const otherIds = rows.map((f) => (f.requester_id === userId ? f.addressee_id : f.requester_id));
+	const usernames = await fetchUsernamesByIds(otherIds);
 
-	return (data as unknown as FriendshipRow[]).map((f) => {
-		const friend = f.requester_id === userId ? f.addressee : f.requester;
+	return rows.map((f) => {
+		const otherId = f.requester_id === userId ? f.addressee_id : f.requester_id;
 		return {
 			friendshipId: f.id,
-			userId: friend?.id ?? "",
-			username: friend?.username ?? "Unknown",
+			userId: otherId,
+			username: usernames.get(otherId) ?? "Unknown",
 		};
 	});
 }
@@ -60,16 +65,17 @@ export async function fetchPendingRequests(userId: string): Promise<PendingReque
 	const supabase = createClient();
 	const { data } = await supabase
 		.from("friendships")
-		.select(FRIENDSHIP_SELECT)
+		.select(FRIENDSHIP_COLUMNS)
 		.eq("status", "pending")
 		.eq("addressee_id", userId);
 
-	if (!data) return [];
+	const rows = (data as FriendshipRow[] | null) ?? [];
+	const usernames = await fetchUsernamesByIds(rows.map((f) => f.requester_id));
 
-	return (data as unknown as FriendshipRow[]).map((f) => ({
+	return rows.map((f) => ({
 		friendshipId: f.id,
 		requesterId: f.requester_id,
-		username: f.requester?.username ?? "Unknown",
+		username: usernames.get(f.requester_id) ?? "Unknown",
 	}));
 }
 
@@ -77,16 +83,17 @@ export async function fetchOutgoingRequests(userId: string): Promise<OutgoingReq
 	const supabase = createClient();
 	const { data } = await supabase
 		.from("friendships")
-		.select(FRIENDSHIP_SELECT)
+		.select(FRIENDSHIP_COLUMNS)
 		.eq("status", "pending")
 		.eq("requester_id", userId);
 
-	if (!data) return [];
+	const rows = (data as FriendshipRow[] | null) ?? [];
+	const usernames = await fetchUsernamesByIds(rows.map((f) => f.addressee_id));
 
-	return (data as unknown as FriendshipRow[]).map((f) => ({
+	return rows.map((f) => ({
 		friendshipId: f.id,
 		addresseeId: f.addressee_id,
-		username: f.addressee?.username ?? "Unknown",
+		username: usernames.get(f.addressee_id) ?? "Unknown",
 	}));
 }
 
