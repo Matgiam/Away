@@ -16,6 +16,17 @@ function percentToDb(percent: number): number {
 	return 40 * Math.log10(percent / 100);
 }
 
+const VOLUME_STORAGE_KEY = "away:masterVolume";
+
+function loadPersistedVolume(): number {
+	if (typeof window === "undefined") return DEFAULT_VOLUME_PERCENT;
+	const raw = window.localStorage.getItem(VOLUME_STORAGE_KEY);
+	if (raw === null) return DEFAULT_VOLUME_PERCENT;
+	const parsed = Number(raw);
+	if (!Number.isFinite(parsed)) return DEFAULT_VOLUME_PERCENT;
+	return Math.max(0, Math.min(100, parsed));
+}
+
 export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispatch<React.SetStateAction<VisNote[]>>) => {
 	const audioStartedRef = useRef(false);
 	const samplersRef = useRef<Map<string, Tone.Sampler>>(new Map());
@@ -36,11 +47,14 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 	const [loadedSoundfonts, setLoadedSoundfonts] = useState<string[]>([]);
 	const [loadingSoundfont, setLoadingSoundfont] = useState<string | null>(null);
 
-	const [masterVolume, setMasterVolumeState] = useState<number>(DEFAULT_VOLUME_PERCENT);
+	const [masterVolume, setMasterVolumeState] = useState<number>(loadPersistedVolume);
 
 	const setMasterVolume = useCallback((percent: number) => {
 		const clamped = Math.max(0, Math.min(100, percent));
 		setMasterVolumeState(clamped);
+		if (typeof window !== "undefined") {
+			window.localStorage.setItem(VOLUME_STORAGE_KEY, String(clamped));
+		}
 		const node = masterVolumeNodeRef.current;
 		if (!node) return;
 		if (clamped === 0) {
@@ -249,18 +263,21 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		const init = async () => {
 			await initAudioContext();
 
-			masterVolumeNodeRef.current = createMasterVolume(percentToDb(DEFAULT_VOLUME_PERCENT));
+			const initialVolume = loadPersistedVolume();
+			masterVolumeNodeRef.current = createMasterVolume(percentToDb(initialVolume));
+			if (initialVolume === 0) masterVolumeNodeRef.current.mute = true;
 			reverbRef.current = createReverb(0.2, masterVolumeNodeRef.current);
 
 			setLoadingSoundfont(DEFAULT_SOUNDFONT);
 			const sampler = createSampler(DEFAULT_SOUNDFONT, () => {
 				setLoadedSoundfonts([DEFAULT_SOUNDFONT]);
 				setLoadingSoundfont(null);
-				connectMIDI();
 			});
 			sampler.connect(reverbRef.current);
 			samplersRef.current.set(DEFAULT_SOUNDFONT, sampler);
 			samplerRef.current = sampler;
+
+			connectMIDI();
 		};
 		init();
 	}, [connectMIDI]);

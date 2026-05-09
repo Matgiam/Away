@@ -1,28 +1,26 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Piano } from "@/components/multiplayer/Piano";
-import { generatePiano } from "../lib/piano";
-import { useAudioEngine } from "../hooks/useAudioEngine";
-import { VisNote } from "../lib/types";
 import { Visualizer } from "@/components/multiplayer/Visualizer";
 import { Navigation } from "@/components/layout/Navigation";
 import { SilkBackground } from "@/components/effects/SilkBackground";
 import { updateMyUsername } from "@/lib/friends";
+import { useAudioEngineContext } from "@/components/providers/AudioEngineProvider";
 
 export default function HomeClient() {
 	const [showKeys, setShowKeys] = useState(true);
-	const [noteLines, setNoteLines] = useState<VisNote[]>([]);
 	const [showHomeScreen, setShowHomeScreen] = useState(true);
 	const [username, setUsername] = useState("");
 	const [isLoggedIn, setIsLoggedIn] = useState(false);
-	const pianoKeys = useMemo(() => generatePiano(), []);
 
 	const router = useRouter();
 
 	const {
+		pianoKeys,
+		noteLines,
 		playNote,
 		stopNote,
 		unlockAudio,
@@ -36,7 +34,7 @@ export default function HomeClient() {
 		selectSoundfont,
 		masterVolume,
 		setMasterVolume,
-	} = useAudioEngine(pianoKeys, setNoteLines);
+	} = useAudioEngineContext();
 
 	useEffect(() => {
 		const loadUser = async () => {

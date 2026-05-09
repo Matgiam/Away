@@ -5,12 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { createClient } from "@/lib/supabase/client";
 import { Piano } from "@/components/multiplayer/Piano";
-import { generatePiano } from "@/lib/piano";
-import { useAudioEngine } from "@/hooks/useAudioEngine";
-import { VisNote } from "@/lib/types";
 import { Visualizer } from "@/components/multiplayer/Visualizer";
 import { Navigation } from "@/components/layout/Navigation";
 import { SilkBackground } from "@/components/effects/SilkBackground";
+import { useAudioEngineContext } from "@/components/providers/AudioEngineProvider";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import { getOrCreatePlayerId } from "@/hooks/useCreateRoom";
 import { ChatPanel } from "@/components/chat/ChatPanel";
@@ -56,14 +54,14 @@ export default function JamRoom() {
 	const roomId = params.roomId as string;
 
 	const [showKeys, setShowKeys] = useState(true);
-	const [noteLines, setNoteLines] = useState<VisNote[]>([]);
-	const pianoKeys = useMemo(() => generatePiano(), []);
 
 	const myTempId = useRef(getOrCreatePlayerId());
 	const joinedAtRef = useRef(Date.now());
 	const notesPlayedRef = useRef(0);
 
 	const {
+		pianoKeys,
+		noteLines,
 		playNote,
 		stopNote,
 		unlockAudio,
@@ -78,7 +76,7 @@ export default function JamRoom() {
 		selectSoundfont,
 		masterVolume,
 		setMasterVolume,
-	} = useAudioEngine(pianoKeys, setNoteLines);
+	} = useAudioEngineContext();
 
 	const [user, setUser] = useState<any>(null);
 	const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -363,6 +361,9 @@ export default function JamRoom() {
 			(note, vel) => handleLocalPlayRef.current(note, vel),
 			(note) => handleLocalStopRef.current(note),
 		);
+		return () => {
+			connectMIDIRef.current();
+		};
 	}, [unlockAudio]);
 
 	useEffect(() => {
@@ -453,6 +454,9 @@ export default function JamRoom() {
 		});
 
 		return () => {
+			knownPeerIdsRef.current().forEach((pid) => releaseAllForPlayerRef.current(pid));
+			releaseAllForPlayerRef.current("self");
+
 			const uid = myUserIdRef.current;
 			if (uid) {
 				const elapsed = Math.round((Date.now() - joinedAtRef.current) / 1000);
