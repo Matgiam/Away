@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchRoomMessages, rowToMessage, type RoomMessageRow } from "@/lib/messages";
 
@@ -10,9 +10,22 @@ export type ChatMessage = {
 	timestamp: number;
 };
 
-export function useChat(roomId: string | null) {
+export function useChat(roomId: string | null, myId: string | null) {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [isChatOpen, setIsChatOpen] = useState(false);
+	const [unreadCount, setUnreadCount] = useState(0);
+
+	const isChatOpenRef = useRef(isChatOpen);
+	const myIdRef = useRef(myId);
+
+	useEffect(() => {
+		isChatOpenRef.current = isChatOpen;
+		if (isChatOpen) setUnreadCount(0);
+	}, [isChatOpen]);
+
+	useEffect(() => {
+		myIdRef.current = myId;
+	}, [myId]);
 
 	const addMessage = useCallback((msg: ChatMessage) => {
 		setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
@@ -21,6 +34,7 @@ export function useChat(roomId: string | null) {
 	useEffect(() => {
 		if (!roomId) {
 			setMessages([]);
+			setUnreadCount(0);
 			return;
 		}
 
@@ -44,7 +58,13 @@ export function useChat(roomId: string | null) {
 				},
 				(payload) => {
 					const msg = rowToMessage(payload.new as RoomMessageRow);
-					setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+					setMessages((prev) => {
+						if (prev.some((m) => m.id === msg.id)) return prev;
+						if (!isChatOpenRef.current && msg.senderId !== myIdRef.current) {
+							setUnreadCount((c) => c + 1);
+						}
+						return [...prev, msg];
+					});
 				},
 			)
 			.subscribe();
@@ -60,5 +80,6 @@ export function useChat(roomId: string | null) {
 		isChatOpen,
 		setIsChatOpen,
 		addMessage,
+		unreadCount,
 	};
 }

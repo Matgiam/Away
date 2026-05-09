@@ -12,6 +12,7 @@ interface NavigationProps {
 	onLogout?: () => void;
 	isChatOpen?: boolean;
 	onToggleChat?: () => void;
+	unreadChatCount?: number;
 	chatAnchorRef?: React.RefObject<HTMLDivElement | null>;
 	midiDevices?: string[];
 	midiError?: string | null;
@@ -54,6 +55,7 @@ export const Navigation = ({
 	onLogout,
 	isChatOpen,
 	onToggleChat,
+	unreadChatCount = 0,
 	chatAnchorRef,
 	midiDevices = [],
 	midiError = null,
@@ -158,6 +160,14 @@ export const Navigation = ({
 								<img src="/icons/message.svg" alt="" />
 							</div>
 						</DynamicLiquidGlass>
+						{unreadChatCount > 0 && (
+							<span
+								className="absolute -top-1.5 -right-1.5 min-w-[22px] h-[22px] px-1.5 rounded-full bg-red-500 text-white text-xs font-semibold flex items-center justify-center shadow-[0_0_10px_rgba(239,68,68,0.6)] pointer-events-none"
+								aria-label={`${unreadChatCount} unread messages`}
+							>
+								{unreadChatCount > 9 ? "9+" : unreadChatCount}
+							</span>
+						)}
 					</div>
 				)}
 

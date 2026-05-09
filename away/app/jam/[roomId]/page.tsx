@@ -301,7 +301,8 @@ export default function JamRoom() {
 		[stopNote, broadcastNote],
 	);
 
-	const { messages, isChatOpen, setIsChatOpen, addMessage } = useChat(roomId);
+	const myChatId = isLoggedIn ? user?.id || myTempId.current : myTempId.current;
+	const { messages, isChatOpen, setIsChatOpen, addMessage, unreadCount } = useChat(roomId, myChatId);
 
 	const handleLoginClick = useCallback(async () => {
 		await decrementOrDelete(roomId);
@@ -506,6 +507,7 @@ export default function JamRoom() {
 				onLogout={handleLeave}
 				isChatOpen={isChatOpen}
 				onToggleChat={isChatOpen ? handleCloseChat : handleOpenChat}
+				unreadChatCount={unreadCount}
 				chatAnchorRef={chatAnchorRef}
 				midiDevices={midiDevices}
 				midiError={midiError}
