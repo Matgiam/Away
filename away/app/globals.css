@@ -1,4 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Lobster&display=swap");
 @import "tailwindcss";
 
 .myPiano {
@@ -64,7 +63,7 @@
 .title {
 	position: relative;
 	font-size: 96px;
-	font-family: "Lobster", cursive;
+	font-family: var(--font-lobster), cursive;
 	font-weight: 400;
 	z-index: 100;
 }
