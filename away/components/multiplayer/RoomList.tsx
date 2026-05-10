@@ -17,23 +17,23 @@ export default function RoomList({ filter, setFilter, filteredRooms, setShowCrea
 		<div className="flex flex-col items-center justify-center px-8">
 			<div className="w-full max-w-5xl flex items-center justify-between mb-25">
 				<button onClick={() => setShowCreate(true)}>
-					<div onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
-						<DynamicLiquidGlass
+					<div onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)} className="cursor-pointer hover:scale-110 transition-transform">
+						<DynamicLiquidGlass 
 							width={198}
 							height={69}
 							radius={15}
 							refractionLevel={0.8}
 							specularOpacity={0.7}
-							glassBgOpacity={isHovered ? 0.15 : 0.001}
+							glassBgOpacity={isHovered ? 0.05 : 0.001}
 						>
-							<div className="w-full h-full text-xl flex items-center justify-center text-white">Create Room</div>
+							<span className="text-white font-semibold text-lg tracking-wide">Create Room</span>
 						</DynamicLiquidGlass>
 					</div>
 				</button>
 
 				<div className="flex gap-2">
 					{(["public", "private", "friends"] as const).map((type) => (
-						<button key={type} onClick={() => setFilter(type)} className="hover:opacity-80 transition-opacity">
+						<button key={type} onClick={() => setFilter(type)} className="hover:scale-110 transition-transform ">
 							<AccessIcon type={type} />
 						</button>
 					))}

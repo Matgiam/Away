@@ -30,7 +30,7 @@ export function AccessIcon({ type, glass = true, text = true }: AccessIconProps)
 
 	return (
 		<div onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)} className="cursor-pointer">
-			<DynamicLiquidGlass width={85} height={80} radius={15} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={isHovered ? 0.15 : 0.001}>
+			<DynamicLiquidGlass width={85} height={80} radius={15} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={isHovered ? 0.05 : 0.001}>
 				<div className="w-full h-full flex items-center justify-center">{content}</div>
 			</DynamicLiquidGlass>
 		</div>
