@@ -1,12 +1,12 @@
 "use client";
 
 import { useFriends } from "@/hooks/useFriends";
-import { useOnlinePresence } from "@/hooks/useOnlinePresence";
+import { useOnlineUsers } from "@/components/providers/PresenceProvider";
 import { acceptFriendRequest, removeFriendship } from "@/lib/friends";
 
 export function FriendsPanel({ userId }: { userId: string }) {
 	const { friends, pending, loading } = useFriends(userId);
-	const online = useOnlinePresence(userId);
+	const online = useOnlineUsers();
 
 	const totalCount = friends.length;
 
