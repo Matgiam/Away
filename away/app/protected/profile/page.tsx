@@ -71,7 +71,7 @@ export default async function ProfilePage() {
 			<BackButton />
 
 			<div className="relative z-10 h-full pt-20 pb-15 px-10 flex flex-col max-w-[1800px] mx-auto min-w-0">
-				<h1 className="text-4xl italic font-light text-white mb-6 tracking-wide shrink-0">{displayName}</h1>
+				<h1 className="text-4xl italic font-semi-bold text-white mb-6 tracking-wide shrink-0">{displayName}</h1>
 
 				{/* Main two-column layout */}
 				<div className="flex-1 min-h-0 flex gap-20 min-w-0">

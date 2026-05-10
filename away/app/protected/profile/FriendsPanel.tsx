@@ -51,9 +51,7 @@ export function FriendsPanel({ userId }: { userId: string }) {
 				<ul className="space-y-2.5">
 					{loading && <li className="text-white/30 text-xs italic">Loading…</li>}
 
-					{!loading && friends.length === 0 && pending.length === 0 && (
-						<li className="text-white/30 text-xs italic">No friends yet.</li>
-					)}
+					{!loading && friends.length === 0 && pending.length === 0 && <li className="text-white/30 text-xs italic">No friends yet.</li>}
 
 					{friends.map((f) => {
 						const isOnline = online.has(f.userId);
@@ -70,11 +68,8 @@ export function FriendsPanel({ userId }: { userId: string }) {
 									>
 										✕
 									</button>
-									<span
-										className={`w-2.5 h-2.5 rounded-full ${
-											isOnline ? "bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.6)]" : "bg-white/20"
-										}`}
-									/>
+									<span className={`w-2.5 h-2.5 rounded-full ${isOnline ? "bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.6)]" : "bg-white/20"}`} />
+									<span className="text-white text-sm tracking-wide truncate">{isOnline ? "online" : "offline"}</span>
 								</div>
 							</li>
 						);
