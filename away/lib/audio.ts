@@ -1,5 +1,5 @@
 import * as Tone from "tone";
-import { instruments } from "./types";
+import type { Instrument } from "./types";
 
 export const initAudioContext = async () => {
 	const context = new Tone.Context({ latencyHint: "interactive" });
@@ -7,11 +7,11 @@ export const initAudioContext = async () => {
 	Tone.context.lookAhead = 0;
 };
 
-export const createSampler = (instKey: string, onload: () => void): Tone.Sampler => {
+export const createSampler = (instrument: Instrument, onload: () => void): Tone.Sampler => {
 	return new Tone.Sampler({
-		urls: instruments[instKey].urls,
-		baseUrl: instruments[instKey].baseUrl,
-		release: 1.5,
+		urls: instrument.urls,
+		baseUrl: instrument.baseUrl,
+		release: instrument.release ?? 1.5,
 		onload,
 	});
 };

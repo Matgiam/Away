@@ -25,6 +25,7 @@ export type Instrument = {
 	name: string;
 	urls: Record<string, string>;
 	baseUrl: string;
+	release?: number;
 };
 
 export const instruments: Record<string, Instrument> = {

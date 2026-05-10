@@ -87,6 +87,10 @@ export const Navigation = ({
 		setShowSettings(true);
 		onRetryMidi?.();
 	};
+	const openKeyboardSettings = () => {
+		setActiveTab("Keyboard");
+		setShowSettings(true);
+	};
 	const closeSettings = () => setShowSettings(false);
 
 	const handleApplyUsername = () => {
@@ -97,9 +101,12 @@ export const Navigation = ({
 	return (
 		<>
 			<div style={{ position: "absolute", top: "2%", right: "1%", zIndex: 50 }}>
-				<div className="flex flex-col items-center">
-					<DynamicLiquidGlass width={290} height={60} radius={15} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={0.001}>
-						<h1 className="text-white font-semibold tracking-wide text-lg pointer-events-none truncate px-3">
+				<div className="flex flex-col items-center cursor-pointer" onClick={openKeyboardSettings} title="Change soundfont">
+					<DynamicLiquidGlass width={250} height={60} radius={15} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={0.001}>
+						<h1
+							className="text-white font-semibold tracking-wide text-lg pointer-events-none truncate block px-3 text-center"
+							style={{ maxWidth: "230px" }}
+						>
 							{loadingSoundfont === currentSoundfont ? "Loading…" : currentName}
 						</h1>
 					</DynamicLiquidGlass>
@@ -146,23 +153,24 @@ export const Navigation = ({
 				</div>
 
 				{onToggleChat && !isChatOpen && (
-					<div onClick={onToggleChat} className="cursor-pointer relative mt-5">
+					<div onClick={onToggleChat} className="cursor-pointer relative mt-5 inline-block">
 						<DynamicLiquidGlass
-							width={160}
-							height={60}
+							width={67}
+							height={67}
 							radius={15}
 							refractionLevel={0.8}
 							specularOpacity={0.7}
 							glassBgOpacity={isChatOpen ? 0.15 : 0.001}
 						>
-							<div className="w-full h-full text-xl flex items-center justify-center text-white gap-2">
-								Open chat
-								<img src="/icons/message.svg" alt="" />
-							</div>
+							<img
+								src="/icons/message.svg"
+								alt="Chat"
+								style={{ width: "35px", height: "35px", objectFit: "contain" }}
+							/>
 						</DynamicLiquidGlass>
 						{unreadChatCount > 0 && (
 							<span
-								className="absolute -top-1.5 -right-1.5 min-w-[22px] h-[22px] px-1.5 rounded-full bg-red-500 text-white text-xs font-semibold flex items-center justify-center shadow-[0_0_10px_rgba(239,68,68,0.6)] pointer-events-none"
+								className="absolute top-0 right-0 min-w-[16px] h-[16px] px-1 rounded-full bg-rose-600/85 text-white/90 text-[10px] font-medium flex items-center justify-center border border-white/15 pointer-events-none"
 								aria-label={`${unreadChatCount} unread messages`}
 							>
 								{unreadChatCount > 9 ? "9+" : unreadChatCount}

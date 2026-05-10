@@ -3,7 +3,8 @@
 import { useRef, useCallback, useEffect, useState } from "react";
 import * as Tone from "tone";
 import { initAudioContext, createSampler, createReverb, createMasterVolume } from "../lib/audio";
-import { VisNote, PianoKey, instruments, DEFAULT_SOUNDFONT } from "../lib/types";
+import { VisNote, PianoKey, Instrument, instruments as BUILT_IN_INSTRUMENTS, DEFAULT_SOUNDFONT } from "../lib/types";
+import { fetchDynamicSoundfonts } from "../lib/soundfonts";
 import { PLAYER_COLORS_SOLID } from "@/lib/playerColors";
 
 const SELF = "self";
@@ -46,6 +47,19 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 	const [currentSoundfont, setCurrentSoundfont] = useState<string>(DEFAULT_SOUNDFONT);
 	const [loadedSoundfonts, setLoadedSoundfonts] = useState<string[]>([]);
 	const [loadingSoundfont, setLoadingSoundfont] = useState<string | null>(null);
+
+	const [instruments, setInstruments] = useState<Record<string, Instrument>>(BUILT_IN_INSTRUMENTS);
+	const instrumentsRef = useRef<Record<string, Instrument>>(BUILT_IN_INSTRUMENTS);
+	useEffect(() => {
+		instrumentsRef.current = instruments;
+	}, [instruments]);
+
+	useEffect(() => {
+		fetchDynamicSoundfonts().then((dynamic) => {
+			if (Object.keys(dynamic).length === 0) return;
+			setInstruments((prev) => ({ ...prev, ...dynamic }));
+		});
+	}, []);
 
 	const [masterVolume, setMasterVolumeState] = useState<number>(loadPersistedVolume);
 
@@ -172,12 +186,13 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 
 	const loadSoundfont = useCallback((key: string): Promise<void> => {
 		return new Promise((resolve, reject) => {
-			if (!instruments[key]) return reject(new Error("Unknown soundfont"));
+			const inst = instrumentsRef.current[key];
+			if (!inst) return reject(new Error("Unknown soundfont"));
 			if (samplersRef.current.has(key)) return resolve();
 			if (!reverbRef.current) return reject(new Error("Audio not initialized"));
 
 			setLoadingSoundfont(key);
-			const sampler = createSampler(key, () => {
+			const sampler = createSampler(inst, () => {
 				setLoadedSoundfonts((prev) => (prev.includes(key) ? prev : [...prev, key]));
 				setLoadingSoundfont((prev) => (prev === key ? null : prev));
 				resolve();
@@ -189,7 +204,7 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 
 	const selectSoundfont = useCallback(
 		async (key: string) => {
-			if (!instruments[key]) return;
+			if (!instrumentsRef.current[key]) return;
 			if (!samplersRef.current.has(key)) {
 				try {
 					await loadSoundfont(key);
@@ -269,7 +284,8 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 			reverbRef.current = createReverb(0.2, masterVolumeNodeRef.current);
 
 			setLoadingSoundfont(DEFAULT_SOUNDFONT);
-			const sampler = createSampler(DEFAULT_SOUNDFONT, () => {
+			const defaultInst = instrumentsRef.current[DEFAULT_SOUNDFONT];
+			const sampler = createSampler(defaultInst, () => {
 				setLoadedSoundfonts([DEFAULT_SOUNDFONT]);
 				setLoadingSoundfont(null);
 			});

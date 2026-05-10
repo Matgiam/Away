@@ -104,19 +104,25 @@ export default function JamRoom() {
 	const roomChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
 	const chatAnchorRef = useRef<HTMLDivElement>(null);
-	const [chatTopPx, setChatTopPx] = useState(0);
+	const [chatPos, setChatPos] = useState<{ top: number; right: number } | null>(null);
 
 	useEffect(() => {
-		const updateChatTop = () => {
-			if (chatAnchorRef.current) {
-				const rect = chatAnchorRef.current.getBoundingClientRect();
-				setChatTopPx(rect.bottom + 12);
-			}
+		const updateChatPos = () => {
+			if (!chatAnchorRef.current) return;
+			const rect = chatAnchorRef.current.getBoundingClientRect();
+			setChatPos({
+				top: rect.bottom + 12,
+				right: Math.max(12, window.innerWidth - rect.right),
+			});
 		};
-		updateChatTop();
-		const observer = new ResizeObserver(updateChatTop);
+		updateChatPos();
+		const observer = new ResizeObserver(updateChatPos);
 		observer.observe(document.documentElement);
-		return () => observer.disconnect();
+		window.addEventListener("resize", updateChatPos);
+		return () => {
+			observer.disconnect();
+			window.removeEventListener("resize", updateChatPos);
+		};
 	}, []);
 
 	useEffect(() => {
@@ -528,45 +534,38 @@ export default function JamRoom() {
 				onUsernameChange={handleUsernameChange}
 			/>
 
-			<div className="absolute inset-0 flex flex-row items-stretch">
-				<div className="flex flex-col flex-1 min-w-0">
-					<div className="absolute top-6 left-8 z-50">
-						<PlayerList
-							players={players}
-							canAddFriend={isLoggedIn}
-							pendingFriendIds={combinedPendingIds}
-							incomingRequestByUserId={incomingRequestByUserId}
-							onAddFriend={handleAddFriend}
-							onAcceptFriend={handleAcceptFriend}
-							onDeclineFriend={handleDeclineFriend}
-						/>
-					</div>
-					<Visualizer noteLines={noteLines} />
-					<Piano pianoKeys={pianoKeys} showKeys={showKeys} onPlayNote={handleLocalPlay} onStopNote={handleLocalStop} />
+			<div className="absolute inset-0 flex flex-col">
+				<div className="absolute top-6 left-8 z-50">
+					<PlayerList
+						players={players}
+						canAddFriend={isLoggedIn}
+						pendingFriendIds={combinedPendingIds}
+						incomingRequestByUserId={incomingRequestByUserId}
+						onAddFriend={handleAddFriend}
+						onAcceptFriend={handleAcceptFriend}
+						onDeclineFriend={handleDeclineFriend}
+					/>
 				</div>
-
-				{isChatOpen && chatTopPx > 0 && (
-					<div
-						className="flex flex-col border-l border-white/8 bg-[#0a0118]/80 backdrop-blur-xl"
-						style={{
-							width: "300px",
-							flexShrink: 0,
-							marginTop: `${chatTopPx}px`,
-							zIndex: 60,
-						}}
-					>
-						<ChatPanel
-							messages={messages}
-							myId={isLoggedIn ? user?.id || myTempId.current : myTempId.current}
-							myName={myName}
-							isLoggedIn={isLoggedIn}
-							onSend={handleSendMessage}
-							onClose={handleCloseChat}
-							onLoginClick={handleLoginClick}
-						/>
-					</div>
-				)}
+				<Visualizer noteLines={noteLines} />
+				<Piano pianoKeys={pianoKeys} showKeys={showKeys} onPlayNote={handleLocalPlay} onStopNote={handleLocalStop} />
 			</div>
+
+			{isChatOpen && chatPos && (
+				<div
+					className="fixed"
+					style={{ top: chatPos.top, right: chatPos.right, zIndex: 60 }}
+				>
+					<ChatPanel
+						messages={messages}
+						myId={isLoggedIn ? user?.id || myTempId.current : myTempId.current}
+						myName={myName}
+						isLoggedIn={isLoggedIn}
+						onSend={handleSendMessage}
+						onClose={handleCloseChat}
+						onLoginClick={handleLoginClick}
+					/>
+				</div>
+			)}
 		</div>
 	);
 }

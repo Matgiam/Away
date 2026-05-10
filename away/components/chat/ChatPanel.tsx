@@ -30,15 +30,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, myId, myName, is
 
   return (
     <div
-      className="flex flex-col h-full border-l border-white/8 bg-[#0a0118]/80 backdrop-blur-xl relative z-6000"
-      style={{ width: "300px", flexShrink: 0 }}
+      className="flex flex-col rounded-2xl border border-white/10 bg-[#0a0118]/90 backdrop-blur-xl shadow-2xl overflow-hidden"
+      style={{ width: "320px", height: "420px" }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/8">
         <span className="text-white/60 text-xs uppercase tracking-widest font-medium">Live Chat</span>
         <button
           onClick={onClose}
-          className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white/10 transition-colors text-white/40 hover:text-white"
+          className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/10 transition-colors text-white/40 hover:text-white"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
             <path d="M18 6L6 18M6 6l12 12" />
@@ -46,8 +46,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, myId, myName, is
         </button>
       </div>
 
-      {/* Messages Area - Always Visible */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      {/* Messages Area */}
+      <div
+        className="flex-1 overflow-y-auto px-4 py-3 space-y-3 [&::-webkit-scrollbar]:hidden"
+        style={{ scrollbarWidth: "none" }}
+      >
         {messages.length === 0 && <p className="text-white/20 text-xs text-center mt-8">No messages yet. Say something!</p>}
         {messages.map((msg) => {
           const isMe = msg.senderId === myId;
@@ -68,7 +71,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, myId, myName, is
       </div>
 
       {/* Conditionally Render Input OR Login Button */}
-      <div className="px-4 py-4 border-t border-white/8">
+      <div className="px-4 py-3 border-t border-white/8">
         {isLoggedIn ? (
           <div className="flex items-center gap-2 bg-white/5 rounded-xl border border-white/8 px-3 py-2 focus-within:border-white/20 transition-colors">
             <input
