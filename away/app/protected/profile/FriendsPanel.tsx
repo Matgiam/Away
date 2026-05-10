@@ -13,7 +13,7 @@ export function FriendsPanel({ userId }: { userId: string }) {
 	return (
 		<>
 			<div className="flex items-baseline gap-2 mb-4 shrink-0">
-				<h2 className="text-white font-semibold text-lg">Friends</h2>
+				<h2 className="text-white font-semibold text-2xl">Friends</h2>
 				<span className="text-white/40 text-xs">({totalCount})</span>
 			</div>
 
@@ -59,7 +59,7 @@ export function FriendsPanel({ userId }: { userId: string }) {
 						const isOnline = online.has(f.userId);
 						return (
 							<li key={f.friendshipId} className="flex items-center justify-between group">
-								<span className="text-white text-sm tracking-wide truncate">{f.username}</span>
+								<span className="text-white text-l tracking-wide truncate">{f.username}</span>
 								<div className="flex items-center gap-2 shrink-0">
 									<button
 										onClick={() => {
