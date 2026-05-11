@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
 import type { SoundfontOption } from "@/hooks/useAudioEngine";
+import { ColorPicker } from "@/components/ui/ColorPicker";
 
 type TabKey = "General" | "MIDI" | "Keyboard" | "Visualisation";
 
@@ -28,6 +29,8 @@ interface NavigationProps {
 	onUsernameChange?: (name: string) => void;
 	onToggleRecord?: () => void;
 	isRecording?: boolean;
+	noteColor?: string;
+	onNoteColorChange?: (hex: string) => void;
 }
 
 const SpeakerIcon = ({ muted }: { muted?: boolean }) => (
@@ -71,6 +74,8 @@ export const Navigation = ({
 	onUsernameChange,
 	onToggleRecord,
 	isRecording = false,
+	noteColor = "#db5361",
+	onNoteColorChange,
 }: NavigationProps) => {
 	const [showSettings, setShowSettings] = useState(false);
 	const [activeTab, setActiveTab] = useState<TabKey>("General");
@@ -354,7 +359,13 @@ export const Navigation = ({
 
 							{activeTab === "Visualisation" && (
 								<div className="flex flex-col gap-4 max-w-2xl pt-4">
-									<p className="text-white/40 italic text-sm">Visualisation settings coming soon.</p>
+									<span className="text-white/60 text-xs uppercase tracking-widest font-medium">Note color</span>
+									<p className="text-white/40 text-xs leading-relaxed">
+										Pick any color for white-key notes — black-key notes use the same color a shade darker.
+									</p>
+									<div className="pt-1">
+										<ColorPicker value={noteColor} onChange={(hex) => onNoteColorChange?.(hex)} />
+									</div>
 								</div>
 							)}
 						</div>

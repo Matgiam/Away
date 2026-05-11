@@ -34,6 +34,8 @@ export default function HomeClient() {
 		selectSoundfont,
 		masterVolume,
 		setMasterVolume,
+		noteColor,
+		setNoteColor,
 	} = useAudioEngineContext();
 
 	useEffect(() => {
@@ -123,6 +125,8 @@ export default function HomeClient() {
 							onMasterVolumeChange={setMasterVolume}
 							username={username}
 							onUsernameChange={handleUsernameChange}
+							noteColor={noteColor}
+							onNoteColorChange={setNoteColor}
 						/>
 						<Visualizer noteLines={noteLines} />
 						<Piano pianoKeys={pianoKeys} showKeys={showKeys} onPlayNote={playNote} onStopNote={stopNote} />

@@ -5,7 +5,8 @@ import * as Tone from "tone";
 import { initAudioContext, createSampler, createReverb, createMasterVolume } from "../lib/audio";
 import { VisNote, PianoKey, Instrument, instruments as BUILT_IN_INSTRUMENTS, DEFAULT_SOUNDFONT } from "../lib/types";
 import { fetchDynamicSoundfonts } from "../lib/soundfonts";
-import { PLAYER_COLORS_SOLID } from "@/lib/playerColors";
+import { getVisualizerColor, getKeySolidColor, PLAYER_COLORS_SOLID } from "@/lib/playerColors";
+import { darkenHex, normalizeHex } from "@/lib/color";
 
 const SELF = "self";
 const DEFAULT_VOLUME_PERCENT = 75;
@@ -18,6 +19,11 @@ function percentToDb(percent: number): number {
 }
 
 const VOLUME_STORAGE_KEY = "away:masterVolume";
+const NOTE_COLOR_HEX_STORAGE_KEY = "away:noteColorHex";
+const LEGACY_WHITE_INDEX_KEY = "away:whiteNoteColorIndex";
+const LEGACY_BLACK_INDEX_KEY = "away:blackNoteColorIndex";
+const LEGACY_SINGLE_INDEX_KEY = "away:noteColorIndex";
+const DEFAULT_NOTE_COLOR_HEX = PLAYER_COLORS_SOLID[0];
 
 function loadPersistedVolume(): number {
 	if (typeof window === "undefined") return DEFAULT_VOLUME_PERCENT;
@@ -26,6 +32,27 @@ function loadPersistedVolume(): number {
 	const parsed = Number(raw);
 	if (!Number.isFinite(parsed)) return DEFAULT_VOLUME_PERCENT;
 	return Math.max(0, Math.min(100, parsed));
+}
+
+function loadPersistedNoteColor(): string {
+	if (typeof window === "undefined") return DEFAULT_NOTE_COLOR_HEX;
+	const raw = window.localStorage.getItem(NOTE_COLOR_HEX_STORAGE_KEY);
+	if (raw) {
+		const normalized = normalizeHex(raw);
+		if (normalized) return normalized;
+	}
+	// Migrate from older index-based settings.
+	const legacy =
+		window.localStorage.getItem(LEGACY_WHITE_INDEX_KEY) ??
+		window.localStorage.getItem(LEGACY_SINGLE_INDEX_KEY) ??
+		window.localStorage.getItem(LEGACY_BLACK_INDEX_KEY);
+	if (legacy !== null) {
+		const idx = Number(legacy);
+		if (Number.isInteger(idx) && idx >= 0 && idx < PLAYER_COLORS_SOLID.length) {
+			return PLAYER_COLORS_SOLID[idx];
+		}
+	}
+	return DEFAULT_NOTE_COLOR_HEX;
 }
 
 export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispatch<React.SetStateAction<VisNote[]>>) => {
@@ -80,6 +107,21 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		}
 	}, []);
 
+	const [noteColor, setNoteColorState] = useState<string>(loadPersistedNoteColor);
+	const noteColorRef = useRef(noteColor);
+	useEffect(() => {
+		noteColorRef.current = noteColor;
+	}, [noteColor]);
+
+	const setNoteColor = useCallback((hex: string) => {
+		const normalized = normalizeHex(hex);
+		if (!normalized) return;
+		setNoteColorState(normalized);
+		if (typeof window !== "undefined") {
+			window.localStorage.setItem(NOTE_COLOR_HEX_STORAGE_KEY, normalized);
+		}
+	}, []);
+
 	const soundfonts: SoundfontOption[] = Object.entries(instruments).map(([key, val]) => ({
 		key,
 		name: val.name,
@@ -96,7 +138,7 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 	}, []);
 
 	const playNote = useCallback(
-		(midi: number, vel: number = 0.7, playerId: string = SELF, colorOverride?: string, solidColorOverride?: string) => {
+		(midi: number, vel: number = 0.7, playerId: string = SELF, colorIndex?: number, noteColorHex?: string) => {
 			let holders = noteHoldersRef.current.get(midi);
 			if (!holders) {
 				holders = new Set();
@@ -106,9 +148,25 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 			holders.add(playerId);
 			sustainedNotesRef.current.delete(midi);
 
+			const keyInfo = pianoKeys.find((k) => k.midi === midi);
+			const isBlack = keyInfo?.isBlack ?? false;
+
+			let solidColor: string;
+			let visColor: string;
+			if (noteColorHex) {
+				solidColor = isBlack ? darkenHex(noteColorHex) : noteColorHex;
+				visColor = isBlack ? darkenHex(noteColorHex) : noteColorHex;
+			} else if (colorIndex !== undefined) {
+				solidColor = getKeySolidColor(colorIndex, isBlack);
+				visColor = getVisualizerColor(colorIndex, isBlack);
+			} else {
+				const base = noteColorRef.current;
+				solidColor = isBlack ? darkenHex(base) : base;
+				visColor = isBlack ? darkenHex(base) : base;
+			}
+
 			const keyEl = document.querySelector(`[data-midi="${midi}"]`) as HTMLElement | null;
 			if (keyEl) {
-				const solidColor = solidColorOverride ?? PLAYER_COLORS_SOLID[0];
 				keyEl.style.setProperty("--active-color", solidColor);
 				keyEl.classList.add("active");
 			}
@@ -119,11 +177,10 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 				samplerRef.current.triggerAttack(Tone.Frequency(midi, "midi").toNote(), Tone.immediate(), normalizedVel);
 			}
 
-			const keyInfo = pianoKeys.find((k) => k.midi === midi);
 			if (keyInfo) {
 				const whiteKeyWidth = window.innerWidth / 52;
 				let x, w;
-				if (keyInfo.isBlack) {
+				if (isBlack) {
 					w = whiteKeyWidth * 0.6;
 					x = (keyInfo.whiteKeyIndex + 1) * whiteKeyWidth - w / 2;
 				} else {
@@ -131,16 +188,14 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 					x = keyInfo.whiteKeyIndex * whiteKeyWidth;
 				}
 
-				const noteColor = colorOverride ?? keyInfo.color;
-
 				const newNote: VisNote = {
 					id: Math.random().toString(),
 					midi,
 					startTime: performance.now(),
 					endTime: null,
-					isBlack: keyInfo.isBlack,
+					isBlack,
 					whiteKeyIndex: keyInfo.whiteKeyIndex,
-					color: noteColor,
+					color: visColor,
 					x,
 					w,
 					playerId,
@@ -344,5 +399,7 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		selectSoundfont,
 		masterVolume,
 		setMasterVolume,
+		noteColor,
+		setNoteColor,
 	};
 };

@@ -7,6 +7,7 @@ interface Player {
 	userId?: string;
 	displayName: string;
 	colorIndex: number;
+	noteColorHex?: string;
 	isMe: boolean;
 	isFriend?: boolean;
 }
@@ -93,7 +94,7 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 							className="h-3.5 rounded-full"
 							style={{
 								width: "160px",
-								backgroundColor: PLAYER_COLORS_SOLID[player.colorIndex % PLAYER_COLORS_SOLID.length],
+								backgroundColor: player.noteColorHex || PLAYER_COLORS_SOLID[player.colorIndex % PLAYER_COLORS_SOLID.length],
 								opacity: 0.8,
 							}}
 						/>

@@ -14,7 +14,6 @@ import { getOrCreatePlayerId } from "@/hooks/useCreateRoom";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { useChat } from "@/hooks/useChat";
 import { PlayerList } from "@/components/multiplayer/PlayerList";
-import { PLAYER_COLORS, getSolidColor } from "@/lib/playerColors";
 import type { ChatMessage } from "@/hooks/useChat";
 import { sendRoomMessage } from "@/lib/messages";
 import { useFriends } from "@/hooks/useFriends";
@@ -25,6 +24,7 @@ type PresencePlayer = {
 	displayName: string;
 	joinedAt: number;
 	userId?: string;
+	noteColorHex?: string;
 };
 
 type PlayerEntry = {
@@ -32,6 +32,7 @@ type PlayerEntry = {
 	userId?: string;
 	displayName: string;
 	colorIndex: number;
+	noteColorHex?: string;
 	isMe: boolean;
 	isFriend: boolean;
 };
@@ -77,6 +78,8 @@ export default function JamRoom() {
 		selectSoundfont,
 		masterVolume,
 		setMasterVolume,
+		noteColor,
+		setNoteColor,
 	} = useAudioEngineContext();
 
 	const [user, setUser] = useState<any>(null);
@@ -172,29 +175,38 @@ export default function JamRoom() {
 
 	const myNameRef = useRef(myName);
 	const myUserIdRef = useRef<string | null>(null);
+	const noteColorRef = useRef(noteColor);
+	useEffect(() => {
+		noteColorRef.current = noteColor;
+	}, [noteColor]);
+
+	const trackPresence = useCallback(() => {
+		const channel = roomChannelRef.current;
+		if (!channel || !myNameRef.current) return;
+		channel.track({
+			displayName: myNameRef.current,
+			joinedAt: joinedAtRef.current,
+			userId: myUserIdRef.current ?? undefined,
+			noteColorHex: noteColorRef.current,
+		});
+	}, []);
+
 	useEffect(() => {
 		myNameRef.current = myName;
-		const channel = roomChannelRef.current;
-		if (channel && myName) {
-			channel.track({
-				displayName: myName,
-				joinedAt: joinedAtRef.current,
-				userId: myUserIdRef.current ?? undefined,
-			});
-		}
-	}, [myName]);
+		trackPresence();
+	}, [myName, trackPresence]);
 
 	useEffect(() => {
 		myUserIdRef.current = user?.id ?? null;
-		const channel = roomChannelRef.current;
-		if (channel && myNameRef.current) {
-			channel.track({
-				displayName: myNameRef.current,
-				joinedAt: joinedAtRef.current,
-				userId: user?.id ?? undefined,
-			});
-		}
-	}, [user]);
+		trackPresence();
+	}, [user, trackPresence]);
+
+	useEffect(() => {
+		trackPresence();
+		setPlayers((prev) =>
+			prev.map((p) => (p.isMe ? { ...p, noteColorHex: noteColor } : p)),
+		);
+	}, [noteColor, trackPresence]);
 
 	const { friends, pending: incomingFriendRequests, outgoing: outgoingFriendRequests } = useFriends(user?.id ?? null);
 	const friendUserIdsRef = useRef<Set<string>>(new Set());
@@ -263,27 +275,13 @@ export default function JamRoom() {
 		[isLoggedIn],
 	);
 
-	const myColorIndex = useMemo(() => players.findIndex((p) => p.id === myTempId.current), [players]);
-	const myColor = useMemo(() => PLAYER_COLORS[Math.max(myColorIndex, 0) % PLAYER_COLORS.length], [myColorIndex]);
-	const mySolidColor = useMemo(() => getSolidColor(Math.max(myColorIndex, 0)), [myColorIndex]);
-
-	const myColorRef = useRef(myColor);
-	const mySolidColorRef = useRef(mySolidColor);
-	useEffect(() => {
-		myColorRef.current = myColor;
-	}, [myColor]);
-	useEffect(() => {
-		mySolidColorRef.current = mySolidColor;
-	}, [mySolidColor]);
-
 	const onReceivePeerNote = useCallback(
 		(peerId: string, note: number, velocity: number, isNoteOn: boolean) => {
 			const player = playersRef.current.find((p) => p.id === peerId);
 			const colorIndex = player?.colorIndex ?? 0;
-			const peerColor = PLAYER_COLORS[colorIndex % PLAYER_COLORS.length];
-			const peerSolid = getSolidColor(colorIndex);
+			const noteColorHex = player?.noteColorHex;
 			if (isNoteOn) {
-				playNote(note, velocity, peerId, peerColor, peerSolid);
+				playNote(note, velocity, peerId, colorIndex, noteColorHex);
 			} else {
 				stopNote(note, peerId);
 			}
@@ -299,7 +297,7 @@ export default function JamRoom() {
 	const handleLocalPlay = useCallback(
 		(note: number, velocity: number = 127) => {
 			notesPlayedRef.current += 1;
-			playNote(note, velocity, "self", myColorRef.current, mySolidColorRef.current);
+			playNote(note, velocity, "self");
 			broadcastNoteSupabaseRef.current(note, velocity, true);
 		},
 		[playNote],
@@ -453,6 +451,7 @@ export default function JamRoom() {
 					userId: data?.userId,
 					displayName: data?.displayName || presenceKey,
 					joinedAt: data?.joinedAt ?? 0,
+					noteColorHex: data?.noteColorHex,
 				};
 			});
 
@@ -464,6 +463,7 @@ export default function JamRoom() {
 				userId: e.userId,
 				displayName: e.displayName,
 				colorIndex: index,
+				noteColorHex: e.noteColorHex,
 				isMe: e.id === myTempId.current,
 				isFriend: !!e.userId && friendIds.has(e.userId),
 			}));
@@ -489,11 +489,8 @@ export default function JamRoom() {
 
 		room.subscribe(async (status) => {
 			if (status === "SUBSCRIBED") {
-				await room.track({
-					displayName: myNameRef.current || myTempId.current,
-					joinedAt: joinedAtRef.current,
-					userId: myUserIdRef.current ?? undefined,
-				});
+				myNameRef.current = myNameRef.current || myTempId.current;
+				trackPresence();
 			}
 		});
 
@@ -555,6 +552,8 @@ export default function JamRoom() {
 				onMasterVolumeChange={setMasterVolume}
 				username={myName}
 				onUsernameChange={handleUsernameChange}
+				noteColor={noteColor}
+				onNoteColorChange={setNoteColor}
 			/>
 
 			<div className="absolute inset-0 flex flex-col">
