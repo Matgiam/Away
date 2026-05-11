@@ -291,7 +291,7 @@ export default function JamRoom() {
 		[playNote, stopNote],
 	);
 
-	const { initiateConnection, handleOffer, handleAnswer, handleCandidate, removePeer, broadcastNote, hasPeer, knownPeerIds } = useWebRTC(
+	const { initiateConnection, handleOffer, handleAnswer, handleCandidate, removePeer, hasPeer, knownPeerIds } = useWebRTC(
 		myTempId.current,
 		onReceivePeerNote,
 	);
@@ -300,17 +300,17 @@ export default function JamRoom() {
 		(note: number, velocity: number = 127) => {
 			notesPlayedRef.current += 1;
 			playNote(note, velocity, "self", myColorRef.current, mySolidColorRef.current);
-			broadcastNote(note, velocity, true);
+			broadcastNoteSupabaseRef.current(note, velocity, true);
 		},
-		[playNote, broadcastNote],
+		[playNote],
 	);
 
 	const handleLocalStop = useCallback(
 		(note: number) => {
 			stopNote(note, "self");
-			broadcastNote(note, 0, false);
+			broadcastNoteSupabaseRef.current(note, 0, false);
 		},
-		[stopNote, broadcastNote],
+		[stopNote],
 	);
 
 	const myChatId = isLoggedIn ? user?.id || myTempId.current : myTempId.current;
@@ -355,6 +355,7 @@ export default function JamRoom() {
 	const handleLocalPlayRef = useRef(handleLocalPlay);
 	const handleLocalStopRef = useRef(handleLocalStop);
 	const connectMIDIRef = useRef(connectMIDI);
+	const broadcastNoteSupabaseRef = useRef<(note: number, velocity: number, isNoteOn: boolean) => void>(() => {});
 
 	useEffect(() => {
 		initiateConnectionRef.current = initiateConnection;
@@ -427,6 +428,19 @@ export default function JamRoom() {
 			} else if (payload.type === "candidate") {
 				await handleCandidateRef.current(senderId, payload.candidate);
 			}
+		});
+
+		broadcastNoteSupabaseRef.current = (note: number, velocity: number, isNoteOn: boolean) => {
+			room.send({
+				type: "broadcast",
+				event: "piano-note",
+				payload: { senderId: myTempId.current, note, velocity, isNoteOn },
+			});
+		};
+
+		room.on("broadcast", { event: "piano-note" }, ({ payload }) => {
+			if (payload.senderId === myTempId.current) return;
+			onReceivePeerNote(payload.senderId, payload.note, payload.velocity, payload.isNoteOn);
 		});
 
 		room.on("presence", { event: "sync" }, () => {
