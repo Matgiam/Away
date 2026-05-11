@@ -105,6 +105,7 @@ export default function JamRoom() {
 	const [pendingFriendIds, setPendingFriendIds] = useState<Set<string>>(new Set());
 
 	const roomChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+	const isRedirectingRef = useRef(false);
 
 	const chatAnchorRef = useRef<HTMLDivElement>(null);
 	const [chatPos, setChatPos] = useState<{ top: number; right: number } | null>(null);
@@ -133,6 +134,7 @@ export default function JamRoom() {
 		const wasRefreshed = sessionStorage.getItem(REFRESH_KEY);
 		if (wasRefreshed === roomId) {
 			sessionStorage.removeItem(REFRESH_KEY);
+			isRedirectingRef.current = true;
 			(async () => {
 				await decrementOrDelete(roomId);
 				router.replace("/multiplayer");
@@ -141,6 +143,7 @@ export default function JamRoom() {
 		}
 		const handleBeforeUnload = () => {
 			sessionStorage.setItem(REFRESH_KEY, roomId);
+			roomChannelRef.current?.untrack();
 		};
 		window.addEventListener("beforeunload", handleBeforeUnload);
 		return () => window.removeEventListener("beforeunload", handleBeforeUnload);
@@ -401,6 +404,7 @@ export default function JamRoom() {
 	}, [unlockAudio]);
 
 	useEffect(() => {
+		if (isRedirectingRef.current) return;
 		const room = supabase.channel(`jam-room-${roomId}`, {
 			config: { presence: { key: myTempId.current } },
 		});
