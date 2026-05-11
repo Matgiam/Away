@@ -31,6 +31,7 @@ function loadPersistedVolume(): number {
 export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispatch<React.SetStateAction<VisNote[]>>) => {
 	const audioStartedRef = useRef(false);
 	const samplersRef = useRef<Map<string, Tone.Sampler>>(new Map());
+	const samplerGainsRef = useRef<Map<string, Tone.Gain>>(new Map());
 	const samplerRef = useRef<Tone.Sampler | null>(null);
 	const reverbRef = useRef<Tone.Reverb | null>(null);
 	const masterVolumeNodeRef = useRef<Tone.Volume | null>(null);
@@ -192,15 +193,24 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 			if (!reverbRef.current) return reject(new Error("Audio not initialized"));
 
 			setLoadingSoundfont(key);
+			const gain = new Tone.Gain(0);
+			gain.connect(reverbRef.current);
 			const sampler = createSampler(inst, () => {
 				setLoadedSoundfonts((prev) => (prev.includes(key) ? prev : [...prev, key]));
 				setLoadingSoundfont((prev) => (prev === key ? null : prev));
 				resolve();
 			});
-			sampler.connect(reverbRef.current);
+			sampler.connect(gain);
 			samplersRef.current.set(key, sampler);
+			samplerGainsRef.current.set(key, gain);
 		});
 	}, []);
+
+	const clearAllHeldKeys = () => {
+		noteHoldersRef.current.clear();
+		sustainedNotesRef.current.clear();
+		document.querySelectorAll('[data-midi].active').forEach((el) => el.classList.remove('active'));
+	};
 
 	const selectSoundfont = useCallback(
 		async (key: string) => {
@@ -213,10 +223,28 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 				}
 			}
 			const next = samplersRef.current.get(key);
-			if (next) {
-				samplerRef.current = next;
-				setCurrentSoundfont(key);
+			if (!next || !reverbRef.current) return;
+			if (samplerRef.current === next) return;
+
+			const old = samplerRef.current;
+			if (old && old !== next) {
+				try {
+					old.releaseAll();
+				} catch {}
 			}
+
+			samplerGainsRef.current.forEach((gain, k) => {
+				const target = k === key ? 1 : 0;
+				try {
+					gain.gain.cancelScheduledValues(Tone.now());
+					gain.gain.rampTo(target, 0.05);
+				} catch {}
+			});
+
+			clearAllHeldKeys();
+
+			samplerRef.current = next;
+			setCurrentSoundfont(key);
 		},
 		[loadSoundfont],
 	);
@@ -285,12 +313,15 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 
 			setLoadingSoundfont(DEFAULT_SOUNDFONT);
 			const defaultInst = instrumentsRef.current[DEFAULT_SOUNDFONT];
+			const defaultGain = new Tone.Gain(1);
+			defaultGain.connect(reverbRef.current);
 			const sampler = createSampler(defaultInst, () => {
 				setLoadedSoundfonts([DEFAULT_SOUNDFONT]);
 				setLoadingSoundfont(null);
 			});
-			sampler.connect(reverbRef.current);
+			sampler.connect(defaultGain);
 			samplersRef.current.set(DEFAULT_SOUNDFONT, sampler);
+			samplerGainsRef.current.set(DEFAULT_SOUNDFONT, defaultGain);
 			samplerRef.current = sampler;
 
 			connectMIDI();
