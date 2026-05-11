@@ -5,6 +5,7 @@ import BackButton from "@/components/multiplayer/BackButton";
 import { DisconnectButton } from "./DisconnectButton";
 import { FriendsPanel } from "./FriendsPanel";
 import { TrackVisit } from "./TrackVisit";
+import { UsernameEditor } from "./UsernameEditor";
 
 function formatTime(seconds: number): string {
 	const h = Math.floor(seconds / 3600);
@@ -89,23 +90,7 @@ export default async function ProfilePage() {
 								<div className="flex flex-col gap-3 min-w-0 overflow-hidden">
 									<div>
 										<p className="text-white/60 text-sm mb-0.5">Username</p>
-										<p className="text-white font-semibold truncate">{displayName}</p>
-									</div>
-									<div>
-										<p className="text-white/60 text-sm mb-0.5">Username</p>
-										<p className="text-white font-semibold truncate">{displayName}</p>
-									</div>
-									<div>
-										<p className="text-white/60 text-sm mb-0.5">Username</p>
-										<p className="text-white font-semibold truncate">{displayName}</p>
-									</div>
-									<div>
-										<p className="text-white/60 text-sm mb-0.5">Username</p>
-										<p className="text-white font-semibold truncate">{displayName}</p>
-										<div>
-											<p className="text-white/60 text-sm mb-0.5">Username</p>
-											<p className="text-white font-semibold truncate">{displayName}</p>
-										</div>
+										<UsernameEditor initialUsername={username} />
 									</div>
 
 									<div>

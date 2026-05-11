@@ -150,7 +150,13 @@ export default function JamRoom() {
 			if (data.user) {
 				setUser(data.user);
 				setIsLoggedIn(true);
+				const { data: profile } = await supabaseClient
+					.from("profiles")
+					.select("username")
+					.eq("id", data.user.id)
+					.maybeSingle();
 				const username =
+					profile?.username ||
 					(data.user.user_metadata?.username as string | undefined) ||
 					data.user.email?.split("@")[0] ||
 					data.user.id.substring(0, 8);
@@ -478,7 +484,10 @@ export default function JamRoom() {
 		});
 
 		return () => {
-			knownPeerIdsRef.current().forEach((pid) => releaseAllForPlayerRef.current(pid));
+			knownPeerIdsRef.current().forEach((pid) => {
+				releaseAllForPlayerRef.current(pid);
+				removePeerRef.current(pid);
+			});
 			releaseAllForPlayerRef.current("self");
 
 			const uid = myUserIdRef.current;
