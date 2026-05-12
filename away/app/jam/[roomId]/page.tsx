@@ -142,7 +142,7 @@ export default function JamRoom() {
 			if (!chatAnchorRef.current) return;
 			const rect = chatAnchorRef.current.getBoundingClientRect();
 			setChatPos({
-				top: rect.bottom - 65,
+				top: rect.bottom + 12,
 				right: Math.max(12, window.innerWidth - rect.right),
 			});
 		};
