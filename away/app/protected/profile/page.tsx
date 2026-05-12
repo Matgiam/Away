@@ -69,7 +69,7 @@ export default async function ProfilePage() {
 	const provider = (user.app_metadata?.provider as string | undefined) || "email";
 
 	return (
-		<div className="h-screen w-full bg-[#050505] text-gray-200 overflow-hidden relative">
+		<div className="h-[var(--app-h,100dvh)] w-full bg-[#050505] text-gray-200 overflow-hidden relative">
 			<TrackVisit userId={user.id} />
 			<ProfileBackground />
 			<BackButton />

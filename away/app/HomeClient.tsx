@@ -142,7 +142,7 @@ export default function HomeClient() {
 	const backgroundAnimated = settings.backgroundAnimated && !settings.reducedMotion;
 
 	return (
-		<div className="h-screen w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative">
+		<div className="h-[var(--app-h,100dvh)] w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative">
 			{showHomeScreen ? (
 				<>
 					<SilkBackground color={settings.backgroundColor} scale={0.8} noiseIntensity={1.3} speed={3} rotation={180} animated={backgroundAnimated} />
@@ -176,7 +176,7 @@ export default function HomeClient() {
 			) : (
 				<>
 					<SilkBackground color={settings.backgroundColor} scale={1} noiseIntensity={1.3} speed={3} rotation={270} animated={backgroundAnimated} />
-					<div className="absolute inset-0 z-10 flex flex-col">
+					<div className="absolute inset-0 z-10 flex flex-col pb-[150px]">
 						<Navigation
 							onLogout={() => setShowHomeScreen(true)}
 							onToggleRecord={recordingState === "recording" ? stopRecording : startRecording}
@@ -214,6 +214,14 @@ export default function HomeClient() {
 							fallSpeed={settings.noteFallSpeed}
 							cornerRadius={settings.noteCornerRadius}
 						/>
+						{bannerAchievement && (
+							<AchievementBanner
+								achievement={bannerAchievement}
+								onDismiss={() => setBannerAchievement(null)}
+							/>
+						)}
+					</div>
+					<div className="fixed bottom-0 left-0 right-0 z-20">
 						<Piano
 							pianoKeys={pianoKeys}
 							showKeys={showKeys}
@@ -222,12 +230,6 @@ export default function HomeClient() {
 							showNoteLabels={settings.showNoteLabels}
 							keyAnimations={settings.keyAnimations}
 						/>
-						{bannerAchievement && (
-							<AchievementBanner
-								achievement={bannerAchievement}
-								onDismiss={() => setBannerAchievement(null)}
-							/>
-						)}
 					</div>
 				</>
 			)}

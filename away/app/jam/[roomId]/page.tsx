@@ -580,7 +580,7 @@ export default function JamRoom() {
 	const backgroundAnimated = settings.backgroundAnimated && !settings.reducedMotion;
 
 	return (
-		<div className="h-screen w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative" onClick={handleClick}>
+		<div className="h-[var(--app-h,100dvh)] w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative" onClick={handleClick}>
 			<SilkBackground color={settings.backgroundColor} scale={1} noiseIntensity={1.3} speed={3} rotation={270} animated={backgroundAnimated} />
 
 			<Navigation
@@ -624,7 +624,7 @@ export default function JamRoom() {
 				onResetSettings={resetSettings}
 			/>
 
-			<div className="absolute inset-0 flex flex-col">
+			<div className="absolute inset-0 flex flex-col pb-[150px]">
 				<div className="absolute top-6 left-8 z-50">
 					<PlayerList
 						players={players}
@@ -643,6 +643,8 @@ export default function JamRoom() {
 					fallSpeed={settings.noteFallSpeed}
 					cornerRadius={settings.noteCornerRadius}
 				/>
+			</div>
+			<div className="fixed bottom-0 left-0 right-0 z-20">
 				<Piano
 					pianoKeys={pianoKeys}
 					showKeys={showKeys}

@@ -5,7 +5,7 @@ import BackButton from "@/components/multiplayer/BackButton";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
 	return (
-		<div className="h-screen w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative">
+		<div className="h-[var(--app-h,100dvh)] w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative">
 			<SilkBackground color="#0b0416" scale={0.8} noiseIntensity={1.3} speed={3} rotation={180} />
 			<BackButton />
 			<div className="absolute inset-0 z-10 flex items-center justify-center p-6">{children}</div>
