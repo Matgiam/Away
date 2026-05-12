@@ -16,7 +16,23 @@ type SoundfontEntry = {
 	baseUrl: string;
 	urls: Record<string, string>;
 	release: number;
+	category: string;
 };
+
+const CATEGORY_LABELS: Record<string, string> = {
+	piano: "Piano",
+	guitar: "Guitar",
+	violon: "Strings",
+	strings: "Strings",
+	glockenspiel: "Glockenspiel",
+	synth: "Other",
+};
+
+function categoryFromManifestPath(manifestPath: string): string {
+	const rel = path.relative(ROOT, path.dirname(manifestPath)).split(path.sep);
+	const top = (rel[0] || "other").toLowerCase();
+	return CATEGORY_LABELS[top] ?? "Other";
+}
 
 const ROOT = path.join(process.cwd(), "public", "soundfont");
 const MAX_DEPTH = 4;
@@ -74,6 +90,7 @@ export async function GET() {
 				baseUrl: folderUrl,
 				urls: manifest.samples,
 				release: manifest.release ?? 1.5,
+				category: categoryFromManifestPath(manifestPath),
 			});
 		} catch {
 			continue;

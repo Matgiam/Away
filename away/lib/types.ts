@@ -21,16 +21,21 @@ export type VisNote = {
 
 export const THEME_COLOR = "rgba(219, 83, 97, 0.5)";
 
+export const SOUNDFONT_CATEGORIES = ["Piano", "Guitar", "Strings", "Glockenspiel", "Other"] as const;
+export type SoundfontCategory = (typeof SOUNDFONT_CATEGORIES)[number];
+
 export type Instrument = {
 	name: string;
 	urls: Record<string, string>;
 	baseUrl: string;
 	release?: number;
+	category?: SoundfontCategory;
 };
 
 export const instruments: Record<string, Instrument> = {
 	salamander_grand: {
 		name: "Salamander Grand Piano",
+		category: "Piano",
 		urls: {
 			A0: "A0.mp3",
 			C1: "C1.mp3",
