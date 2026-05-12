@@ -18,6 +18,12 @@ export const ACHIEVEMENTS: Achievement[] = [
     description: "Play 500 notes in total",
     icon: "/icons/piano.svg",
   },
+  {
+    id: "played_1000_notes",
+    name: "Played One Thousand Notes",
+    description: "Play 1,000 notes in total",
+    icon: "/icons/piano.svg",
+  },
 ];
 
 const ACHIEVEMENTS_KEY = "away:unlocked_achievements";
@@ -98,6 +104,8 @@ export function checkAndUnlockAchievements(totalNotes?: number): Achievement[] {
     if (achievement.id === "played_100_notes" && notes >= 100) {
       earned = true;
     } else if (achievement.id === "played_500_notes" && notes >= 500) {
+      earned = true;
+    } else if (achievement.id === "played_1000_notes" && notes >= 1000) {
       earned = true;
     }
     if (earned) {
