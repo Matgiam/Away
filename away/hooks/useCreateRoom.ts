@@ -45,9 +45,13 @@ export function useCreateRoom() {
 	const [password, setPassword] = useState("");
 	const [maxPlayers, setMaxPlayers] = useState(4);
 	const [roomName, setRoomName] = useState("");
+	const [creating, setCreating] = useState(false);
 
 	const handleCreateRoom = async () => {
-		if (!roomName.trim()) return;
+		if (!roomName.trim() || creating) return;
+
+		setCreating(true);
+		setShowCreate(false);
 
 		const hostName = await getDisplayName();
 		const supabaseClient = createClient();
@@ -71,6 +75,8 @@ export function useCreateRoom() {
 		if (!error) {
 			sessionStorage.setItem("hostedRoomId", roomId);
 			router.push(`/jam/${roomId}`);
+		} else {
+			setCreating(false);
 		}
 	};
 
@@ -81,6 +87,7 @@ export function useCreateRoom() {
 		setPassword("");
 		setMaxPlayers(4);
 		setRoomName("");
+		setCreating(false);
 	};
 
 	return {
@@ -98,5 +105,6 @@ export function useCreateRoom() {
 		setRoomName,
 		handleCreateRoom,
 		resetCreate,
+		creating,
 	};
 }
