@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { SilkBackground } from "@/components/effects/SilkBackground";
+import { ProfileBackground } from "@/components/layout/ProfileBackground";
 import BackButton from "@/components/multiplayer/BackButton";
 import { DisconnectButton } from "./DisconnectButton";
 import { FriendsPanel } from "./FriendsPanel";
@@ -68,7 +68,7 @@ export default async function ProfilePage() {
 	return (
 		<div className="h-screen w-full bg-[#050505] text-gray-200 overflow-hidden relative">
 			<TrackVisit userId={user.id} />
-			<SilkBackground color="#0b0416" scale={0.8} noiseIntensity={1.3} speed={3} rotation={180} />
+			<ProfileBackground />
 			<BackButton />
 
 			<div className="relative z-10 h-full pt-20 pb-15 px-10 flex flex-col max-w-[1800px] mx-auto min-w-0">
