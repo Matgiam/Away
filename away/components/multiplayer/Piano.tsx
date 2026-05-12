@@ -8,9 +8,18 @@ interface PianoProps {
 	showKeys: boolean;
 	onPlayNote: (midi: number, velocity: number) => void;
 	onStopNote: (midi: number) => void;
+	showNoteLabels?: boolean;
+	keyAnimations?: boolean;
 }
 
-export const Piano: React.FC<PianoProps> = ({ pianoKeys, showKeys, onPlayNote, onStopNote }) => {
+export const Piano: React.FC<PianoProps> = ({
+	pianoKeys,
+	showKeys,
+	onPlayNote,
+	onStopNote,
+	showNoteLabels = false,
+	keyAnimations = true,
+}) => {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const isMouseDown = useRef(false);
 	const activeKeyRef = useRef<number | null>(null);
@@ -90,7 +99,9 @@ export const Piano: React.FC<PianoProps> = ({ pianoKeys, showKeys, onPlayNote, o
 	return (
 		<div
 			ref={containerRef}
-			className="myPiano w-full bg-[#111] relative select-none z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] border-t border-white/5"
+			className={`myPiano w-full bg-[#111] relative select-none z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] border-t border-white/5 ${
+				showNoteLabels ? "show-labels" : ""
+			} ${keyAnimations ? "" : "no-key-anim"}`}
 			style={{ height: "150px", flexShrink: 0 }}
 		>
 			<div className="white-keys-container">
@@ -101,7 +112,11 @@ export const Piano: React.FC<PianoProps> = ({ pianoKeys, showKeys, onPlayNote, o
 						onMouseDown={() => handleKeyMouseDown(key.midi)}
 						className="piano-key white"
 						style={{ pointerEvents: "auto" }}
-					/>
+					>
+						{showNoteLabels && (
+							<span className="piano-label">{key.noteName.replace(/-?\d+$/, "")}</span>
+						)}
+					</div>
 				))}
 			</div>
 

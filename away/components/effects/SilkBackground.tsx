@@ -67,7 +67,10 @@ interface SilkUniforms {
   uTime: { value: number };
 }
 
-const SilkPlane = forwardRef<Mesh, { uniforms: SilkUniforms }>(function SilkPlane({ uniforms }, ref) {
+const SilkPlane = forwardRef<Mesh, { uniforms: SilkUniforms; animated: boolean }>(function SilkPlane(
+  { uniforms, animated },
+  ref,
+) {
   const { viewport } = useThree();
 
   useEffect(() => {
@@ -77,6 +80,7 @@ const SilkPlane = forwardRef<Mesh, { uniforms: SilkUniforms }>(function SilkPlan
   }, [ref, viewport]);
 
   useFrame((_, delta) => {
+    if (!animated) return;
     if (ref && typeof ref !== "function" && ref.current) {
       const material = ref.current.material as ShaderMaterial;
       material.uniforms.uTime.value += 0.2 * delta;
@@ -97,9 +101,17 @@ interface SilkProps {
   color?: string;
   noiseIntensity?: number;
   rotation?: number;
+  animated?: boolean;
 }
 
-export const SilkBackground: React.FC<SilkProps> = ({ speed = 1, scale = 1.2, color = "#0f061c", noiseIntensity = 1.2, rotation = 0 }) => {
+export const SilkBackground: React.FC<SilkProps> = ({
+  speed = 1,
+  scale = 1.2,
+  color = "#0f061c",
+  noiseIntensity = 1.2,
+  rotation = 0,
+  animated = true,
+}) => {
   const meshRef = useRef<Mesh>(null);
 
   const uniforms = useMemo<SilkUniforms>(
@@ -115,8 +127,8 @@ export const SilkBackground: React.FC<SilkProps> = ({ speed = 1, scale = 1.2, co
   );
 
   return (
-    <ThreeCanvas dpr={[1, 1.5]} frameloop="always" style={{ position: "absolute", top: 0, left: 0, zIndex: 0, width: "100%", height: "100%" }}>
-      <SilkPlane ref={meshRef} uniforms={uniforms} />
+    <ThreeCanvas dpr={[1, 1.5]} frameloop={animated ? "always" : "demand"} style={{ position: "absolute", top: 0, left: 0, zIndex: 0, width: "100%", height: "100%" }}>
+      <SilkPlane ref={meshRef} uniforms={uniforms} animated={animated} />
     </ThreeCanvas>
   );
 };

@@ -6,14 +6,36 @@ import { VisNote } from "@/lib/types";
 interface VisualizerProps {
 	noteLines: VisNote[];
 	className?: string;
+	fallSpeed?: number;
+	cornerRadius?: number;
+	enabled?: boolean;
 }
 
-export const Visualizer: React.FC<VisualizerProps> = ({ noteLines, className = "" }) => {
+export const Visualizer: React.FC<VisualizerProps> = ({
+	noteLines,
+	className = "",
+	fallSpeed = 40,
+	cornerRadius = 6,
+	enabled = true,
+}) => {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const noteLinesRef = useRef<VisNote[]>([]);
+	const fallSpeedRef = useRef(fallSpeed);
+	const cornerRadiusRef = useRef(cornerRadius);
+	const enabledRef = useRef(enabled);
+
 	useEffect(() => {
 		noteLinesRef.current = noteLines;
 	}, [noteLines]);
+	useEffect(() => {
+		fallSpeedRef.current = fallSpeed;
+	}, [fallSpeed]);
+	useEffect(() => {
+		cornerRadiusRef.current = cornerRadius;
+	}, [cornerRadius]);
+	useEffect(() => {
+		enabledRef.current = enabled;
+	}, [enabled]);
 
 	useEffect(() => {
 		const canvas = canvasRef.current;
@@ -22,7 +44,6 @@ export const Visualizer: React.FC<VisualizerProps> = ({ noteLines, className = "
 		if (!ctx) return;
 
 		let animationFrameId: number;
-		const speed = 0.4;
 
 		const resizeCanvas = () => {
 			const parent = canvas.parentElement;
@@ -47,6 +68,14 @@ export const Visualizer: React.FC<VisualizerProps> = ({ noteLines, className = "
 			const now = performance.now();
 
 			ctx.clearRect(0, 0, width, height);
+
+			if (!enabledRef.current) {
+				animationFrameId = requestAnimationFrame(draw);
+				return;
+			}
+
+			const speed = fallSpeedRef.current / 100;
+			const radius = cornerRadiusRef.current;
 
 			const whiteKeyWidth = width / 52;
 			const whiteNoteWidth = whiteKeyWidth * WHITE_NOTE_RATIO;
@@ -74,7 +103,7 @@ export const Visualizer: React.FC<VisualizerProps> = ({ noteLines, className = "
 				ctx.fillStyle = note.color;
 				ctx.beginPath();
 				if (ctx.roundRect) {
-					ctx.roundRect(x, yEnd, w, noteHeight, [6, 6, 6, 6]);
+					ctx.roundRect(x, yEnd, w, noteHeight, [radius, radius, radius, radius]);
 				} else {
 					ctx.rect(x, yEnd, w, noteHeight);
 				}

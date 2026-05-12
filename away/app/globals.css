@@ -68,6 +68,37 @@
 	z-index: 100;
 }
 
+.piano-key.white {
+	display: flex;
+	align-items: flex-end;
+	justify-content: center;
+	padding-bottom: 6px;
+}
+
+.piano-label {
+	font-size: 10px;
+	color: #6a6a6a;
+	font-weight: 600;
+	pointer-events: none;
+	user-select: none;
+	letter-spacing: 0.5px;
+}
+
+.myPiano.no-key-anim .piano-key.active {
+	transform: none;
+	transition: none !important;
+	box-shadow: none;
+}
+
+html.reduced-motion *,
+html.reduced-motion *::before,
+html.reduced-motion *::after {
+	animation-duration: 0s !important;
+	animation-iteration-count: 1 !important;
+	transition-duration: 0s !important;
+	scroll-behavior: auto !important;
+}
+
 ::-webkit-scrollbar {
 	width: 20px;
 }
