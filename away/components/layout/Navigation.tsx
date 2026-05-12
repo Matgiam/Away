@@ -28,6 +28,8 @@ interface NavigationProps {
 	onUsernameChange?: (name: string) => void;
 	onToggleRecord?: () => void;
 	isRecording?: boolean;
+	recordingState?: "idle" | "countdown" | "recording";
+	recordingCountdown?: number;
 	noteColor?: string;
 	onNoteColorChange?: (hex: string) => void;
 	keyboardInputEnabled?: boolean;
@@ -63,6 +65,8 @@ export const Navigation = ({
 	onUsernameChange,
 	onToggleRecord,
 	isRecording = false,
+	recordingState = "idle",
+	recordingCountdown = 0,
 	noteColor = "#db5361",
 	onNoteColorChange,
 	keyboardInputEnabled = true,
@@ -121,21 +125,32 @@ export const Navigation = ({
 
 			<div style={{ position: "absolute", top: "11%", right: "1%", zIndex: 50 }}>
 				<div className="flex gap-6 items-center">
-					<div onClick={onToggleRecord} className="cursor-pointer" style={{ pointerEvents: "auto" }}>
+					<div onClick={onToggleRecord} className="cursor-pointer relative" style={{ pointerEvents: "auto" }}>
 						<DynamicLiquidGlass
 							width={67}
 							height={67}
 							radius={15}
 							refractionLevel={0.8}
 							specularOpacity={0.7}
-							glassBgOpacity={isRecording ? 0.2 : 0.001}
+							glassBgOpacity={recordingState === "recording" ? 0.2 : 0.001}
 							blur={2}
 						>
-							<svg xmlns="http://www.w3.org/2000/svg" width="51" height="51" viewBox="0 0 51 51" fill="none">
-								<rect width="51" height="51" rx="10" fill="black" fillOpacity="0.01" />
-								<ellipse cx="25.5" cy="26" rx="9.5" ry="9" fill="#AA0000" />
-							</svg>
+							{recordingState === "recording" ? (
+								<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#AA0000">
+									<rect x="6" y="6" width="12" height="12" rx="2" />
+								</svg>
+							) : (
+								<svg xmlns="http://www.w3.org/2000/svg" width="51" height="51" viewBox="0 0 51 51" fill="none">
+									<rect width="51" height="51" rx="10" fill="black" fillOpacity="0.01" />
+									<ellipse cx="25.5" cy="26" rx="9.5" ry="9" fill="#AA0000" />
+								</svg>
+							)}
 						</DynamicLiquidGlass>
+						{recordingState === "countdown" && (
+							<span className="absolute -inset-1 flex items-center justify-center text-white text-lg font-bold">
+								{recordingCountdown > 0 ? recordingCountdown : "GO"}
+							</span>
+						)}
 					</div>
 
 					<div onClick={openSettings} className="cursor-pointer" style={{ pointerEvents: "auto" }}>

@@ -13,14 +13,17 @@ import { useKeyboardInput } from "@/hooks/useKeyboardInput";
 import { incrementTotalNotes, checkAndUnlockAchievements } from "@/lib/achievements";
 import { AchievementBanner } from "@/components/achievements/AchievementBanner";
 import type { Achievement } from "@/lib/achievements";
+import { useRecording } from "@/hooks/useRecording";
 
 export default function HomeClient() {
 	const [showKeys, setShowKeys] = useState(true);
 	const [showHomeScreen, setShowHomeScreen] = useState(true);
 	const [username, setUsername] = useState("");
 	const [isLoggedIn, setIsLoggedIn] = useState(false);
+	const [userId, setUserId] = useState<string | null>(null);
 	const [bannerAchievement, setBannerAchievement] = useState<Achievement | null>(null);
 	const notesThisSessionRef = useRef(0);
+	const { state: recordingState, countdown: recordingCountdown, startRecording, stopRecording } = useRecording(userId);
 
 	const router = useRouter();
 
@@ -99,6 +102,7 @@ export default function HomeClient() {
 			const supabase = createClient();
 			const { data } = await supabase.auth.getUser();
 			if (data.user) {
+				setUserId(data.user.id);
 				setIsLoggedIn(true);
 				const { data: profile } = await supabase.from("profiles").select("username").eq("id", data.user.id).maybeSingle();
 				const name =
@@ -175,6 +179,9 @@ export default function HomeClient() {
 					<div className="absolute inset-0 z-10 flex flex-col">
 						<Navigation
 							onLogout={() => setShowHomeScreen(true)}
+							onToggleRecord={recordingState === "recording" ? stopRecording : startRecording}
+							recordingState={recordingState}
+							recordingCountdown={recordingCountdown}
 							midiDevices={midiDevices}
 							midiError={midiError}
 							onRetryMidi={() => connectMIDI()}

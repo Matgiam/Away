@@ -76,7 +76,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, myId, myName, is
 							placeholder="Type message here"
 							className="flex-1 bg-transparent text-sm text-white placeholder:text-white/20 outline-none"
 						/>
-						<button onClick={handleSend} disabled={!input.trim()} className="text-white/30 hover:text-white transition-colors disabled:opacity-20">
+						<button onClick={handleSend} disabled={!input.trim()} className="text-white/30 hover:text-white transition-colors disabled:opacity-20 flex-shrink-0 flex items-center justify-center">
 							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
 								<path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z" />
 							</svg>

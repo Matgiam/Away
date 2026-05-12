@@ -8,6 +8,7 @@ import { TrackVisit } from "./TrackVisit";
 import { UsernameEditor } from "./UsernameEditor";
 import { AchievementGrid } from "@/components/achievements/AchievementGrid";
 import { BadgedUsername } from "@/components/achievements/BadgedUsername";
+import { RecordingsPanel } from "@/components/profile/RecordingsPanel";
 
 function formatTime(seconds: number): string {
 	const h = Math.floor(seconds / 3600);
@@ -142,14 +143,15 @@ export default async function ProfilePage() {
 						</section>
 					</div>
 
-					<section
-						className="flex flex-col rounded-2xl border border-white/8 bg-[#0a0118]/70 backdrop-blur-xl p-5 min-w-0 self-start"
-						style={{ flex: "1 1 0" }}
-					>
-						<h2 className="text-white font-semibold text-lg mb-4 shrink-0">Achievements</h2>
+					{/* RIGHT COLUMN — Achievements + Recordings */}
+					<div className="flex flex-col gap-8 min-w-0 self-start" style={{ flex: "1 1 0" }}>
+						<section className="flex flex-col rounded-2xl border border-white/8 bg-[#0a0118]/70 backdrop-blur-xl p-5 min-w-0">
+							<h2 className="text-white font-semibold text-lg mb-4 shrink-0">Achievements</h2>
+							<AchievementGrid />
+						</section>
 
-						<AchievementGrid />
-					</section>
+						<RecordingsPanel userId={user.id} />
+					</div>
 				</div>
 			</div>
 		</div>

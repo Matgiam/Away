@@ -24,6 +24,7 @@ import { saveSessionStats } from "@/lib/stats";
 import { incrementTotalNotes, checkAndUnlockAchievements } from "@/lib/achievements";
 import { AchievementBanner } from "@/components/achievements/AchievementBanner";
 import type { Achievement } from "@/lib/achievements";
+import { useRecording } from "@/hooks/useRecording";
 
 type PresencePlayer = {
 	displayName: string;
@@ -102,6 +103,7 @@ export default function JamRoom() {
 
 	const [user, setUser] = useState<any>(null);
 	const [isLoggedIn, setIsLoggedIn] = useState(false);
+	const { state: recordingState, countdown: recordingCountdown, startRecording, stopRecording } = useRecording(user?.id ?? null);
 	const [myName, setMyName] = useState(() => {
 		if (typeof window === "undefined") return "";
 		try {
@@ -583,6 +585,9 @@ export default function JamRoom() {
 
 			<Navigation
 				onLogout={handleLeave}
+				onToggleRecord={recordingState === "recording" ? stopRecording : startRecording}
+				recordingState={recordingState}
+				recordingCountdown={recordingCountdown}
 				isChatOpen={isChatOpen}
 				onToggleChat={isChatOpen ? handleCloseChat : handleOpenChat}
 				unreadChatCount={unreadCount}
