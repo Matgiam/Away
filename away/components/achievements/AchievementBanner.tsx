@@ -23,15 +23,15 @@ export function AchievementBanner({ achievement, onDismiss }: Props) {
       {
         y: 0,
         opacity: 1,
-        duration: 0.6,
+        duration: 1.2,
         ease: "back.out(1.7)",
         onComplete: () => {
           gsap.to(el, {
             y: -120,
             opacity: 0,
-            duration: 0.5,
+            duration: 1,
             ease: "power2.in",
-            delay: 3,
+            delay: 6,
             onComplete: onDismiss,
           });
         },
