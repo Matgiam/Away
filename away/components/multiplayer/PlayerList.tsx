@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { PLAYER_COLORS_SOLID } from "@/lib/playerColors";
+import { BadgedUsername } from "@/components/achievements/BadgedUsername";
 
 interface Player {
 	id: string;
@@ -79,7 +80,7 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 								className="text-white font-bold text-base tracking-wide hover:text-white/70 transition-colors text-left"
 								title={player.isMe ? "Your profile" : `${player.displayName}'s profile`}
 							>
-								{player.displayName}
+								{player.isMe ? <BadgedUsername username={player.displayName} /> : player.displayName}
 							</button>
 
 							{!player.isMe && player.isFriend && (

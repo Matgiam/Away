@@ -168,11 +168,7 @@ export const Navigation = ({
 							specularOpacity={0.7}
 							glassBgOpacity={isChatOpen ? 0.15 : 0.001}
 						>
-							<img
-								src="/icons/message.svg"
-								alt="Chat"
-								style={{ width: "35px", height: "35px", objectFit: "contain" }}
-							/>
+							<img src="/icons/message.svg" alt="Chat" style={{ width: "35px", height: "35px", objectFit: "contain" }} />
 						</DynamicLiquidGlass>
 						{unreadChatCount > 0 && settings?.chatNotifications !== false && (
 							<span

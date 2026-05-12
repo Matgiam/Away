@@ -6,6 +6,8 @@ import { DisconnectButton } from "./DisconnectButton";
 import { FriendsPanel } from "./FriendsPanel";
 import { TrackVisit } from "./TrackVisit";
 import { UsernameEditor } from "./UsernameEditor";
+import { AchievementGrid } from "@/components/achievements/AchievementGrid";
+import { BadgedUsername } from "@/components/achievements/BadgedUsername";
 
 function formatTime(seconds: number): string {
 	const h = Math.floor(seconds / 3600);
@@ -72,7 +74,7 @@ export default async function ProfilePage() {
 			<BackButton />
 
 			<div className="relative z-10 h-full pt-20 pb-15 px-10 flex flex-col max-w-[1800px] mx-auto min-w-0">
-				<h1 className="text-4xl italic font-semi-bold text-white mb-6 tracking-wide shrink-0">{displayName}</h1>
+				<h1 className="text-4xl italic font-semi-bold text-white mb-6 tracking-wide shrink-0"><BadgedUsername username={displayName} /></h1>
 
 				{/* Main two-column layout */}
 				<div className="flex-1 min-h-0 flex gap-20 min-w-0">
@@ -146,15 +148,7 @@ export default async function ProfilePage() {
 					>
 						<h2 className="text-white font-semibold text-lg mb-4 shrink-0">Achievements</h2>
 
-						<div className="flex flex-wrap gap-3">
-							{Array.from({ length: 20 }).map((_, i) => (
-								<div
-									key={i}
-									className="w-30 h-25 rounded-2xl border border-white/8 bg-white/[0.02]"
-									style={{ flex: "0 0 calc((100% - 4 * 0.75rem) / 5)" }}
-								/>
-							))}
-						</div>
+						<AchievementGrid />
 					</section>
 				</div>
 			</div>

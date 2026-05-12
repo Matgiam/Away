@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Piano } from "@/components/multiplayer/Piano";
@@ -10,12 +10,17 @@ import { SilkBackground } from "@/components/effects/SilkBackground";
 import { updateMyUsername } from "@/lib/friends";
 import { useAudioEngineContext } from "@/components/providers/AudioEngineProvider";
 import { useKeyboardInput } from "@/hooks/useKeyboardInput";
+import { incrementTotalNotes, checkAndUnlockAchievements } from "@/lib/achievements";
+import { AchievementBanner } from "@/components/achievements/AchievementBanner";
+import type { Achievement } from "@/lib/achievements";
 
 export default function HomeClient() {
 	const [showKeys, setShowKeys] = useState(true);
 	const [showHomeScreen, setShowHomeScreen] = useState(true);
 	const [username, setUsername] = useState("");
 	const [isLoggedIn, setIsLoggedIn] = useState(false);
+	const [bannerAchievement, setBannerAchievement] = useState<Achievement | null>(null);
+	const notesThisSessionRef = useRef(0);
 
 	const router = useRouter();
 
@@ -51,12 +56,25 @@ export default function HomeClient() {
 		resetSettings,
 	} = useAudioEngineContext();
 
-	const handleKeyboardPlay = useCallback(
+	const handleNotePlayed = useCallback(
 		(midi: number, vel: number) => {
 			unlockAudio();
 			playNote(midi, vel, "self");
+			notesThisSessionRef.current += 1;
+			const total = incrementTotalNotes();
+			const newAch = checkAndUnlockAchievements(total);
+			if (newAch.length > 0) {
+				setBannerAchievement(newAch[0]);
+			}
 		},
 		[playNote, unlockAudio],
+	);
+
+	const handleKeyboardPlay = useCallback(
+		(midi: number, vel: number) => {
+			handleNotePlayed(midi, vel);
+		},
+		[handleNotePlayed],
 	);
 	const handleKeyboardStop = useCallback(
 		(midi: number) => {
@@ -192,11 +210,17 @@ export default function HomeClient() {
 						<Piano
 							pianoKeys={pianoKeys}
 							showKeys={showKeys}
-							onPlayNote={playNote}
+							onPlayNote={handleNotePlayed}
 							onStopNote={stopNote}
 							showNoteLabels={settings.showNoteLabels}
 							keyAnimations={settings.keyAnimations}
 						/>
+						{bannerAchievement && (
+							<AchievementBanner
+								achievement={bannerAchievement}
+								onDismiss={() => setBannerAchievement(null)}
+							/>
+						)}
 					</div>
 				</>
 			)}

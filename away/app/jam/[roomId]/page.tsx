@@ -21,6 +21,9 @@ import { sendRoomMessage } from "@/lib/messages";
 import { useFriends } from "@/hooks/useFriends";
 import { acceptFriendRequest, removeFriendship, sendFriendRequest, updateMyUsername } from "@/lib/friends";
 import { saveSessionStats } from "@/lib/stats";
+import { incrementTotalNotes, checkAndUnlockAchievements } from "@/lib/achievements";
+import { AchievementBanner } from "@/components/achievements/AchievementBanner";
+import type { Achievement } from "@/lib/achievements";
 
 type PresencePlayer = {
 	displayName: string;
@@ -62,6 +65,7 @@ export default function JamRoom() {
 	const myTempId = useRef(getOrCreatePlayerId());
 	const joinedAtRef = useRef(Date.now());
 	const notesPlayedRef = useRef(0);
+	const [bannerAchievement, setBannerAchievement] = useState<Achievement | null>(null);
 
 	const {
 		pianoKeys,
@@ -328,6 +332,11 @@ export default function JamRoom() {
 			notesPlayedRef.current += 1;
 			playNote(note, velocity, "self");
 			broadcastNoteSupabaseRef.current(note, velocity, true);
+			const total = incrementTotalNotes();
+			const newAch = checkAndUnlockAchievements(total);
+			if (newAch.length > 0) {
+				setBannerAchievement(newAch[0]);
+			}
 		},
 		[playNote],
 	);
@@ -672,6 +681,13 @@ export default function JamRoom() {
 					if (profileTarget?.isMe) handleUsernameChange(next);
 				}}
 			/>
+
+			{bannerAchievement && (
+				<AchievementBanner
+					achievement={bannerAchievement}
+					onDismiss={() => setBannerAchievement(null)}
+				/>
+			)}
 		</div>
 	);
 }

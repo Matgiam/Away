@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ColorPicker } from "@/components/ui/ColorPicker";
 import { KeybindConfig } from "@/components/layout/KeybindConfig";
+import { BadgedUsername } from "@/components/achievements/BadgedUsername";
 import type { AppSettings } from "@/lib/settings";
 import type { Keybinds, LayoutPreset } from "@/lib/keybinds";
 
@@ -253,6 +254,9 @@ export const SettingsPanel = ({
 					{activeTab === "General" && (
 						<div className="flex flex-col gap-4 max-w-2xl pt-4 pb-8">
 							<SectionHeader>Profile</SectionHeader>
+							<div className="flex items-center gap-3 text-white text-base italic">
+								<BadgedUsername username={username} />
+							</div>
 							<div className="flex items-center gap-4">
 								<input
 									type="text"
