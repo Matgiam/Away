@@ -31,7 +31,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, myId, myName, is
 	return (
 		<div
 			className="flex flex-col  rounded-2xl border border-white/10 bg-[#0a0118]/90 backdrop-blur-xl shadow-2xl overflow-hidden"
-			style={{ width: "250px", height: "570px" }}
+			style={{ width: "13vw", height: "53dvh" }}
 		>
 			<div className="flex items-center justify-between px-4 py-3 border-b border-white/8">
 				<span className="text-white/60 text-xs uppercase tracking-widest font-medium">Live Chat</span>

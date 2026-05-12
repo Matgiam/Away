@@ -4,6 +4,7 @@ import "./globals.css";
 import { AudioEngineProvider } from "@/components/providers/AudioEngineProvider";
 import { PresenceProvider } from "@/components/providers/PresenceProvider";
 
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -43,7 +44,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <PresenceProvider>
-          <AudioEngineProvider>{children}</AudioEngineProvider>
+          <AudioEngineProvider>
+{children}
+          </AudioEngineProvider>
         </PresenceProvider>
       </body>
     </html>
