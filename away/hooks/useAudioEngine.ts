@@ -3,7 +3,7 @@
 import { useRef, useCallback, useEffect, useState } from "react";
 import * as Tone from "tone";
 import { initAudioContext, createSampler, createReverb, createMasterVolume } from "../lib/audio";
-import { VisNote, PianoKey, Instrument, instruments as BUILT_IN_INSTRUMENTS, DEFAULT_SOUNDFONT } from "../lib/types";
+import { VisNote, PianoKey, Instrument, SoundfontCategory, instruments as BUILT_IN_INSTRUMENTS, DEFAULT_SOUNDFONT } from "../lib/types";
 import { fetchDynamicSoundfonts } from "../lib/soundfonts";
 import { getVisualizerColor, getKeySolidColor, PLAYER_COLORS_SOLID } from "@/lib/playerColors";
 import { darkenHex, normalizeHex } from "@/lib/color";
@@ -11,7 +11,7 @@ import { darkenHex, normalizeHex } from "@/lib/color";
 const SELF = "self";
 const DEFAULT_VOLUME_PERCENT = 75;
 
-export type SoundfontOption = { key: string; name: string };
+export type SoundfontOption = { key: string; name: string; category: SoundfontCategory };
 
 function percentToDb(percent: number): number {
 	if (percent <= 0) return -Infinity;
@@ -72,6 +72,33 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 	const [midiDevices, setMidiDevices] = useState<string[]>([]);
 	const [midiError, setMidiError] = useState<string | null>(null);
 
+	const midiTransposeRef = useRef(0);
+	const velocityModeRef = useRef<"dynamic" | "fixed">("dynamic");
+	const fixedVelocityRef = useRef(100);
+	const sustainModeRef = useRef<"midi" | "always" | "off">("midi");
+
+	const setMidiTranspose = useCallback((semitones: number) => {
+		midiTransposeRef.current = Math.max(-24, Math.min(24, Math.round(semitones)));
+	}, []);
+	const setVelocityMode = useCallback((mode: "dynamic" | "fixed") => {
+		velocityModeRef.current = mode;
+	}, []);
+	const setFixedVelocity = useCallback((v: number) => {
+		fixedVelocityRef.current = Math.max(1, Math.min(127, Math.round(v)));
+	}, []);
+	const setSustainMode = useCallback((mode: "midi" | "always" | "off") => {
+		sustainModeRef.current = mode;
+		if (mode === "always") {
+			isSustainOnRef.current = true;
+		} else if (mode === "off") {
+			isSustainOnRef.current = false;
+			sustainedNotesRef.current.forEach((sustainedMidi) => {
+				samplerRef.current?.triggerRelease(Tone.Frequency(sustainedMidi, "midi").toNote(), Tone.immediate());
+			});
+			sustainedNotesRef.current.clear();
+		}
+	}, []);
+
 	const [currentSoundfont, setCurrentSoundfont] = useState<string>(DEFAULT_SOUNDFONT);
 	const [loadedSoundfonts, setLoadedSoundfonts] = useState<string[]>([]);
 	const [loadingSoundfont, setLoadingSoundfont] = useState<string | null>(null);
@@ -125,6 +152,7 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 	const soundfonts: SoundfontOption[] = Object.entries(instruments).map(([key, val]) => ({
 		key,
 		name: val.name,
+		category: (val.category ?? "Other") as SoundfontCategory,
 	}));
 
 	const unlockAudio = useCallback(async () => {
@@ -221,7 +249,14 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 			const keyEl = document.querySelector(`[data-midi="${midi}"]`);
 			keyEl?.classList.remove("active");
 
-			if (isSustainOnRef.current) {
+			const sustainActive =
+				sustainModeRef.current === "off"
+					? false
+					: sustainModeRef.current === "always"
+						? true
+						: isSustainOnRef.current;
+
+			if (sustainActive) {
 				sustainedNotesRef.current.add(midi);
 			} else if (samplerRef.current) {
 				samplerRef.current.triggerRelease(Tone.Frequency(midi, "midi").toNote(), Tone.immediate());
@@ -239,6 +274,25 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		},
 		[stopNote],
 	);
+
+	const setSustain = useCallback((active: boolean) => {
+		isSustainOnRef.current = active;
+		if (!active) {
+			sustainedNotesRef.current.forEach((sustainedMidi) => {
+				samplerRef.current?.triggerRelease(Tone.Frequency(sustainedMidi, "midi").toNote(), Tone.immediate());
+			});
+			sustainedNotesRef.current.clear();
+		}
+	}, []);
+
+	const setReverbWet = useCallback((percent: number) => {
+		const clamped = Math.max(0, Math.min(100, percent)) / 100;
+		if (reverbRef.current) {
+			try {
+				reverbRef.current.wet.rampTo(clamped, 0.05);
+			} catch {}
+		}
+	}, []);
 
 	const loadSoundfont = useCallback((key: string): Promise<void> => {
 		return new Promise((resolve, reject) => {
@@ -325,7 +379,11 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 								const [cmd, note, vel] = msg.data;
 								const command = cmd >> 4;
 
+								const transposed = note + midiTransposeRef.current;
+								if (transposed < 0 || transposed > 127) return;
+
 								if (command === 11 && note === 64) {
+									if (sustainModeRef.current !== "midi") return;
 									const pedalPressed = vel >= 64;
 									isSustainOnRef.current = pedalPressed;
 									if (!pedalPressed) {
@@ -335,9 +393,10 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 										sustainedNotesRef.current.clear();
 									}
 								} else if (command === 9 && vel > 0) {
-									onPlay(note, vel);
+									const finalVel = velocityModeRef.current === "fixed" ? fixedVelocityRef.current : vel;
+									onPlay(transposed, finalVel);
 								} else if (command === 8 || (command === 9 && vel === 0)) {
-									onStop(note);
+									onStop(transposed);
 								}
 							};
 						});
@@ -401,5 +460,11 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		setMasterVolume,
 		noteColor,
 		setNoteColor,
+		setSustain,
+		setReverbWet,
+		setMidiTranspose,
+		setVelocityMode,
+		setFixedVelocity,
+		setSustainMode,
 	};
 };
