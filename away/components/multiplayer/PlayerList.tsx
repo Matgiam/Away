@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { PLAYER_COLORS_SOLID } from "@/lib/playerColors";
 
 interface Player {
@@ -20,6 +21,7 @@ interface PlayerListProps {
 	onAddFriend?: (userId: string) => void;
 	onAcceptFriend?: (friendshipId: string) => void;
 	onDeclineFriend?: (friendshipId: string) => void;
+	onViewProfile?: (playerId: string) => void;
 }
 
 export const PlayerList: React.FC<PlayerListProps> = ({
@@ -30,7 +32,29 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 	onAddFriend,
 	onAcceptFriend,
 	onDeclineFriend,
+	onViewProfile,
 }) => {
+	const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
+	const popoverRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		if (!openPopoverId) return;
+		const handleClickOutside = (e: MouseEvent) => {
+			if (!popoverRef.current) return;
+			if (popoverRef.current.contains(e.target as Node)) return;
+			setOpenPopoverId(null);
+		};
+		const handleKey = (e: KeyboardEvent) => {
+			if (e.key === "Escape") setOpenPopoverId(null);
+		};
+		window.addEventListener("mousedown", handleClickOutside);
+		window.addEventListener("keydown", handleKey);
+		return () => {
+			window.removeEventListener("mousedown", handleClickOutside);
+			window.removeEventListener("keydown", handleKey);
+		};
+	}, [openPopoverId]);
+
 	return (
 		<div className="flex flex-col gap-4">
 			{players.map((player) => {
@@ -45,10 +69,18 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 					!incomingFriendshipId &&
 					!!onAddFriend;
 
+				const isPopoverOpen = openPopoverId === player.id;
+
 				return (
 					<div key={player.id} className="flex flex-col gap-1.5">
-						<div className="flex items-center gap-3">
-							<span className="text-white font-bold text-base tracking-wide">{player.displayName}</span>
+						<div className="flex items-center gap-3 relative">
+							<button
+								onClick={() => setOpenPopoverId(isPopoverOpen ? null : player.id)}
+								className="text-white font-bold text-base tracking-wide hover:text-white/70 transition-colors text-left"
+								title={player.isMe ? "Your profile" : `${player.displayName}'s profile`}
+							>
+								{player.displayName}
+							</button>
 
 							{!player.isMe && player.isFriend && (
 								<img src="/icons/friends.svg" alt="" className="w-7 h-5 opacity-80" aria-label="Friend" />
@@ -87,6 +119,23 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 									<span className="text-lg leading-none">+</span>
 									<span>Add friend</span>
 								</button>
+							)}
+
+							{isPopoverOpen && (
+								<div
+									ref={popoverRef}
+									className="absolute left-0 top-full mt-2 z-[60] min-w-[150px] rounded-xl border border-white/10 bg-[#0a0118]/95 backdrop-blur-xl shadow-2xl py-1.5"
+								>
+									<button
+										onClick={() => {
+											setOpenPopoverId(null);
+											onViewProfile?.(player.id);
+										}}
+										className="w-full text-left px-4 py-2 text-sm text-white/90 hover:bg-white/10 transition-colors italic"
+									>
+										View profile
+									</button>
+								</div>
 							)}
 						</div>
 

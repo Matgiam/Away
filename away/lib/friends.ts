@@ -146,6 +146,43 @@ export async function removeFriendship(friendshipId: string): Promise<boolean> {
 	return !error;
 }
 
+export type PublicProfile = {
+	userId: string;
+	username: string;
+	timePlayedSeconds: number;
+	notesPlayed: number;
+	connexions: number;
+	friendCount: number;
+};
+
+export async function fetchPublicProfile(userId: string): Promise<PublicProfile | null> {
+	const supabase = createClient();
+	const [{ data: profile }, { data: stats }, { count }] = await Promise.all([
+		supabase.from("profiles").select("username").eq("id", userId).maybeSingle(),
+		supabase
+			.from("user_stats")
+			.select("time_played_seconds, notes_played, connexions")
+			.eq("user_id", userId)
+			.maybeSingle(),
+		supabase
+			.from("friendships")
+			.select("id", { count: "exact", head: true })
+			.eq("status", "accepted")
+			.or(`requester_id.eq.${userId},addressee_id.eq.${userId}`),
+	]);
+
+	if (!profile && !stats) return null;
+
+	return {
+		userId,
+		username: profile?.username ?? "Unknown",
+		timePlayedSeconds: stats?.time_played_seconds ?? 0,
+		notesPlayed: stats?.notes_played ?? 0,
+		connexions: stats?.connexions ?? 0,
+		friendCount: count ?? 0,
+	};
+}
+
 export async function updateMyUsername(username: string): Promise<boolean> {
 	const supabase = createClient();
 	const { data: userData } = await supabase.auth.getUser();

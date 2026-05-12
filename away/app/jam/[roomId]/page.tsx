@@ -9,11 +9,13 @@ import { Visualizer } from "@/components/multiplayer/Visualizer";
 import { Navigation } from "@/components/layout/Navigation";
 import { SilkBackground } from "@/components/effects/SilkBackground";
 import { useAudioEngineContext } from "@/components/providers/AudioEngineProvider";
+import { useKeyboardInput } from "@/hooks/useKeyboardInput";
 import { useWebRTC } from "@/hooks/useWebRTC";
 import { getOrCreatePlayerId } from "@/hooks/useCreateRoom";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { useChat } from "@/hooks/useChat";
 import { PlayerList } from "@/components/multiplayer/PlayerList";
+import { ProfileModal } from "@/components/layout/ProfileModal";
 import type { ChatMessage } from "@/hooks/useChat";
 import { sendRoomMessage } from "@/lib/messages";
 import { useFriends } from "@/hooks/useFriends";
@@ -80,6 +82,18 @@ export default function JamRoom() {
 		setMasterVolume,
 		noteColor,
 		setNoteColor,
+		setSustain,
+		keyboardInputEnabled,
+		setKeyboardInputEnabled,
+		keybinds,
+		setKeybinds,
+		keybindBaseMidi,
+		setKeybindBaseMidi,
+		keybindPreset,
+		setKeybindPreset,
+		settings,
+		updateSetting,
+		resetSettings,
 	} = useAudioEngineContext();
 
 	const [user, setUser] = useState<any>(null);
@@ -103,6 +117,13 @@ export default function JamRoom() {
 	}, [players]);
 
 	const [pendingFriendIds, setPendingFriendIds] = useState<Set<string>>(new Set());
+
+	const [profileTarget, setProfileTarget] = useState<PlayerEntry | null>(null);
+	const handleViewProfile = useCallback((playerId: string) => {
+		const found = playersRef.current.find((p) => p.id === playerId);
+		if (found) setProfileTarget(found);
+	}, []);
+	const handleCloseProfile = useCallback(() => setProfileTarget(null), []);
 
 	const roomChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 	const isRedirectingRef = useRef(false);
@@ -278,11 +299,16 @@ export default function JamRoom() {
 		[isLoggedIn],
 	);
 
+	const showPlayerColorsRef = useRef(settings.showPlayerColors);
+	useEffect(() => {
+		showPlayerColorsRef.current = settings.showPlayerColors;
+	}, [settings.showPlayerColors]);
+
 	const onReceivePeerNote = useCallback(
 		(peerId: string, note: number, velocity: number, isNoteOn: boolean) => {
 			const player = playersRef.current.find((p) => p.id === peerId);
 			const colorIndex = player?.colorIndex ?? 0;
-			const noteColorHex = player?.noteColorHex;
+			const noteColorHex = showPlayerColorsRef.current ? player?.noteColorHex : noteColorRef.current;
 			if (isNoteOn) {
 				playNote(note, velocity, peerId, colorIndex, noteColorHex);
 			} else {
@@ -313,6 +339,17 @@ export default function JamRoom() {
 		},
 		[stopNote],
 	);
+
+	useKeyboardInput({
+		enabled: keyboardInputEnabled,
+		keybinds,
+		baseMidi: keybindBaseMidi,
+		onPlay: handleLocalPlay,
+		onStop: handleLocalStop,
+		onOctaveShift: (delta) => setKeybindBaseMidi(keybindBaseMidi + delta),
+		onSustainChange: setSustain,
+		onAnyKey: unlockAudio,
+	});
 
 	const myChatId = isLoggedIn ? user?.id || myTempId.current : myTempId.current;
 	const { messages, isChatOpen, setIsChatOpen, addMessage, unreadCount } = useChat(roomId, myChatId);
@@ -529,9 +566,11 @@ export default function JamRoom() {
 		router.push("/multiplayer");
 	}, [roomId, router]);
 
+	const backgroundAnimated = settings.backgroundAnimated && !settings.reducedMotion;
+
 	return (
 		<div className="h-screen w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative" onClick={handleClick}>
-			<SilkBackground color="#0b0416" scale={1} noiseIntensity={1.3} speed={3} rotation={270} />
+			<SilkBackground color={settings.backgroundColor} scale={1} noiseIntensity={1.3} speed={3} rotation={270} animated={backgroundAnimated} />
 
 			<Navigation
 				onLogout={handleLeave}
@@ -558,6 +597,17 @@ export default function JamRoom() {
 				onUsernameChange={handleUsernameChange}
 				noteColor={noteColor}
 				onNoteColorChange={setNoteColor}
+				keyboardInputEnabled={keyboardInputEnabled}
+				onKeyboardInputEnabledChange={setKeyboardInputEnabled}
+				keybinds={keybinds}
+				onKeybindsChange={setKeybinds}
+				keybindBaseMidi={keybindBaseMidi}
+				onKeybindBaseMidiChange={setKeybindBaseMidi}
+				keybindPreset={keybindPreset}
+				onKeybindPresetChange={setKeybindPreset}
+				settings={settings}
+				updateSetting={updateSetting}
+				onResetSettings={resetSettings}
 			/>
 
 			<div className="absolute inset-0 flex flex-col">
@@ -570,10 +620,23 @@ export default function JamRoom() {
 						onAddFriend={handleAddFriend}
 						onAcceptFriend={handleAcceptFriend}
 						onDeclineFriend={handleDeclineFriend}
+						onViewProfile={handleViewProfile}
 					/>
 				</div>
-				<Visualizer noteLines={noteLines} />
-				<Piano pianoKeys={pianoKeys} showKeys={showKeys} onPlayNote={handleLocalPlay} onStopNote={handleLocalStop} />
+				<Visualizer
+					noteLines={noteLines}
+					enabled={settings.visualizerEnabled}
+					fallSpeed={settings.noteFallSpeed}
+					cornerRadius={settings.noteCornerRadius}
+				/>
+				<Piano
+					pianoKeys={pianoKeys}
+					showKeys={showKeys}
+					onPlayNote={handleLocalPlay}
+					onStopNote={handleLocalStop}
+					showNoteLabels={settings.showNoteLabels}
+					keyAnimations={settings.keyAnimations}
+				/>
 			</div>
 
 			{isChatOpen && chatPos && (
@@ -592,6 +655,23 @@ export default function JamRoom() {
 					/>
 				</div>
 			)}
+
+			<ProfileModal
+				open={!!profileTarget}
+				onClose={handleCloseProfile}
+				userId={profileTarget?.userId ?? null}
+				isSelf={!!profileTarget?.isMe}
+				myUserId={user?.id ?? null}
+				fallbackDisplayName={profileTarget?.displayName}
+				isFriend={profileTarget?.isFriend}
+				incomingFriendshipId={
+					profileTarget?.userId ? incomingRequestByUserId.get(profileTarget.userId) ?? null : null
+				}
+				pendingOutgoing={!!profileTarget?.userId && combinedPendingIds.has(profileTarget.userId)}
+				onUsernameChanged={(next) => {
+					if (profileTarget?.isMe) handleUsernameChange(next);
+				}}
+			/>
 		</div>
 	);
 }

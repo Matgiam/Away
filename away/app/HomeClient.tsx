@@ -9,6 +9,7 @@ import { Navigation } from "@/components/layout/Navigation";
 import { SilkBackground } from "@/components/effects/SilkBackground";
 import { updateMyUsername } from "@/lib/friends";
 import { useAudioEngineContext } from "@/components/providers/AudioEngineProvider";
+import { useKeyboardInput } from "@/hooks/useKeyboardInput";
 
 export default function HomeClient() {
 	const [showKeys, setShowKeys] = useState(true);
@@ -36,7 +37,44 @@ export default function HomeClient() {
 		setMasterVolume,
 		noteColor,
 		setNoteColor,
+		setSustain,
+		keyboardInputEnabled,
+		setKeyboardInputEnabled,
+		keybinds,
+		setKeybinds,
+		keybindBaseMidi,
+		setKeybindBaseMidi,
+		keybindPreset,
+		setKeybindPreset,
+		settings,
+		updateSetting,
+		resetSettings,
 	} = useAudioEngineContext();
+
+	const handleKeyboardPlay = useCallback(
+		(midi: number, vel: number) => {
+			unlockAudio();
+			playNote(midi, vel, "self");
+		},
+		[playNote, unlockAudio],
+	);
+	const handleKeyboardStop = useCallback(
+		(midi: number) => {
+			stopNote(midi, "self");
+		},
+		[stopNote],
+	);
+
+	useKeyboardInput({
+		enabled: keyboardInputEnabled && !showHomeScreen,
+		keybinds,
+		baseMidi: keybindBaseMidi,
+		onPlay: handleKeyboardPlay,
+		onStop: handleKeyboardStop,
+		onOctaveShift: (delta) => setKeybindBaseMidi(keybindBaseMidi + delta),
+		onSustainChange: setSustain,
+		onAnyKey: unlockAudio,
+	});
 
 	useEffect(() => {
 		const loadUser = async () => {
@@ -78,11 +116,13 @@ export default function HomeClient() {
 	const handleMultiplayerClick = () => router.push("/multiplayer");
 	const handleProfileClick = () => router.push("/protected/profile");
 
+	const backgroundAnimated = settings.backgroundAnimated && !settings.reducedMotion;
+
 	return (
 		<div className="h-screen w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative">
 			{showHomeScreen ? (
 				<>
-					<SilkBackground color="#0b0416" scale={0.8} noiseIntensity={1.3} speed={3} rotation={180} />
+					<SilkBackground color={settings.backgroundColor} scale={0.8} noiseIntensity={1.3} speed={3} rotation={180} animated={backgroundAnimated} />
 					<div className="absolute inset-0 z-10">
 						<div className="absolute bottom-0 left-0 right-0 h-32"></div>
 						<div className="absolute right-30 mt-30">
@@ -109,7 +149,7 @@ export default function HomeClient() {
 				</>
 			) : (
 				<>
-					<SilkBackground color="#0b0416" scale={1} noiseIntensity={1.3} speed={3} rotation={270} />
+					<SilkBackground color={settings.backgroundColor} scale={1} noiseIntensity={1.3} speed={3} rotation={270} animated={backgroundAnimated} />
 					<div className="absolute inset-0 z-10 flex flex-col">
 						<Navigation
 							onLogout={() => setShowHomeScreen(true)}
@@ -127,9 +167,32 @@ export default function HomeClient() {
 							onUsernameChange={handleUsernameChange}
 							noteColor={noteColor}
 							onNoteColorChange={setNoteColor}
+							keyboardInputEnabled={keyboardInputEnabled}
+							onKeyboardInputEnabledChange={setKeyboardInputEnabled}
+							keybinds={keybinds}
+							onKeybindsChange={setKeybinds}
+							keybindBaseMidi={keybindBaseMidi}
+							onKeybindBaseMidiChange={setKeybindBaseMidi}
+							keybindPreset={keybindPreset}
+							onKeybindPresetChange={setKeybindPreset}
+							settings={settings}
+							updateSetting={updateSetting}
+							onResetSettings={resetSettings}
 						/>
-						<Visualizer noteLines={noteLines} />
-						<Piano pianoKeys={pianoKeys} showKeys={showKeys} onPlayNote={playNote} onStopNote={stopNote} />
+						<Visualizer
+							noteLines={noteLines}
+							enabled={settings.visualizerEnabled}
+							fallSpeed={settings.noteFallSpeed}
+							cornerRadius={settings.noteCornerRadius}
+						/>
+						<Piano
+							pianoKeys={pianoKeys}
+							showKeys={showKeys}
+							onPlayNote={playNote}
+							onStopNote={stopNote}
+							showNoteLabels={settings.showNoteLabels}
+							keyAnimations={settings.keyAnimations}
+						/>
 					</div>
 				</>
 			)}
