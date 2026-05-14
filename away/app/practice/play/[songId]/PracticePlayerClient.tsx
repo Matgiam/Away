@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { SilkBackground } from "@/components/effects/SilkBackground";
 import { Navigation } from "@/components/layout/Navigation";
 import { Piano } from "@/components/multiplayer/Piano";
+import { ChordDisplay } from "@/components/layout/ChordDisplay";
 import { useAudioEngineContext } from "@/components/providers/AudioEngineProvider";
 import { useKeyboardInput } from "@/hooks/useKeyboardInput";
 import { useRecording } from "@/hooks/useRecording";
@@ -72,6 +73,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 		settings,
 		updateSetting,
 		resetSettings,
+		localHeldMidis,
 	} = useAudioEngineContext();
 
 	const [userId, setUserId] = useState<string | null>(null);
@@ -551,6 +553,8 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 					keyAnimations={settings.keyAnimations}
 				/>
 			</div>
+
+			<ChordDisplay heldMidis={localHeldMidis} enabled={settings.chordRecognizerEnabled} />
 		</div>
 	);
 }

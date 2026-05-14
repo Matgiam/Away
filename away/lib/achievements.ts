@@ -3,6 +3,7 @@ export type Achievement = {
   name: string;
   description: string;
   icon: string;
+  noteThreshold?: number;
 };
 
 export const ACHIEVEMENTS: Achievement[] = [
@@ -11,26 +12,36 @@ export const ACHIEVEMENTS: Achievement[] = [
     name: "Played One Hundred Notes",
     description: "Play 100 notes in total",
     icon: "/icons/piano.svg",
+    noteThreshold: 100,
   },
   {
     id: "played_500_notes",
     name: "Played Five Hundred Notes",
     description: "Play 500 notes in total",
     icon: "/icons/piano.svg",
+    noteThreshold: 500,
   },
   {
     id: "played_1000_notes",
     name: "Played One Thousand Notes",
     description: "Play 1,000 notes in total",
     icon: "/icons/piano.svg",
+    noteThreshold: 1000,
   },
   {
     id: "played_1500_notes",
     name: "Played One Thousand Five Hundred Notes",
     description: "Play 1,500 notes in total",
     icon: "/icons/piano.svg",
+    noteThreshold: 1500,
   },
 ];
+
+export function getUnlockedAchievementIdsForNotes(totalNotes: number): string[] {
+  return ACHIEVEMENTS.filter(
+    (a) => a.noteThreshold !== undefined && totalNotes >= a.noteThreshold,
+  ).map((a) => a.id);
+}
 
 const ACHIEVEMENTS_KEY = "away:unlocked_achievements";
 const EQUIPPED_KEY = "away:equipped_badge";

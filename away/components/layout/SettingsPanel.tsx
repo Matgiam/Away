@@ -529,6 +529,17 @@ export const SettingsPanel = ({
 									onChange={(v) => updateSetting("keyAnimations", v)}
 								/>
 							</SettingRow>
+
+							<SectionHeader>Chord recognizer</SectionHeader>
+							<SettingRow
+								label="Show chord names"
+								hint="Live-detect triads, 7ths, extensions and inversions from the notes you hold. Displayed above the piano."
+							>
+								<Toggle
+									value={settings.chordRecognizerEnabled}
+									onChange={(v) => updateSetting("chordRecognizerEnabled", v)}
+								/>
+							</SettingRow>
 						</div>
 					)}
 

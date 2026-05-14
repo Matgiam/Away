@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, useEffect, useState } from "react";
+import { useRef, useCallback, useEffect, useMemo, useState } from "react";
 import * as Tone from "tone";
 import { initAudioContext, createSampler, createReverb, createMasterVolume } from "../lib/audio";
 import { VisNote, PianoKey, Instrument, SoundfontCategory, instruments as BUILT_IN_INSTRUMENTS, DEFAULT_SOUNDFONT } from "../lib/types";
@@ -76,6 +76,8 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 
 	const [midiDevices, setMidiDevices] = useState<string[]>([]);
 	const [midiError, setMidiError] = useState<string | null>(null);
+	const [localPressedMidis, setLocalPressedMidis] = useState<number[]>([]);
+	const [localSustainedMidis, setLocalSustainedMidis] = useState<number[]>([]);
 
 	const midiTransposeRef = useRef(0);
 	const velocityModeRef = useRef<"dynamic" | "fixed">("dynamic");
@@ -149,6 +151,13 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		noteColorRef.current = noteColor;
 	}, [noteColor]);
 
+	const localHeldMidis = useMemo(() => {
+		if (localSustainedMidis.length === 0) return localPressedMidis;
+		const merged = new Set<number>(localPressedMidis);
+		localSustainedMidis.forEach((m) => merged.add(m));
+		return Array.from(merged).sort((a, b) => a - b);
+	}, [localPressedMidis, localSustainedMidis]);
+
 	const setNoteColor = useCallback((hex: string) => {
 		const normalized = normalizeHex(hex);
 		if (!normalized) return;
@@ -206,6 +215,8 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 
 			if (playerId === SELF) {
 				sustainedNotesRef.current.delete(midi);
+				setLocalPressedMidis((prev) => (prev.includes(midi) ? prev : [...prev, midi].sort((a, b) => a - b)));
+				setLocalSustainedMidis((prev) => (prev.includes(midi) ? prev.filter((n) => n !== midi) : prev));
 			} else {
 				const peerSustainedMap = peerSustainedNotesRef.current.get(playerId);
 				peerSustainedMap?.delete(midi);
@@ -276,6 +287,9 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		if (!holders || !holders.has(playerId)) return;
 		const samplerKeyOfNote = holders.get(playerId) ?? soundfontKey ?? currentSoundfontRef.current;
 		holders.delete(playerId);
+		if (playerId === SELF) {
+			setLocalPressedMidis((prev) => prev.filter((n) => n !== midi));
+		}
 
 		const pendingNote = visNotesRef.current.findLast((n) => n.midi === midi && n.endTime === null && n.playerId === playerId);
 		if (pendingNote) pendingNote.endTime = performance.now();
@@ -302,6 +316,7 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		if (sustainActive) {
 			if (playerId === SELF) {
 				sustainedNotesRef.current.add(midi);
+				setLocalSustainedMidis((prev) => (prev.includes(midi) ? prev : [...prev, midi].sort((a, b) => a - b)));
 			} else {
 				let peerSustainedMap = peerSustainedNotesRef.current.get(playerId);
 				if (!peerSustainedMap) {
@@ -367,6 +382,7 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 				samplerRef.current?.triggerRelease(Tone.Frequency(sustainedMidi, "midi").toNote(), Tone.immediate());
 			});
 			sustainedNotesRef.current.clear();
+			setLocalSustainedMidis([]);
 		}
 	}, []);
 
@@ -414,6 +430,8 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 			}
 		});
 		sustainedNotesRef.current.clear();
+		setLocalPressedMidis([]);
+		setLocalSustainedMidis([]);
 	};
 
 	const selectSoundfont = useCallback(
@@ -571,5 +589,6 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		setVelocityMode,
 		setFixedVelocity,
 		setSustainMode,
+		localHeldMidis,
 	};
 };

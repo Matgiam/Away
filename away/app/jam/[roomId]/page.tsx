@@ -25,6 +25,7 @@ import { incrementTotalNotes, checkAndUnlockAchievements } from "@/lib/achieveme
 import { AchievementBanner } from "@/components/achievements/AchievementBanner";
 import type { Achievement } from "@/lib/achievements";
 import { useRecording } from "@/hooks/useRecording";
+import { ChordDisplay } from "@/components/layout/ChordDisplay";
 
 type PresencePlayer = {
 	displayName: string;
@@ -100,6 +101,7 @@ export default function JamRoom() {
 		setSustain,
 		setPeerSustain,
 		ensureSoundfontLoaded,
+		localHeldMidis,
 		keyboardInputEnabled,
 		setKeyboardInputEnabled,
 		keybinds,
@@ -802,6 +804,8 @@ export default function JamRoom() {
 					onDismiss={() => setBannerAchievement(null)}
 				/>
 			)}
+
+			<ChordDisplay heldMidis={localHeldMidis} enabled={settings.chordRecognizerEnabled} />
 		</div>
 	);
 }

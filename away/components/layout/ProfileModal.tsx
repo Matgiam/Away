@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
 	acceptFriendRequest,
 	fetchPublicProfile,
@@ -9,6 +9,7 @@ import {
 	updateMyUsername,
 	type PublicProfile,
 } from "@/lib/friends";
+import { ACHIEVEMENTS, getUnlockedAchievementIdsForNotes } from "@/lib/achievements";
 
 interface ProfileModalProps {
 	open: boolean;
@@ -22,8 +23,6 @@ interface ProfileModalProps {
 	pendingOutgoing?: boolean;
 	onUsernameChanged?: (next: string) => void;
 }
-
-const ACHIEVEMENT_PLACEHOLDER_COUNT = 20;
 
 function formatTime(seconds: number): string {
 	const h = Math.floor(seconds / 3600);
@@ -87,6 +86,11 @@ export const ProfileModal = ({
 	const titleName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
 	const hasAccount = !!userId;
 	const canEditUsername = isSelf && hasAccount;
+
+	const unlockedAchievementIds = useMemo(
+		() => getUnlockedAchievementIdsForNotes(profile?.notesPlayed ?? 0),
+		[profile?.notesPlayed],
+	);
 
 	const handleSaveUsername = async () => {
 		const trimmed = usernameDraft.trim();
@@ -287,27 +291,31 @@ export const ProfileModal = ({
 							<section className="rounded-2xl border border-white/8 bg-[#0a0118]/70 backdrop-blur-xl p-6">
 								<div className="flex items-baseline justify-between mb-4">
 									<h2 className="text-white font-semibold text-xl">Achievements</h2>
-									<span className="text-white/30 text-xs italic">Coming soon</span>
+									<span className="text-white/40 text-xs italic">
+										{unlockedAchievementIds.length}/{ACHIEVEMENTS.length} unlocked
+									</span>
 								</div>
 								<div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
-									{Array.from({ length: ACHIEVEMENT_PLACEHOLDER_COUNT }).map((_, i) => (
-										<div
-											key={i}
-											className="aspect-square rounded-xl border border-white/8 bg-white/[0.02] flex items-center justify-center"
-											aria-hidden
-										>
-											<svg
-												viewBox="0 0 24 24"
-												fill="none"
-												stroke="currentColor"
-												strokeWidth="1.5"
-												className="w-5 h-5 text-white/15"
+									{ACHIEVEMENTS.map((ach) => {
+										const isUnlocked = unlockedAchievementIds.includes(ach.id);
+										return (
+											<div
+												key={ach.id}
+												title={isUnlocked ? `${ach.name} — ${ach.description}` : `Locked: ${ach.description}`}
+												className={`aspect-square rounded-xl border flex items-center justify-center ${
+													isUnlocked
+														? "border-white/15 bg-white/[0.05]"
+														: "border-white/5 bg-white/[0.01] opacity-40"
+												}`}
 											>
-												<circle cx="12" cy="9" r="6" />
-												<path d="M8 14l-2 7 6-3 6 3-2-7" />
-											</svg>
-										</div>
-									))}
+												<img
+													src={ach.icon}
+													alt={ach.name}
+													className={`w-6 h-6 object-contain ${isUnlocked ? "" : "grayscale opacity-50"}`}
+												/>
+											</div>
+										);
+									})}
 								</div>
 							</section>
 

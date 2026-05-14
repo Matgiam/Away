@@ -23,6 +23,7 @@ export interface AppSettings {
 	chatNotifications: boolean;
 	autoDownloadRecording: boolean;
 	confirmLeaveRoom: boolean;
+	chordRecognizerEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -46,6 +47,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	chatNotifications: true,
 	autoDownloadRecording: true,
 	confirmLeaveRoom: false,
+	chordRecognizerEnabled: false,
 };
 
 const STORAGE_KEY = "away:appSettings";

@@ -14,6 +14,7 @@ import { incrementTotalNotes, checkAndUnlockAchievements } from "@/lib/achieveme
 import { AchievementBanner } from "@/components/achievements/AchievementBanner";
 import type { Achievement } from "@/lib/achievements";
 import { useRecording } from "@/hooks/useRecording";
+import { ChordDisplay } from "@/components/layout/ChordDisplay";
 
 export default function HomeClient() {
 	const [showKeys, setShowKeys] = useState(true);
@@ -57,6 +58,7 @@ export default function HomeClient() {
 		settings,
 		updateSetting,
 		resetSettings,
+		localHeldMidis,
 	} = useAudioEngineContext();
 
 	const handleNotePlayed = useCallback(
@@ -235,6 +237,7 @@ export default function HomeClient() {
 							keyAnimations={settings.keyAnimations}
 						/>
 					</div>
+					<ChordDisplay heldMidis={localHeldMidis} enabled={settings.chordRecognizerEnabled} />
 				</>
 			)}
 		</div>
