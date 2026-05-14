@@ -296,6 +296,10 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 					if (note.startSeconds > t) break;
 					nextNoteIndexRef.current++;
 					const hand = handForNote(note);
+					if (activeAutoNotesRef.current.has(note.midi)) {
+						stopNote(note.midi, "practice-auto");
+						activeAutoNotesRef.current.delete(note.midi);
+					}
 					playNote(note.midi, note.velocity, "practice-auto", undefined, HAND_COLORS[hand]);
 					activeAutoNotesRef.current.set(note.midi, note.startSeconds + note.durationSeconds);
 				}
