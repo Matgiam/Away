@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getAllBuiltInSongs } from "@/lib/practice/catalog.server";
+import { isUploadId } from "@/lib/practice/uploads";
 import PracticePlayerClient from "./PracticePlayerClient";
 
 export const dynamic = "force-dynamic";
@@ -12,9 +13,13 @@ export default async function PracticePlayPage({ params }: PageProps) {
 	const { songId } = await params;
 	const decoded = decodeURIComponent(songId);
 
+	if (isUploadId(decoded)) {
+		return <PracticePlayerClient songId={decoded} initialBuiltIn={null} />;
+	}
+
 	const songs = await getAllBuiltInSongs();
 	const song = songs.find((s) => s.id === decoded);
 	if (!song) notFound();
 
-	return <PracticePlayerClient song={song} />;
+	return <PracticePlayerClient songId={decoded} initialBuiltIn={song} />;
 }

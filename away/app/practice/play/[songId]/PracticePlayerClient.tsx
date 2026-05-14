@@ -16,11 +16,19 @@ import { parseMidi, type ParsedMidi, type ParsedNote } from "@/lib/practice/midi
 import { buildChords, chordIndexForTime, type Chord } from "@/lib/practice/chords";
 import { buildHandAssignment, type Hand } from "@/lib/practice/hands";
 import type { BuiltInSong } from "@/lib/practice/songs";
+import { getUploadedSong, isUploadId } from "@/lib/practice/uploads";
 
 type LoadState = "loading" | "ready" | "error";
 
+type SongDescriptor = {
+	title: string;
+	artist: string | null;
+	subcategoryLabel: string | null;
+};
+
 interface PracticePlayerClientProps {
-	song: BuiltInSong;
+	songId: string;
+	initialBuiltIn: BuiltInSong | null;
 }
 
 const LOOK_AHEAD_SECONDS = 3;
@@ -33,7 +41,7 @@ const HAND_COLORS: Record<Hand, string> = {
 
 const EMPTY_SET: ReadonlySet<number> = new Set();
 
-export default function PracticePlayerClient({ song }: PracticePlayerClientProps) {
+export default function PracticePlayerClient({ songId, initialBuiltIn }: PracticePlayerClientProps) {
 	const router = useRouter();
 	const {
 		pianoKeys,
@@ -94,6 +102,15 @@ export default function PracticePlayerClient({ song }: PracticePlayerClientProps
 	const [loadState, setLoadState] = useState<LoadState>("loading");
 	const [error, setError] = useState<string | null>(null);
 	const [midi, setMidi] = useState<ParsedMidi | null>(null);
+	const [descriptor, setDescriptor] = useState<SongDescriptor>(() =>
+		initialBuiltIn
+			? {
+					title: initialBuiltIn.title,
+					artist: initialBuiltIn.artist,
+					subcategoryLabel: initialBuiltIn.subcategoryLabel,
+				}
+			: { title: "Loading…", artist: null, subcategoryLabel: null },
+	);
 
 	const [playing, setPlaying] = useState(false);
 	const [speed, setSpeed] = useState(1.0);
@@ -129,27 +146,43 @@ export default function PracticePlayerClient({ song }: PracticePlayerClientProps
 		setLoadState("loading");
 		setError(null);
 
-		fetch(song.filePath)
-			.then((res) => {
-				if (!res.ok) throw new Error(`Failed to load MIDI (${res.status})`);
-				return res.arrayBuffer();
-			})
-			.then((buf) => {
+		const load = async () => {
+			try {
+				let buffer: ArrayBuffer;
+				if (isUploadId(songId)) {
+					const upload = await getUploadedSong(songId);
+					if (!upload) throw new Error("Upload not found locally");
+					if (cancelled) return;
+					setDescriptor({
+						title: upload.title,
+						artist: upload.artist || null,
+						subcategoryLabel: null,
+					});
+					buffer = upload.data;
+				} else {
+					if (!initialBuiltIn) throw new Error("Song unavailable");
+					const res = await fetch(initialBuiltIn.filePath);
+					if (!res.ok) throw new Error(`Failed to load MIDI (${res.status})`);
+					buffer = await res.arrayBuffer();
+					if (cancelled) return;
+				}
+				const parsed = parseMidi(buffer);
 				if (cancelled) return;
-				const parsed = parseMidi(buf);
 				setMidi(parsed);
 				setLoadState("ready");
-			})
-			.catch((err) => {
+			} catch (err) {
 				if (cancelled) return;
-				setError(err.message ?? String(err));
+				setError(err instanceof Error ? err.message : String(err));
 				setLoadState("error");
-			});
+			}
+		};
+
+		load();
 
 		return () => {
 			cancelled = true;
 		};
-	}, [song.filePath]);
+	}, [songId, initialBuiltIn]);
 
 	const chords = useMemo<Chord[]>(() => (midi ? buildChords(midi.notes) : []), [midi]);
 
@@ -420,11 +453,11 @@ export default function PracticePlayerClient({ song }: PracticePlayerClientProps
 		[waitingChord],
 	);
 
-	const title = song.artist
-		? `${song.title} - ${song.artist}`
-		: song.subcategoryLabel
-			? `${song.title} - ${song.subcategoryLabel}`
-			: song.title;
+	const title = descriptor.artist
+		? `${descriptor.title} - ${descriptor.artist}`
+		: descriptor.subcategoryLabel
+			? `${descriptor.title} - ${descriptor.subcategoryLabel}`
+			: descriptor.title;
 
 	return (
 		<div className="h-[var(--app-h,100dvh)] w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative">
