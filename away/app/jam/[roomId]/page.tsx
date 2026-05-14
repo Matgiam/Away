@@ -46,15 +46,23 @@ type PlayerEntry = {
 };
 
 async function decrementOrDelete(roomId: string) {
-	const { data } = await supabase.from("rooms").select("current_players").eq("id", roomId).single();
-	if (!data) return;
-	if (data.current_players <= 1) {
-		await supabase.from("rooms").delete().eq("id", roomId);
-	} else {
-		await supabase
+	try {
+		const { data, error } = await supabase
 			.from("rooms")
-			.update({ current_players: data.current_players - 1 })
-			.eq("id", roomId);
+			.select("current_players")
+			.eq("id", roomId)
+			.single();
+		if (error || !data) return;
+		if (data.current_players <= 1) {
+			await supabase.from("rooms").delete().eq("id", roomId);
+		} else {
+			await supabase
+				.from("rooms")
+				.update({ current_players: data.current_players - 1 })
+				.eq("id", roomId);
+		}
+	} catch (e) {
+		console.error("decrementOrDelete failed", e);
 	}
 }
 
@@ -137,6 +145,14 @@ export default function JamRoom() {
 
 	const roomChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 	const isRedirectingRef = useRef(false);
+	const hasDecrementedRef = useRef(false);
+	const channelMountedAtRef = useRef(0);
+
+	const safeDecrement = useCallback(async () => {
+		if (hasDecrementedRef.current) return;
+		hasDecrementedRef.current = true;
+		await decrementOrDelete(roomId);
+	}, [roomId]);
 
 	const chatAnchorRef = useRef<HTMLDivElement>(null);
 	const [chatPos, setChatPos] = useState<{ top: number; right: number } | null>(null);
@@ -167,7 +183,7 @@ export default function JamRoom() {
 			sessionStorage.removeItem(REFRESH_KEY);
 			isRedirectingRef.current = true;
 			(async () => {
-				await decrementOrDelete(roomId);
+				await safeDecrement();
 				router.replace("/multiplayer");
 			})();
 			return;
@@ -176,9 +192,17 @@ export default function JamRoom() {
 			sessionStorage.setItem(REFRESH_KEY, roomId);
 			roomChannelRef.current?.untrack();
 		};
+		const handlePopState = () => {
+			sessionStorage.removeItem(REFRESH_KEY);
+			safeDecrement();
+		};
 		window.addEventListener("beforeunload", handleBeforeUnload);
-		return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-	}, [roomId, router]);
+		window.addEventListener("popstate", handlePopState);
+		return () => {
+			window.removeEventListener("beforeunload", handleBeforeUnload);
+			window.removeEventListener("popstate", handlePopState);
+		};
+	}, [roomId, router, safeDecrement]);
 
 	useEffect(() => {
 		const checkUser = async () => {
@@ -390,10 +414,10 @@ export default function JamRoom() {
 	const { messages, isChatOpen, setIsChatOpen, addMessage, unreadCount } = useChat(roomId, myChatId);
 
 	const handleLoginClick = useCallback(async () => {
-		await decrementOrDelete(roomId);
+		await safeDecrement();
 		sessionStorage.removeItem("hostedRoomId");
 		router.push("/auth/login");
-	}, [router, roomId]);
+	}, [router, safeDecrement]);
 
 	const handleOpenChat = useCallback(() => setIsChatOpen(true), [setIsChatOpen]);
 	const handleCloseChat = useCallback(() => setIsChatOpen(false), [setIsChatOpen]);
@@ -491,6 +515,7 @@ export default function JamRoom() {
 
 	useEffect(() => {
 		if (isRedirectingRef.current) return;
+		channelMountedAtRef.current = Date.now();
 		const room = supabase.channel(`jam-room-${roomId}`, {
 			config: { presence: { key: myTempId.current } },
 		});
@@ -619,6 +644,12 @@ export default function JamRoom() {
 		});
 
 		return () => {
+			const mountedDuration = Date.now() - channelMountedAtRef.current;
+			const isStrictModeTest = mountedDuration < 100;
+			if (!isStrictModeTest && sessionStorage.getItem("jamRoomRefreshed") !== roomId) {
+				safeDecrement();
+			}
+
 			knownPeerIdsRef.current().forEach((pid) => {
 				releaseAllForPlayerRef.current(pid);
 				removePeerRef.current(pid);
@@ -636,21 +667,18 @@ export default function JamRoom() {
 			} catch {}
 			supabase.removeChannel(room);
 		};
-	}, [roomId]);
-
-	const hasLeftRef = useRef(false);
+	}, [roomId, safeDecrement]);
 
 	const handleLeave = useCallback(async () => {
-		hasLeftRef.current = true;
 		const userId = myUserIdRef.current;
 		if (userId) {
 			const elapsed = Math.round((Date.now() - joinedAtRef.current) / 1000);
 			await saveSessionStats(userId, elapsed, notesPlayedRef.current);
 		}
-		await decrementOrDelete(roomId);
+		await safeDecrement();
 		sessionStorage.removeItem("hostedRoomId");
 		router.push("/multiplayer");
-	}, [roomId, router]);
+	}, [router, safeDecrement]);
 
 	const backgroundAnimated = settings.backgroundAnimated && !settings.reducedMotion;
 
