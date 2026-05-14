@@ -148,6 +148,11 @@ function Timeline({
 	}, [totalDuration]);
 
 	const clampedProgress = Math.max(0, Math.min(1, progress));
+	const handleOffset = HANDLE_SIZE / 2;
+	const handleRange = TIMELINE_WIDTH - HANDLE_SIZE;
+	const handleCenterPx = handleOffset + handleRange * clampedProgress;
+	const handleLeftPct = (handleCenterPx / TIMELINE_WIDTH) * 100;
+	const barWidthPct = handleLeftPct + 1.6;
 
 	return (
 		<div
@@ -175,8 +180,9 @@ function Timeline({
 						<div
 							className="absolute left-0 top-0 bottom-0 bg-white/20 pointer-events-none"
 							style={{
-								width: `${clampedProgress * 100}%`,
+								width: `${barWidthPct}%`,
 								borderRadius: TIMELINE_HEIGHT / 2,
+									
 							}}
 						/>
 					</div>
@@ -186,7 +192,7 @@ function Timeline({
 			<div
 				className="absolute top-1/2 pointer-events-none"
 				style={{
-					left: `${clampedProgress * 100}%`,
+					left: `${handleLeftPct}%`,
 					transform: "translate(-50%, -50%)",
 				}}
 			>
