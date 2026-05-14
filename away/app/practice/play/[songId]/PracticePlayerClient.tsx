@@ -112,9 +112,9 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 			: { title: "Loading…", artist: null, subcategoryLabel: null },
 	);
 
-	const [playing, setPlaying] = useState(false);
+	const [playing, setPlaying] = useState(true);
 	const [speed, setSpeed] = useState(1.0);
-	const [autoPause, setAutoPause] = useState(true);
+	const [autoPause, setAutoPause] = useState(false);
 	const [currentTime, setCurrentTime] = useState(0);
 
 	const [waitingChord, setWaitingChord] = useState<Chord | null>(null);
@@ -475,7 +475,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 			/>
 
 			<Navigation
-				onLogout={() => router.push("/")}
+				onLogout={() => router.push("/practice")}
 				onToggleRecord={recordingState === "recording" ? stopRecording : startRecording}
 				recordingState={recordingState}
 				recordingCountdown={recordingCountdown}

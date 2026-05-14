@@ -143,15 +143,15 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 
 	return (
 		<div className="h-full w-full">
-			<div className="mx-auto max-w-[1100px] h-full flex flex-col gap-10 px-12 pt-12 pb-12">
-				<header className="flex items-start justify-between gap-6">
+			<div className="mx-auto max-w-[1200px] h-full flex flex-col gap-12 px-1 pt-12 pb-12">
+				<header className="flex items-start justify-between gap-12">
 					<h1 className="text-white text-5xl font-bold italic tracking-wide drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]">
 						Select your song
 					</h1>
 					<PracticeTabs active={tab} onChange={handleTabChange} />
 				</header>
 
-				<div className="grid grid-cols-[300px_1fr] gap-10 flex-1 min-h-0">
+				<div className="grid grid-cols-[300px_1fr] gap-30 flex-1 min-h-0">
 					<div className="flex flex-col items-start gap-7">
 						<SearchBar value={search} onChange={setSearch} />
 						<CategoryList active={category} onChange={handleCategoryChange} />

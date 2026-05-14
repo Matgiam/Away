@@ -41,7 +41,7 @@ export function CategoryList({ active, onChange }: CategoryListProps) {
 							}`}
 						>
 							<span
-								className={`absolute -left-4 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-white transition-opacity ${
+								className={`absolute -left-4 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-[#5C0091] transition-opacity ${
 									isActive ? "opacity-100" : "opacity-0"
 								}`}
 							/>
