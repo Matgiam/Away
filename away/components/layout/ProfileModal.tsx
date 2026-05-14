@@ -80,17 +80,17 @@ export const ProfileModal = ({
 		};
 	}, [open, userId, fallbackDisplayName]);
 
+	const unlockedAchievementIds = useMemo(
+		() => getUnlockedAchievementIdsForNotes(profile?.notesPlayed ?? 0),
+		[profile?.notesPlayed],
+	);
+
 	if (!open) return null;
 
 	const displayName = profile?.username || fallbackDisplayName || "Player";
 	const titleName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
 	const hasAccount = !!userId;
 	const canEditUsername = isSelf && hasAccount;
-
-	const unlockedAchievementIds = useMemo(
-		() => getUnlockedAchievementIdsForNotes(profile?.notesPlayed ?? 0),
-		[profile?.notesPlayed],
-	);
 
 	const handleSaveUsername = async () => {
 		const trimmed = usernameDraft.trim();
