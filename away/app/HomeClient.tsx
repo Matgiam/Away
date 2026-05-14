@@ -138,6 +138,7 @@ export default function HomeClient() {
 	const handleMultiplayerClick = () => router.push("/multiplayer");
 	const handleProfileClick = () => router.push("/protected/profile");
 	const handleSettingsClick = () => router.push("/settings");
+	const handlePracticeClick = () => router.push("/practice");
 
 	const backgroundAnimated = settings.backgroundAnimated && !settings.reducedMotion;
 
@@ -162,6 +163,9 @@ export default function HomeClient() {
 								</p>
 								<p className="text-2xl italic text-gray-400 cursor-pointer hover:text-white transition-colors mt-5" onClick={handleMultiplayerClick}>
 									Multiplayer mode
+								</p>
+								<p className="text-2xl italic text-gray-400 cursor-pointer hover:text-white transition-colors mt-5" onClick={handlePracticeClick}>
+									Practice mode
 								</p>
 								<p className="text-2xl italic text-gray-400 cursor-pointer hover:text-white transition-colors mt-5" onClick={handleProfileClick}>
 									Profile
