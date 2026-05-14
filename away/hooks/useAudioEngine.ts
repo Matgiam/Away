@@ -63,11 +63,16 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 	const reverbRef = useRef<Tone.Reverb | null>(null);
 	const masterVolumeNodeRef = useRef<Tone.Volume | null>(null);
 
-	const noteHoldersRef = useRef<Map<number, Set<string>>>(new Map());
+	const noteHoldersRef = useRef<Map<number, Map<string, string>>>(new Map());
 	const sustainedNotesRef = useRef<Set<number>>(new Set());
 	const isSustainOnRef = useRef(false);
 	const visNotesRef = useRef<VisNote[]>([]);
 	const initializedRef = useRef(false);
+
+	const peerSustainRef = useRef<Map<string, boolean>>(new Map());
+	const peerSustainedNotesRef = useRef<Map<string, Map<number, string>>>(new Map());
+	const currentSoundfontRef = useRef<string>(DEFAULT_SOUNDFONT);
+	const loadSoundfontRef = useRef<((key: string) => Promise<void>) | null>(null);
 
 	const [midiDevices, setMidiDevices] = useState<string[]>([]);
 	const [midiError, setMidiError] = useState<string | null>(null);
@@ -99,7 +104,11 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		}
 	}, []);
 
-	const [currentSoundfont, setCurrentSoundfont] = useState<string>(DEFAULT_SOUNDFONT);
+	const [currentSoundfont, setCurrentSoundfontState] = useState<string>(DEFAULT_SOUNDFONT);
+	const setCurrentSoundfont = useCallback((key: string) => {
+		currentSoundfontRef.current = key;
+		setCurrentSoundfontState(key);
+	}, []);
 	const [loadedSoundfonts, setLoadedSoundfonts] = useState<string[]>([]);
 	const [loadingSoundfont, setLoadingSoundfont] = useState<string | null>(null);
 
@@ -166,15 +175,41 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 	}, []);
 
 	const playNote = useCallback(
-		(midi: number, vel: number = 0.7, playerId: string = SELF, colorIndex?: number, noteColorHex?: string) => {
+		(midi: number, vel: number = 0.7, playerId: string = SELF, colorIndex?: number, noteColorHex?: string, soundfontKey?: string) => {
 			let holders = noteHoldersRef.current.get(midi);
 			if (!holders) {
-				holders = new Set();
+				holders = new Map();
 				noteHoldersRef.current.set(midi, holders);
 			}
 			if (holders.has(playerId)) return;
-			holders.add(playerId);
-			sustainedNotesRef.current.delete(midi);
+
+			let sampler: Tone.Sampler | null;
+			let effectiveSamplerKey: string;
+			if (playerId === SELF) {
+				sampler = samplerRef.current;
+				effectiveSamplerKey = currentSoundfontRef.current;
+			} else {
+				const requestedKey = soundfontKey ?? currentSoundfontRef.current;
+				const requestedSampler = samplersRef.current.get(requestedKey);
+				if (requestedSampler && requestedSampler.loaded) {
+					sampler = requestedSampler;
+					effectiveSamplerKey = requestedKey;
+				} else {
+					if (requestedKey && !samplersRef.current.has(requestedKey)) {
+						loadSoundfontRef.current?.(requestedKey)?.catch(() => {});
+					}
+					sampler = samplerRef.current;
+					effectiveSamplerKey = currentSoundfontRef.current;
+				}
+			}
+			holders.set(playerId, effectiveSamplerKey);
+
+			if (playerId === SELF) {
+				sustainedNotesRef.current.delete(midi);
+			} else {
+				const peerSustainedMap = peerSustainedNotesRef.current.get(playerId);
+				peerSustainedMap?.delete(midi);
+			}
 
 			const keyInfo = pianoKeys.find((k) => k.midi === midi);
 			const isBlack = keyInfo?.isBlack ?? false;
@@ -201,8 +236,8 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 
 			const normalizedVel = vel > 1 ? vel / 127 : vel;
 
-			if (audioStartedRef.current && samplerRef.current && samplerRef.current.loaded) {
-				samplerRef.current.triggerAttack(Tone.Frequency(midi, "midi").toNote(), Tone.immediate(), normalizedVel);
+			if (audioStartedRef.current && sampler && sampler.loaded) {
+				sampler.triggerAttack(Tone.Frequency(midi, "midi").toNote(), Tone.immediate(), normalizedVel);
 			}
 
 			if (keyInfo) {
@@ -236,44 +271,94 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		[pianoKeys, setNoteLines],
 	);
 
-	const stopNote = useCallback((midi: number, playerId: string = SELF) => {
+	const stopNote = useCallback((midi: number, playerId: string = SELF, soundfontKey?: string) => {
 		const holders = noteHoldersRef.current.get(midi);
 		if (!holders || !holders.has(playerId)) return;
+		const samplerKeyOfNote = holders.get(playerId) ?? soundfontKey ?? currentSoundfontRef.current;
 		holders.delete(playerId);
 
 		const pendingNote = visNotesRef.current.findLast((n) => n.midi === midi && n.endTime === null && n.playerId === playerId);
 		if (pendingNote) pendingNote.endTime = performance.now();
 
-		if (holders.size === 0) {
-			noteHoldersRef.current.delete(midi);
-			const keyEl = document.querySelector(`[data-midi="${midi}"]`);
-			keyEl?.classList.remove("active");
+		let othersOnSameSampler = false;
+		holders.forEach((sk) => {
+			if (sk === samplerKeyOfNote) othersOnSameSampler = true;
+		});
 
-			const sustainActive =
+		const sampler = samplersRef.current.get(samplerKeyOfNote) ?? samplerRef.current;
+
+		let sustainActive: boolean;
+		if (playerId === SELF) {
+			sustainActive =
 				sustainModeRef.current === "off"
 					? false
 					: sustainModeRef.current === "always"
 						? true
 						: isSustainOnRef.current;
+		} else {
+			sustainActive = peerSustainRef.current.get(playerId) ?? false;
+		}
 
-			if (sustainActive) {
+		if (sustainActive) {
+			if (playerId === SELF) {
 				sustainedNotesRef.current.add(midi);
-			} else if (samplerRef.current) {
-				samplerRef.current.triggerRelease(Tone.Frequency(midi, "midi").toNote(), Tone.immediate());
+			} else {
+				let peerSustainedMap = peerSustainedNotesRef.current.get(playerId);
+				if (!peerSustainedMap) {
+					peerSustainedMap = new Map();
+					peerSustainedNotesRef.current.set(playerId, peerSustainedMap);
+				}
+				peerSustainedMap.set(midi, samplerKeyOfNote);
 			}
+		} else if (sampler && !othersOnSameSampler) {
+			sampler.triggerRelease(Tone.Frequency(midi, "midi").toNote(), Tone.immediate());
+		}
+
+		if (holders.size === 0) {
+			noteHoldersRef.current.delete(midi);
+			const keyEl = document.querySelector(`[data-midi="${midi}"]`);
+			keyEl?.classList.remove("active");
 		}
 	}, []);
 
 	const releaseAllForPlayer = useCallback(
 		(playerId: string) => {
-			const midis: number[] = [];
+			const entries: Array<{ midi: number; samplerKey: string }> = [];
 			noteHoldersRef.current.forEach((holders, midi) => {
-				if (holders.has(playerId)) midis.push(midi);
+				const sk = holders.get(playerId);
+				if (sk !== undefined) entries.push({ midi, samplerKey: sk });
 			});
-			midis.forEach((m) => stopNote(m, playerId));
+			entries.forEach(({ midi, samplerKey }) => stopNote(midi, playerId, samplerKey));
+
+			if (playerId !== SELF) {
+				const sustainedMap = peerSustainedNotesRef.current.get(playerId);
+				if (sustainedMap && sustainedMap.size > 0) {
+					sustainedMap.forEach((samplerKey, sustainedMidi) => {
+						const sampler = samplersRef.current.get(samplerKey) ?? samplerRef.current;
+						sampler?.triggerRelease(Tone.Frequency(sustainedMidi, "midi").toNote(), Tone.immediate());
+					});
+					sustainedMap.clear();
+				}
+				peerSustainRef.current.delete(playerId);
+				peerSustainedNotesRef.current.delete(playerId);
+			}
 		},
 		[stopNote],
 	);
+
+	const setPeerSustain = useCallback((peerId: string, active: boolean, _soundfontKey?: string) => {
+		peerSustainRef.current.set(peerId, active);
+		if (!active) {
+			const sustainedMap = peerSustainedNotesRef.current.get(peerId);
+			if (sustainedMap && sustainedMap.size > 0) {
+				sustainedMap.forEach((samplerKey, sustainedMidi) => {
+					const sampler = samplersRef.current.get(samplerKey) ?? samplerRef.current;
+					sampler?.triggerRelease(Tone.Frequency(sustainedMidi, "midi").toNote(), Tone.immediate());
+				});
+				sustainedMap.clear();
+			}
+		}
+	}, []);
 
 	const setSustain = useCallback((active: boolean) => {
 		isSustainOnRef.current = active;
@@ -302,7 +387,7 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 			if (!reverbRef.current) return reject(new Error("Audio not initialized"));
 
 			setLoadingSoundfont(key);
-			const gain = new Tone.Gain(0);
+			const gain = new Tone.Gain(1);
 			gain.connect(reverbRef.current);
 			const sampler = createSampler(inst, () => {
 				setLoadedSoundfonts((prev) => (prev.includes(key) ? prev : [...prev, key]));
@@ -315,10 +400,20 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		});
 	}, []);
 
-	const clearAllHeldKeys = () => {
-		noteHoldersRef.current.clear();
+	useEffect(() => {
+		loadSoundfontRef.current = loadSoundfont;
+	}, [loadSoundfont]);
+
+	const clearLocalHeldKeys = () => {
+		noteHoldersRef.current.forEach((holders, midi) => {
+			holders.delete(SELF);
+			if (holders.size === 0) {
+				noteHoldersRef.current.delete(midi);
+				const keyEl = document.querySelector(`[data-midi="${midi}"]`);
+				keyEl?.classList.remove("active");
+			}
+		});
 		sustainedNotesRef.current.clear();
-		document.querySelectorAll('[data-midi].active').forEach((el) => el.classList.remove('active'));
 	};
 
 	const selectSoundfont = useCallback(
@@ -342,24 +437,38 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 				} catch {}
 			}
 
-			samplerGainsRef.current.forEach((gain, k) => {
-				const target = k === key ? 1 : 0;
+			const newGain = samplerGainsRef.current.get(key);
+			if (newGain) {
 				try {
-					gain.gain.cancelScheduledValues(Tone.now());
-					gain.gain.rampTo(target, 0.05);
+					newGain.gain.cancelScheduledValues(Tone.now());
+					newGain.gain.rampTo(1, 0.05);
 				} catch {}
-			});
+			}
 
-			clearAllHeldKeys();
+			clearLocalHeldKeys();
 
 			samplerRef.current = next;
 			setCurrentSoundfont(key);
+		},
+		[loadSoundfont, setCurrentSoundfont],
+	);
+
+	const ensureSoundfontLoaded = useCallback(
+		(key: string) => {
+			if (!key) return;
+			if (!instrumentsRef.current[key]) return;
+			if (samplersRef.current.has(key)) return;
+			loadSoundfont(key).catch(() => {});
 		},
 		[loadSoundfont],
 	);
 
 	const connectMIDI = useCallback(
-		(onPlay: (note: number, velocity: number) => void = (n, v) => playNote(n, v), onStop: (note: number) => void = (n) => stopNote(n)) => {
+		(
+			onPlay: (note: number, velocity: number) => void = (n, v) => playNote(n, v),
+			onStop: (note: number) => void = (n) => stopNote(n),
+			onSustain: (active: boolean) => void = (active) => setSustain(active),
+		) => {
 			const nav = navigator as any;
 			if (!nav.requestMIDIAccess) {
 				setMidiError("Web MIDI is not enabled in this browser. In Brave, open brave://settings/content/midiSysex and enable MIDI for this site.");
@@ -385,13 +494,7 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 								if (command === 11 && note === 64) {
 									if (sustainModeRef.current !== "midi") return;
 									const pedalPressed = vel >= 64;
-									isSustainOnRef.current = pedalPressed;
-									if (!pedalPressed) {
-										sustainedNotesRef.current.forEach((sustainedMidi) => {
-											samplerRef.current?.triggerRelease(Tone.Frequency(sustainedMidi, "midi").toNote(), Tone.immediate());
-										});
-										sustainedNotesRef.current.clear();
-									}
+									onSustain(pedalPressed);
 								} else if (command === 9 && vel > 0) {
 									const finalVel = velocityModeRef.current === "fixed" ? fixedVelocityRef.current : vel;
 									onPlay(transposed, finalVel);
@@ -410,7 +513,7 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 					setMidiDevices([]);
 				});
 		},
-		[playNote, stopNote, unlockAudio],
+		[playNote, stopNote, unlockAudio, setSustain],
 	);
 
 	useEffect(() => {
@@ -461,6 +564,8 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		noteColor,
 		setNoteColor,
 		setSustain,
+		setPeerSustain,
+		ensureSoundfontLoaded,
 		setReverbWet,
 		setMidiTranspose,
 		setVelocityMode,

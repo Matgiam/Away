@@ -16,7 +16,7 @@ import { parseMidi, type ParsedMidi, type ParsedNote } from "@/lib/practice/midi
 import { buildChords, chordIndexForTime, type Chord } from "@/lib/practice/chords";
 import { buildHandAssignment, type Hand } from "@/lib/practice/hands";
 import type { BuiltInSong } from "@/lib/practice/songs";
-import { getUploadedSong, isUploadId } from "@/lib/practice/uploads";
+import { downloadUploadedMidi, getUploadedSongMeta, isUploadId } from "@/lib/practice/uploads";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -150,15 +150,16 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 			try {
 				let buffer: ArrayBuffer;
 				if (isUploadId(songId)) {
-					const upload = await getUploadedSong(songId);
-					if (!upload) throw new Error("Upload not found locally");
+					const meta = await getUploadedSongMeta(songId);
+					if (!meta) throw new Error("Upload not found or you don't have access to it.");
 					if (cancelled) return;
 					setDescriptor({
-						title: upload.title,
-						artist: upload.artist || null,
+						title: meta.title,
+						artist: meta.artist || null,
 						subcategoryLabel: null,
 					});
-					buffer = upload.data;
+					buffer = await downloadUploadedMidi(meta.storagePath);
+					if (cancelled) return;
 				} else {
 					if (!initialBuiltIn) throw new Error("Song unavailable");
 					const res = await fetch(initialBuiltIn.filePath);

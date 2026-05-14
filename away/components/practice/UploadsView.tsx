@@ -6,6 +6,7 @@ import type { UploadDifficulty, UploadedSongMeta } from "@/lib/practice/uploads"
 interface UploadsViewProps {
 	uploads: UploadedSongMeta[];
 	loading: boolean;
+	signedIn: boolean;
 	selectedId: string | null;
 	onSelect: (id: string) => void;
 	onPlay: (id: string) => void;
@@ -16,12 +17,36 @@ interface UploadsViewProps {
 export function UploadsView({
 	uploads,
 	loading,
+	signedIn,
 	selectedId,
 	onSelect,
 	onPlay,
 	onDelete,
 	onUploadClick,
 }: UploadsViewProps) {
+	if (!signedIn) {
+		return (
+			<div className="flex h-full w-full items-center justify-center">
+				<div className="flex flex-col items-center text-center px-10 py-12 rounded-2xl border-2 border-dashed border-white/15 max-w-[500px]">
+					<svg width="44" height="44" viewBox="0 0 24 24" fill="none" className="text-white/55 mb-4">
+						<rect x="3" y="11" width="18" height="10" rx="2" stroke="currentColor" strokeWidth="1.6" />
+						<path d="M8 11V8a4 4 0 1 1 8 0v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+					</svg>
+					<p className="text-white text-lg italic font-semibold mb-1">Sign in to see your uploads</p>
+					<p className="text-white/55 text-sm">
+						Your imported MIDI files are saved to your account so only you can see them.
+					</p>
+					<a
+						href="/auth/login"
+						className="mt-6 px-6 py-2 rounded-lg bg-white text-black font-medium hover:scale-[1.02] transition-transform"
+					>
+						Sign in
+					</a>
+				</div>
+			</div>
+		);
+	}
+
 	if (loading) {
 		return (
 			<div className="flex h-full w-full items-center justify-center text-white/50 italic">

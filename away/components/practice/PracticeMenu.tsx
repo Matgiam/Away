@@ -15,6 +15,7 @@ import {
 	listUploadedSongs,
 	type UploadedSongMeta,
 } from "@/lib/practice/uploads";
+import { createClient } from "@/lib/supabase/client";
 
 interface PracticeMenuProps {
 	initialSongs: BuiltInSong[];
@@ -31,6 +32,8 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 	const [uploads, setUploads] = useState<UploadedSongMeta[]>([]);
 	const [uploadsLoading, setUploadsLoading] = useState(true);
 	const [uploadModalOpen, setUploadModalOpen] = useState(false);
+	const [userId, setUserId] = useState<string | null>(null);
+	const [authChecked, setAuthChecked] = useState(false);
 
 	const refreshUploads = useCallback(async () => {
 		setUploadsLoading(true);
@@ -45,7 +48,32 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 	}, []);
 
 	useEffect(() => {
-		refreshUploads();
+		const supabase = createClient();
+
+		supabase.auth.getUser().then(({ data }) => {
+			setUserId(data.user?.id ?? null);
+			setAuthChecked(true);
+			if (data.user) refreshUploads();
+			else {
+				setUploads([]);
+				setUploadsLoading(false);
+			}
+		});
+
+		const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+			const nextId = session?.user?.id ?? null;
+			setUserId(nextId);
+			if (nextId) {
+				refreshUploads();
+			} else {
+				setUploads([]);
+				setUploadsLoading(false);
+			}
+		});
+
+		return () => {
+			sub.subscription.unsubscribe();
+		};
 	}, [refreshUploads]);
 
 	const filteredSongs = useMemo(() => {
@@ -134,9 +162,10 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 
 	const isCustom = category === "custom";
 	const isTraining = category === "training";
+	const signedIn = !!userId;
 
 	const startDisabled = isCustom
-		? !selectedId || filteredUploads.length === 0
+		? !signedIn || !selectedId || filteredUploads.length === 0
 		: isTraining
 			? true
 			: !selectedId || filteredSongs.length === 0;
@@ -166,7 +195,8 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 						) : isCustom ? (
 							<UploadsView
 								uploads={filteredUploads}
-								loading={uploadsLoading}
+								loading={!authChecked || uploadsLoading}
+								signedIn={signedIn}
 								selectedId={selectedId}
 								onSelect={setSelectedId}
 								onPlay={handlePlayById}
@@ -189,6 +219,7 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 				open={uploadModalOpen}
 				onClose={() => setUploadModalOpen(false)}
 				onUploaded={handleUploaded}
+				signedIn={signedIn}
 			/>
 		</div>
 	);

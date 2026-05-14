@@ -31,6 +31,7 @@ type PresencePlayer = {
 	joinedAt: number;
 	userId?: string;
 	noteColorHex?: string;
+	soundfont?: string;
 };
 
 type PlayerEntry = {
@@ -39,6 +40,7 @@ type PlayerEntry = {
 	displayName: string;
 	colorIndex: number;
 	noteColorHex?: string;
+	soundfont?: string;
 	isMe: boolean;
 	isFriend: boolean;
 };
@@ -88,6 +90,8 @@ export default function JamRoom() {
 		noteColor,
 		setNoteColor,
 		setSustain,
+		setPeerSustain,
+		ensureSoundfontLoaded,
 		keyboardInputEnabled,
 		setKeyboardInputEnabled,
 		keybinds,
@@ -206,6 +210,7 @@ export default function JamRoom() {
 	const myNameRef = useRef(myName);
 	const myUserIdRef = useRef<string | null>(null);
 	const noteColorRef = useRef(noteColor);
+	const currentSoundfontRef = useRef(currentSoundfont);
 	useEffect(() => {
 		noteColorRef.current = noteColor;
 	}, [noteColor]);
@@ -218,6 +223,7 @@ export default function JamRoom() {
 			joinedAt: joinedAtRef.current,
 			userId: myUserIdRef.current ?? undefined,
 			noteColorHex: noteColorRef.current,
+			soundfont: currentSoundfontRef.current,
 		});
 	}, []);
 
@@ -237,6 +243,14 @@ export default function JamRoom() {
 			prev.map((p) => (p.isMe ? { ...p, noteColorHex: noteColor } : p)),
 		);
 	}, [noteColor, trackPresence]);
+
+	useEffect(() => {
+		currentSoundfontRef.current = currentSoundfont;
+		trackPresence();
+		setPlayers((prev) =>
+			prev.map((p) => (p.isMe ? { ...p, soundfont: currentSoundfont } : p)),
+		);
+	}, [currentSoundfont, trackPresence]);
 
 	const { friends, pending: incomingFriendRequests, outgoing: outgoingFriendRequests } = useFriends(user?.id ?? null);
 	const friendUserIdsRef = useRef<Set<string>>(new Set());
@@ -311,17 +325,19 @@ export default function JamRoom() {
 	}, [settings.showPlayerColors]);
 
 	const onReceivePeerNote = useCallback(
-		(peerId: string, note: number, velocity: number, isNoteOn: boolean) => {
+		(peerId: string, note: number, velocity: number, isNoteOn: boolean, soundfontFromPayload?: string) => {
 			const player = playersRef.current.find((p) => p.id === peerId);
 			const colorIndex = player?.colorIndex ?? 0;
 			const noteColorHex = showPlayerColorsRef.current ? player?.noteColorHex : noteColorRef.current;
+			const soundfontKey = soundfontFromPayload ?? player?.soundfont;
+			if (soundfontKey) ensureSoundfontLoaded(soundfontKey);
 			if (isNoteOn) {
-				playNote(note, velocity, peerId, colorIndex, noteColorHex);
+				playNote(note, velocity, peerId, colorIndex, noteColorHex, soundfontKey);
 			} else {
-				stopNote(note, peerId);
+				stopNote(note, peerId, soundfontKey);
 			}
 		},
-		[playNote, stopNote],
+		[playNote, stopNote, ensureSoundfontLoaded],
 	);
 
 	const { initiateConnection, handleOffer, handleAnswer, handleCandidate, removePeer, hasPeer, knownPeerIds } = useWebRTC(
@@ -351,6 +367,14 @@ export default function JamRoom() {
 		[stopNote],
 	);
 
+	const handleLocalSustain = useCallback(
+		(active: boolean) => {
+			setSustain(active);
+			broadcastSustainSupabaseRef.current(active);
+		},
+		[setSustain],
+	);
+
 	useKeyboardInput({
 		enabled: keyboardInputEnabled,
 		keybinds,
@@ -358,7 +382,7 @@ export default function JamRoom() {
 		onPlay: handleLocalPlay,
 		onStop: handleLocalStop,
 		onOctaveShift: (delta) => setKeybindBaseMidi(keybindBaseMidi + delta),
-		onSustainChange: setSustain,
+		onSustainChange: handleLocalSustain,
 		onAnyKey: unlockAudio,
 	});
 
@@ -405,6 +429,10 @@ export default function JamRoom() {
 	const handleLocalStopRef = useRef(handleLocalStop);
 	const connectMIDIRef = useRef(connectMIDI);
 	const broadcastNoteSupabaseRef = useRef<(note: number, velocity: number, isNoteOn: boolean) => void>(() => {});
+	const broadcastSustainSupabaseRef = useRef<(active: boolean) => void>(() => {});
+	const ensureSoundfontLoadedRef = useRef(ensureSoundfontLoaded);
+	const setPeerSustainRef = useRef(setPeerSustain);
+	const handleLocalSustainRef = useRef(handleLocalSustain);
 
 	useEffect(() => {
 		initiateConnectionRef.current = initiateConnection;
@@ -439,12 +467,22 @@ export default function JamRoom() {
 	useEffect(() => {
 		connectMIDIRef.current = connectMIDI;
 	}, [connectMIDI]);
+	useEffect(() => {
+		ensureSoundfontLoadedRef.current = ensureSoundfontLoaded;
+	}, [ensureSoundfontLoaded]);
+	useEffect(() => {
+		setPeerSustainRef.current = setPeerSustain;
+	}, [setPeerSustain]);
+	useEffect(() => {
+		handleLocalSustainRef.current = handleLocalSustain;
+	}, [handleLocalSustain]);
 
 	useEffect(() => {
 		unlockAudio();
 		connectMIDIRef.current(
 			(note, vel) => handleLocalPlayRef.current(note, vel),
 			(note) => handleLocalStopRef.current(note),
+			(active) => handleLocalSustainRef.current(active),
 		);
 		return () => {
 			connectMIDIRef.current();
@@ -484,13 +522,39 @@ export default function JamRoom() {
 			room.send({
 				type: "broadcast",
 				event: "piano-note",
-				payload: { senderId: myTempId.current, note, velocity, isNoteOn },
+				payload: {
+					senderId: myTempId.current,
+					note,
+					velocity,
+					isNoteOn,
+					soundfont: currentSoundfontRef.current,
+				},
+			});
+		};
+
+		broadcastSustainSupabaseRef.current = (active: boolean) => {
+			room.send({
+				type: "broadcast",
+				event: "piano-sustain",
+				payload: {
+					senderId: myTempId.current,
+					active,
+					soundfont: currentSoundfontRef.current,
+				},
 			});
 		};
 
 		room.on("broadcast", { event: "piano-note" }, ({ payload }) => {
 			if (payload.senderId === myTempId.current) return;
-			onReceivePeerNote(payload.senderId, payload.note, payload.velocity, payload.isNoteOn);
+			onReceivePeerNote(payload.senderId, payload.note, payload.velocity, payload.isNoteOn, payload.soundfont);
+		});
+
+		room.on("broadcast", { event: "piano-sustain" }, ({ payload }) => {
+			if (payload.senderId === myTempId.current) return;
+			const peer = playersRef.current.find((p) => p.id === payload.senderId);
+			const sf = (payload.soundfont as string | undefined) ?? peer?.soundfont;
+			if (sf) ensureSoundfontLoadedRef.current(sf);
+			setPeerSustainRef.current(payload.senderId, !!payload.active, sf);
 		});
 
 		room.on("presence", { event: "sync" }, () => {
@@ -504,10 +568,17 @@ export default function JamRoom() {
 					displayName: data?.displayName || presenceKey,
 					joinedAt: data?.joinedAt ?? 0,
 					noteColorHex: data?.noteColorHex,
+					soundfont: data?.soundfont,
 				};
 			});
 
 			entries.sort((a, b) => a.joinedAt - b.joinedAt);
+
+			entries.forEach((e) => {
+				if (e.id !== myTempId.current && e.soundfont) {
+					ensureSoundfontLoadedRef.current(e.soundfont);
+				}
+			});
 
 			const friendIds = friendUserIdsRef.current;
 			const newPlayers: PlayerEntry[] = entries.map((e, index) => ({
@@ -516,6 +587,7 @@ export default function JamRoom() {
 				displayName: e.displayName,
 				colorIndex: index,
 				noteColorHex: e.noteColorHex,
+				soundfont: e.soundfont,
 				isMe: e.id === myTempId.current,
 				isFriend: !!e.userId && friendIds.has(e.userId),
 			}));
@@ -566,7 +638,10 @@ export default function JamRoom() {
 		};
 	}, [roomId]);
 
+	const hasLeftRef = useRef(false);
+
 	const handleLeave = useCallback(async () => {
+		hasLeftRef.current = true;
 		const userId = myUserIdRef.current;
 		if (userId) {
 			const elapsed = Math.round((Date.now() - joinedAtRef.current) / 1000);
@@ -598,6 +673,7 @@ export default function JamRoom() {
 					connectMIDIRef.current(
 						(note, vel) => handleLocalPlayRef.current(note, vel),
 						(note) => handleLocalStopRef.current(note),
+						(active) => handleLocalSustainRef.current(active),
 					)
 				}
 				soundfonts={soundfonts}
@@ -635,6 +711,9 @@ export default function JamRoom() {
 						onAcceptFriend={handleAcceptFriend}
 						onDeclineFriend={handleDeclineFriend}
 						onViewProfile={handleViewProfile}
+						soundfonts={soundfonts}
+						currentSoundfont={currentSoundfont}
+						onCopySoundfont={selectSoundfont}
 					/>
 				</div>
 				<Visualizer

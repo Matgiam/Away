@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PLAYER_COLORS_SOLID } from "@/lib/playerColors";
 import { BadgedUsername } from "@/components/achievements/BadgedUsername";
+import type { SoundfontOption } from "@/hooks/useAudioEngine";
 
 interface Player {
 	id: string;
@@ -10,6 +11,7 @@ interface Player {
 	displayName: string;
 	colorIndex: number;
 	noteColorHex?: string;
+	soundfont?: string;
 	isMe: boolean;
 	isFriend?: boolean;
 }
@@ -23,6 +25,9 @@ interface PlayerListProps {
 	onAcceptFriend?: (friendshipId: string) => void;
 	onDeclineFriend?: (friendshipId: string) => void;
 	onViewProfile?: (playerId: string) => void;
+	soundfonts?: SoundfontOption[];
+	currentSoundfont?: string;
+	onCopySoundfont?: (key: string) => void;
 }
 
 export const PlayerList: React.FC<PlayerListProps> = ({
@@ -34,9 +39,19 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 	onAcceptFriend,
 	onDeclineFriend,
 	onViewProfile,
+	soundfonts,
+	currentSoundfont,
+	onCopySoundfont,
 }) => {
 	const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
+	const [hoveredId, setHoveredId] = useState<string | null>(null);
 	const popoverRef = useRef<HTMLDivElement>(null);
+
+	const soundfontNameByKey = useMemo(() => {
+		const map = new Map<string, string>();
+		soundfonts?.forEach((sf) => map.set(sf.key, sf.name));
+		return map;
+	}, [soundfonts]);
 
 	useEffect(() => {
 		if (!openPopoverId) return;
@@ -71,9 +86,24 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 					!!onAddFriend;
 
 				const isPopoverOpen = openPopoverId === player.id;
+				const isHovered = hoveredId === player.id;
+				const peerSoundfontName = player.soundfont
+					? soundfontNameByKey.get(player.soundfont) ?? player.soundfont
+					: undefined;
+				const canCopySoundfont =
+					!player.isMe &&
+					!!player.soundfont &&
+					!!onCopySoundfont &&
+					player.soundfont !== currentSoundfont;
+				const showSoundfontTooltip = (isHovered || isPopoverOpen) && !!peerSoundfontName;
 
 				return (
-					<div key={player.id} className="flex flex-col gap-1.5">
+					<div
+						key={player.id}
+						className="flex flex-col gap-1.5"
+						onMouseEnter={() => setHoveredId(player.id)}
+						onMouseLeave={() => setHoveredId((prev) => (prev === player.id ? null : prev))}
+					>
 						<div className="flex items-center gap-3 relative">
 							<button
 								onClick={() => setOpenPopoverId(isPopoverOpen ? null : player.id)}
@@ -82,6 +112,13 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 							>
 								{player.isMe ? <BadgedUsername username={player.displayName} /> : player.displayName}
 							</button>
+
+							{showSoundfontTooltip && !isPopoverOpen && (
+								<div className="absolute left-0 top-full mt-1 z-[55] px-2.5 py-1 rounded-md border border-white/10 bg-[#0a0118]/95 backdrop-blur-xl text-white/85 text-xs whitespace-nowrap pointer-events-none shadow-lg">
+									<span className="text-white/50">Soundfont: </span>
+									<span className="italic">{peerSoundfontName}</span>
+								</div>
+							)}
 
 							{!player.isMe && player.isFriend && (
 								<img src="/icons/friends.svg" alt="" className="w-7 h-5 opacity-80" aria-label="Friend" />
@@ -125,8 +162,14 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 							{isPopoverOpen && (
 								<div
 									ref={popoverRef}
-									className="absolute left-0 top-full mt-2 z-[60] min-w-[150px] rounded-xl border border-white/10 bg-[#0a0118]/95 backdrop-blur-xl shadow-2xl py-1.5"
+									className="absolute left-0 top-full mt-2 z-[60] min-w-[200px] rounded-xl border border-white/10 bg-[#0a0118]/95 backdrop-blur-xl shadow-2xl py-1.5"
 								>
+									{peerSoundfontName && (
+										<div className="px-4 py-2 border-b border-white/10">
+											<div className="text-[10px] uppercase tracking-wider text-white/40">Soundfont</div>
+											<div className="text-sm text-white/90 italic mt-0.5">{peerSoundfontName}</div>
+										</div>
+									)}
 									<button
 										onClick={() => {
 											setOpenPopoverId(null);
@@ -136,6 +179,17 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 									>
 										View profile
 									</button>
+									{canCopySoundfont && (
+										<button
+											onClick={() => {
+												setOpenPopoverId(null);
+												if (player.soundfont) onCopySoundfont!(player.soundfont);
+											}}
+											className="w-full text-left px-4 py-2 text-sm text-white/90 hover:bg-white/10 transition-colors italic"
+										>
+											Copy soundfont
+										</button>
+									)}
 								</div>
 							)}
 						</div>
