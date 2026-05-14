@@ -482,6 +482,8 @@ export default function PracticePlayerClient({ song }: PracticePlayerClientProps
 				currentTime={currentTime}
 				totalDuration={totalDuration}
 				onSeek={handleSeek}
+				playing={playing}
+				onPlayPause={handlePlayPause}
 				loadState={loadState}
 				error={error}
 			/>
@@ -499,29 +501,6 @@ export default function PracticePlayerClient({ song }: PracticePlayerClientProps
 						gateStartTime={waitingChord?.startSeconds ?? null}
 					/>
 				</div>
-
-				<button
-					onClick={handlePlayPause}
-					disabled={loadState !== "ready"}
-					className={`pointer-events-auto fixed left-1/2 -translate-x-1/2 bottom-[170px] z-30 flex h-14 w-14 items-center justify-center rounded-full transition-all ${
-						loadState === "ready"
-							? "bg-white text-black hover:scale-105 shadow-[0_4px_20px_rgba(0,0,0,0.4)]"
-							: "bg-white/20 text-white/40 cursor-not-allowed"
-					}`}
-					aria-label={playing ? "Pause" : "Play"}
-					title="Play / Pause (Space)"
-				>
-					{playing ? (
-						<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-							<rect x="6" y="5" width="4" height="14" rx="1" />
-							<rect x="14" y="5" width="4" height="14" rx="1" />
-						</svg>
-					) : (
-						<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-							<path d="M8 5v14l11-7L8 5Z" />
-						</svg>
-					)}
-				</button>
 			</div>
 
 			<div className="fixed bottom-0 left-0 right-0 z-20">

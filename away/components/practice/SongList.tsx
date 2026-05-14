@@ -21,7 +21,7 @@ export function SongList({ songs, selectedId, onSelect, onPlay, emptyMessage }: 
 	}
 
 	return (
-		<div className="practice-song-list h-full w-full overflow-y-auto pr-3 custom-scrollbar flex flex-col gap-4">
+		<div className="practice-song-list h-full w-full overflow-y-auto pr-4 flex flex-col gap-3">
 			{songs.map((song) => {
 				const isSelected = song.id === selectedId;
 				return (
@@ -29,19 +29,19 @@ export function SongList({ songs, selectedId, onSelect, onPlay, emptyMessage }: 
 						key={song.id}
 						onClick={() => onSelect(song)}
 						onDoubleClick={() => onPlay(song)}
-						className="block w-full text-left transition-transform hover:scale-[1.005]"
+						className="block transition-transform hover:scale-[1.005]"
 					>
 						<DynamicLiquidGlass
-							width={720}
-							height={86}
+							width={680}
+							height={76}
 							radius={14}
 							refractionLevel={0.7}
 							specularOpacity={0.55}
 							glassBgOpacity={isSelected ? 0.12 : 0.02}
 						>
-							<div className="flex h-full w-full items-center px-7">
+							<div className="flex h-full w-full items-center justify-center px-7">
 								<span
-									className={`text-xl italic font-semibold tracking-wide ${
+									className={`text-xl italic font-semibold tracking-wide text-center ${
 										isSelected ? "text-white" : "text-white/80"
 									}`}
 								>
