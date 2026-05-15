@@ -77,7 +77,7 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 	}, [refreshUploads]);
 
 	const filteredSongs = useMemo(() => {
-		if (category === "training" || category === "custom") return [];
+		if (category === "custom") return [];
 		const term = search.trim().toLowerCase();
 		return initialSongs.filter((song) => {
 			if (song.category !== category) return false;
@@ -131,6 +131,10 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 	};
 
 	const handleTabChange = (next: PracticeTab) => {
+		if (next === "courses") {
+			router.push("/practice/courses");
+			return;
+		}
 		setTab(next);
 		if (next === "import") {
 			setCategory("custom");
@@ -161,14 +165,11 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 	);
 
 	const isCustom = category === "custom";
-	const isTraining = category === "training";
 	const signedIn = !!userId;
 
 	const startDisabled = isCustom
 		? !signedIn || !selectedId || filteredUploads.length === 0
-		: isTraining
-			? true
-			: !selectedId || filteredSongs.length === 0;
+		: !selectedId || filteredSongs.length === 0;
 
 	return (
 		<div className="h-full w-full">
@@ -188,11 +189,7 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 					</div>
 
 					<div className="min-h-0 overflow-hidden">
-						{isTraining ? (
-							<div className="flex h-full w-full items-center justify-center text-white/50 italic text-lg">
-								Courses are coming soon.
-							</div>
-						) : isCustom ? (
+						{isCustom ? (
 							<UploadsView
 								uploads={filteredUploads}
 								loading={!authChecked || uploadsLoading}

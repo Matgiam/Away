@@ -1,35 +1,25 @@
 "use client";
 
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
-import type { SongCategoryKey } from "@/lib/practice/songs";
+import { COURSE_CATEGORIES, type CourseCategoryKey } from "@/lib/courses/types";
 
-export type CategoryFilter = SongCategoryKey | "custom";
-
-interface CategoryListProps {
-	active: CategoryFilter;
-	onChange: (key: CategoryFilter) => void;
+interface CourseCategoryListProps {
+	active: CourseCategoryKey;
+	onChange: (key: CourseCategoryKey) => void;
 }
 
-const CATEGORY_ITEMS: { key: CategoryFilter; label: string }[] = [
-	{ key: "video_games", label: "Video Game" },
-	{ key: "anime", label: "Anime" },
-	{ key: "popular", label: "Pop" },
-	{ key: "classical", label: "Classical" },
-	{ key: "custom", label: "Custom" },
-];
-
-export function CategoryList({ active, onChange }: CategoryListProps) {
+export function CourseCategoryList({ active, onChange }: CourseCategoryListProps) {
 	return (
 		<DynamicLiquidGlass
 			width={300}
-			height={320}
+			height={360}
 			radius={20}
 			refractionLevel={0.7}
 			specularOpacity={0.5}
 			glassBgOpacity={0.03}
 		>
 			<div className="flex h-full w-full flex-col justify-center px-8 py-6 gap-4">
-				{CATEGORY_ITEMS.map((item) => {
+				{COURSE_CATEGORIES.map((item) => {
 					const isActive = item.key === active;
 					return (
 						<button

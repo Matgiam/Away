@@ -10,6 +10,17 @@ interface PianoProps {
 	onStopNote: (midi: number) => void;
 	showNoteLabels?: boolean;
 	keyAnimations?: boolean;
+	highlightedMidis?: ReadonlySet<number> | number[];
+	accentMidis?: ReadonlySet<number> | number[];
+	labelMidis?: ReadonlyMap<number, string>;
+}
+
+const EMPTY_NUMBER_SET: ReadonlySet<number> = new Set<number>();
+
+function toSet(input: ReadonlySet<number> | number[] | undefined): ReadonlySet<number> {
+	if (!input) return EMPTY_NUMBER_SET;
+	if (input instanceof Set) return input;
+	return new Set(input);
 }
 
 export const Piano: React.FC<PianoProps> = ({
@@ -19,6 +30,9 @@ export const Piano: React.FC<PianoProps> = ({
 	onStopNote,
 	showNoteLabels = false,
 	keyAnimations = true,
+	highlightedMidis,
+	accentMidis,
+	labelMidis,
 }) => {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const isMouseDown = useRef(false);
@@ -96,6 +110,15 @@ export const Piano: React.FC<PianoProps> = ({
 
 	const blackKeyWidthPct = (100 / 52) * 0.6;
 
+	const highlightSet = toSet(highlightedMidis);
+	const accentSet = toSet(accentMidis);
+
+	const labelFor = (midi: number, fallback: string): string | null => {
+		if (labelMidis?.has(midi)) return labelMidis.get(midi) ?? null;
+		if (showNoteLabels) return fallback;
+		return null;
+	};
+
 	return (
 		<div
 			ref={containerRef}
@@ -105,32 +128,37 @@ export const Piano: React.FC<PianoProps> = ({
 			style={{ height: "150px", flexShrink: 0 }}
 		>
 			<div className="white-keys-container">
-				{whiteKeys.map((key) => (
-					<div
-						key={key.midi}
-						data-midi={key.midi}
-						onMouseDown={() => handleKeyMouseDown(key.midi)}
-						className="piano-key white"
-						style={{ pointerEvents: "auto" }}
-					>
-						{showNoteLabels && (
-							<span className="piano-label">{key.noteName.replace(/-?\d+$/, "")}</span>
-						)}
-					</div>
-				))}
+				{whiteKeys.map((key) => {
+					const isHL = highlightSet.has(key.midi);
+					const isAccent = accentSet.has(key.midi);
+					const lbl = labelFor(key.midi, key.noteName.replace(/-?\d+$/, ""));
+					return (
+						<div
+							key={key.midi}
+							data-midi={key.midi}
+							onMouseDown={() => handleKeyMouseDown(key.midi)}
+							className={`piano-key white ${isHL ? "course-highlight" : ""} ${isAccent ? "course-accent" : ""}`}
+							style={{ pointerEvents: "auto" }}
+						>
+							{lbl && <span className="piano-label">{lbl}</span>}
+						</div>
+					);
+				})}
 			</div>
 
 			<div className="black-keys-container absolute top-0 left-0 w-full h-full" style={{ pointerEvents: "none" }}>
 				{blackKeys.map((key) => {
 					const center = ((key.whiteKeyIndex + 1) * 100) / 52;
 					const left = center - blackKeyWidthPct / 2;
+					const isHL = highlightSet.has(key.midi);
+					const isAccent = accentSet.has(key.midi);
 					return (
 						<div
 							key={key.midi}
 							data-midi={key.midi}
 							onMouseDown={() => handleKeyMouseDown(key.midi)}
 							style={{ left: `${left}%`, pointerEvents: "auto" }}
-							className="piano-key black"
+							className={`piano-key black ${isHL ? "course-highlight" : ""} ${isAccent ? "course-accent" : ""}`}
 						/>
 					);
 				})}
