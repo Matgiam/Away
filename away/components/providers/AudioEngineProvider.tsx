@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { generatePiano } from "@/lib/piano";
 import { useAudioEngine } from "@/hooks/useAudioEngine";
+import { useMetronome } from "@/hooks/useMetronome";
 import type { PianoKey, VisNote } from "@/lib/types";
 import {
 	DEFAULT_BASE_MIDI,
@@ -132,6 +133,14 @@ export function AudioEngineProvider({ children }: { children: ReactNode }) {
 		if (settings.reducedMotion) html.classList.add("reduced-motion");
 		else html.classList.remove("reduced-motion");
 	}, [settings.reducedMotion]);
+
+	// Global metronome — ticks whenever settings.metronomeEnabled is true on any page
+	useMetronome({
+		enabled: settings.metronomeEnabled,
+		bpm: settings.metronomeBpm,
+		beatsPerBar: settings.metronomeBeatsPerBar,
+		volume: settings.metronomeVolume,
+	});
 
 	const value = useMemo<AudioEngineContextValue>(
 		() => ({

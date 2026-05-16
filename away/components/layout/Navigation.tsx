@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
 import type { SoundfontOption } from "@/hooks/useAudioEngine";
 import { SoundfontPanel } from "@/components/layout/SoundfontPanel";
 import { SettingsPanel } from "@/components/layout/SettingsPanel";
+import { MetronomePopover } from "@/components/layout/MetronomePopover";
 import type { Keybinds, LayoutPreset } from "@/lib/keybinds";
 import type { AppSettings } from "@/lib/settings";
 
@@ -83,6 +84,9 @@ export const Navigation = ({
 }: NavigationProps) => {
 	const [showSettings, setShowSettings] = useState(false);
 	const [showSoundfontPanel, setShowSoundfontPanel] = useState(false);
+	const [showMetronome, setShowMetronome] = useState(false);
+	const [metronomeRect, setMetronomeRect] = useState<DOMRect | null>(null);
+	const metronomeAnchorRef = useRef<HTMLDivElement | null>(null);
 
 	const currentName = soundfonts.find((s) => s.key === currentSoundfont)?.name || "Salamander Grand Piano";
 
@@ -93,6 +97,23 @@ export const Navigation = ({
 	const openSoundfontPanel = () => setShowSoundfontPanel(true);
 	const closeSettings = () => setShowSettings(false);
 	const closeSoundfontPanel = () => setShowSoundfontPanel(false);
+	const toggleMetronomePopover = () => {
+		if (showMetronome) {
+			setShowMetronome(false);
+			return;
+		}
+		if (metronomeAnchorRef.current) {
+			setMetronomeRect(metronomeAnchorRef.current.getBoundingClientRect());
+		}
+		setShowMetronome(true);
+	};
+	const closeMetronome = () => setShowMetronome(false);
+
+	const metronomeEnabled = settings?.metronomeEnabled ?? false;
+	const metronomeBpm = settings?.metronomeBpm ?? 100;
+	const metronomeBeatsPerBar = settings?.metronomeBeatsPerBar ?? 4;
+	const metronomeVolume = settings?.metronomeVolume ?? 60;
+	const canControlMetronome = !!settings && !!updateSetting;
 
 	const canRenderSettings =
 		!!settings &&
@@ -153,6 +174,33 @@ export const Navigation = ({
 						)}
 					</div>
 
+					{canControlMetronome && (
+						<div
+							ref={metronomeAnchorRef}
+							onClick={toggleMetronomePopover}
+							className="cursor-pointer relative"
+							style={{ pointerEvents: "auto" }}
+							title="Metronome"
+						>
+							<DynamicLiquidGlass
+								width={67}
+								height={67}
+								radius={15}
+								refractionLevel={0.8}
+								specularOpacity={0.7}
+								glassBgOpacity={metronomeEnabled || showMetronome ? 0.15 : 0.001}
+							>
+								<MetronomeIcon active={metronomeEnabled} />
+							</DynamicLiquidGlass>
+							{metronomeEnabled && (
+								<span
+									className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#c75ad6] shadow-[0_0_8px_rgba(199,90,214,0.8)] pointer-events-none"
+									aria-hidden
+								/>
+							)}
+						</div>
+					)}
+
 					<div onClick={openSettings} className="cursor-pointer" style={{ pointerEvents: "auto" }}>
 						<DynamicLiquidGlass
 							width={67}
@@ -209,6 +257,22 @@ export const Navigation = ({
 				onSelectSoundfont={onSelectSoundfont}
 			/>
 
+			{canControlMetronome && (
+				<MetronomePopover
+					open={showMetronome}
+					onClose={closeMetronome}
+					anchorRect={metronomeRect}
+					enabled={metronomeEnabled}
+					onEnabledChange={(v) => updateSetting!("metronomeEnabled", v)}
+					bpm={metronomeBpm}
+					onBpmChange={(v) => updateSetting!("metronomeBpm", v)}
+					beatsPerBar={metronomeBeatsPerBar}
+					onBeatsPerBarChange={(v) => updateSetting!("metronomeBeatsPerBar", v)}
+					volume={metronomeVolume}
+					onVolumeChange={(v) => updateSetting!("metronomeVolume", v)}
+				/>
+			)}
+
 			{canRenderSettings && (
 				<SettingsPanel
 					open={showSettings}
@@ -238,3 +302,38 @@ export const Navigation = ({
 		</>
 	);
 };
+
+function MetronomeIcon({ active }: { active: boolean }) {
+	const stroke = active ? "#ffffff" : "#cfcfcf";
+	return (
+		<svg width="34" height="34" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+			{/* Pyramid body */}
+			<path
+				d="M9.4 3.5 L14.6 3.5 L18 20.5 L6 20.5 Z"
+				stroke={stroke}
+				strokeWidth="1.6"
+				strokeLinejoin="round"
+			/>
+			{/* Base */}
+			<path d="M5 20.5 H19" stroke={stroke} strokeWidth="1.6" strokeLinecap="round" />
+			{/* Window */}
+			<path
+				d="M10 7.5 H14"
+				stroke={stroke}
+				strokeWidth="1.4"
+				strokeLinecap="round"
+			/>
+			{/* Pendulum — leans right when active to suggest motion */}
+			<line
+				x1="12"
+				y1="18"
+				x2={active ? "15.5" : "12"}
+				y2="6"
+				stroke={active ? "#c75ad6" : stroke}
+				strokeWidth="1.6"
+				strokeLinecap="round"
+			/>
+			<circle cx="12" cy="18" r="1.3" fill={stroke} />
+		</svg>
+	);
+}

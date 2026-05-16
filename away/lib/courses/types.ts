@@ -58,6 +58,11 @@ interface BaseStep {
 	demoGapMs?: number;
 	// Skip the auto-demo even though one could be derived.
 	skipAutoDemo?: boolean;
+	// Suggested tempo for this step. If set, the metronome auto-turns on at this BPM
+	// when the user enters the step (they can still toggle it off in the navigation).
+	bpm?: number;
+	// Beats per bar for the auto-on metronome. Default 4.
+	beatsPerBar?: number;
 }
 
 // Just text + optional key highlights

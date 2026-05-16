@@ -23,6 +23,18 @@ import type { Course, CourseStep } from "@/lib/courses/types";
 const COLOR_PRIMARY = "#c75ad6";
 const COLOR_PLAYED = "#5571a8";
 
+// Returns the metronome tempo a step prefers, or null if it doesn't suggest one.
+// For improvisation steps `beatsPerChord` doubles as the metronome's beats-per-bar.
+function stepTempo(step: CourseStep | undefined): { bpm: number; beatsPerBar: number } | null {
+	if (!step) return null;
+	if (step.bpm === undefined) return null;
+	let beatsPerBar = step.beatsPerBar ?? 4;
+	if (step.type === "improvisation" && step.beatsPerBar === undefined) {
+		beatsPerBar = step.beatsPerChord;
+	}
+	return { bpm: step.bpm, beatsPerBar };
+}
+
 // True when a step has an auto-demo phase before the user takes over.
 function stepNeedsDemo(step: CourseStep | undefined): boolean {
 	if (!step) return false;
@@ -157,6 +169,16 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 	const [stepStartedAt, setStepStartedAt] = useState(() => performance.now());
 
 	const step = course.steps[stepIndex];
+
+	// Auto-turn on the metronome at the step's preferred BPM when entering a tempo-bearing step.
+	// The user can still toggle it off; we only nudge it on at step entry, not continuously.
+	useEffect(() => {
+		const tempo = stepTempo(step);
+		if (!tempo) return;
+		updateSetting("metronomeBpm", tempo.bpm);
+		updateSetting("metronomeBeatsPerBar", tempo.beatsPerBar);
+		updateSetting("metronomeEnabled", true);
+	}, [step, updateSetting]);
 
 	useEffect(() => {
 		heldRef.current = new Set(localHeldMidis);

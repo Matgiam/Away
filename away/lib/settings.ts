@@ -24,6 +24,10 @@ export interface AppSettings {
 	autoDownloadRecording: boolean;
 	confirmLeaveRoom: boolean;
 	chordRecognizerEnabled: boolean;
+	metronomeEnabled: boolean;
+	metronomeBpm: number;
+	metronomeBeatsPerBar: number;
+	metronomeVolume: number;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -48,6 +52,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	autoDownloadRecording: true,
 	confirmLeaveRoom: false,
 	chordRecognizerEnabled: false,
+	metronomeEnabled: false,
+	metronomeBpm: 100,
+	metronomeBeatsPerBar: 4,
+	metronomeVolume: 60,
 };
 
 const STORAGE_KEY = "away:appSettings";
