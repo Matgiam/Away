@@ -3,6 +3,7 @@
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
 
 interface CourseStepCardProps {
+	courseTitle: string;
 	stepIndex: number;
 	totalSteps: number;
 	title?: string;
@@ -16,6 +17,7 @@ interface CourseStepCardProps {
 }
 
 export function CourseStepCard({
+	courseTitle,
 	stepIndex,
 	totalSteps,
 	title,
@@ -28,17 +30,20 @@ export function CourseStepCard({
 	onNext,
 }: CourseStepCardProps) {
 	return (
-		<div className="pointer-events-none absolute top-7 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-3 select-none w-[min(900px,90vw)]">
+		<div className="pointer-events-none absolute top-7 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2 select-none w-[min(900px,90vw)]">
+			<div className="text-white text-2xl font-bold italic tracking-wide drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)] mb-1">
+				{courseTitle}
+			</div>
 			<div className="pointer-events-auto w-full">
 				<DynamicLiquidGlass
 					width={900}
-					height={260}
+					height={220}
 					radius={22}
 					refractionLevel={0.8}
 					specularOpacity={0.55}
 					glassBgOpacity={0.05}
 				>
-					<div className="flex h-full w-full flex-col items-center justify-between p-6">
+					<div className="flex h-full w-full flex-col items-center justify-between p-5">
 						<div className="flex w-full items-center justify-between text-white/55 text-xs italic tracking-widest uppercase">
 							<span>Step {stepIndex + 1} / {totalSteps}</span>
 							{prompt && (
@@ -49,13 +54,13 @@ export function CourseStepCard({
 							)}
 						</div>
 
-						<div className="flex w-full flex-1 flex-col items-center justify-center gap-3 text-center px-6">
+						<div className="flex w-full flex-1 flex-col items-center justify-center gap-2 text-center px-6">
 							{title && (
-								<h2 className="text-white text-xl md:text-2xl font-semibold italic tracking-wide drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+								<h2 className="text-white text-lg md:text-xl font-semibold italic tracking-wide drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
 									{title}
 								</h2>
 							)}
-							<p className="text-white/85 text-sm md:text-base leading-relaxed max-w-[700px] whitespace-pre-line">
+							<p className="text-white/85 text-sm md:text-[15px] leading-relaxed max-w-[720px] whitespace-pre-line">
 								{body}
 							</p>
 						</div>

@@ -13,13 +13,30 @@ import { createClient } from "@/lib/supabase/client";
 import { CourseStepCard } from "@/components/courses/CourseStepCard";
 import { CourseSideControls } from "@/components/courses/CourseSideControls";
 import { CourseFallingNotes, type LaneItem } from "@/components/courses/CourseFallingNotes";
+import { CourseDemoStage, buildSyntheticDemoNotes } from "@/components/courses/CourseDemoStage";
+import { FinishScreen, summaryFromSteps } from "@/components/courses/FinishScreen";
 import { ImprovisationStage } from "@/components/courses/ImprovisationStage";
 import { midiToLetter } from "@/lib/courses/music";
+import type { ParsedNote } from "@/lib/practice/midiParser";
 import type { Course, CourseStep } from "@/lib/courses/types";
 
 const COLOR_PRIMARY = "#c75ad6";
 const COLOR_PLAYED = "#5571a8";
-const COLOR_DEMO = "#a76cd1";
+
+// True when a step has an auto-demo phase before the user takes over.
+function stepNeedsDemo(step: CourseStep | undefined): boolean {
+	if (!step) return false;
+	switch (step.type) {
+		case "play-note":
+		case "play-chord":
+		case "play-sequence":
+		case "play-any-of":
+		case "demo-sequence":
+			return true;
+		default:
+			return false;
+	}
+}
 
 // Derive demo notes from a step. Returns null when no demo should auto-play.
 function deriveDemo(step: CourseStep): Array<number | number[]> | null {
@@ -139,6 +156,8 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 	const heldRef = useRef<Set<number>>(new Set());
 	const [stepStartedAt, setStepStartedAt] = useState(() => performance.now());
 
+	const step = course.steps[stepIndex];
+
 	useEffect(() => {
 		heldRef.current = new Set(localHeldMidis);
 		forceTick((x) => x + 1);
@@ -164,22 +183,7 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 		setStepStartedAt(performance.now());
 	}, [stepIndex]);
 
-	const step = course.steps[stepIndex];
 	const state = stepStates[stepIndex] ?? freshStepState();
-
-	// Bump the drop-in animation when a sequence advances
-	useEffect(() => {
-		if (step?.type === "play-sequence" && state.sequenceCursor > 0) {
-			setStepStartedAt(performance.now());
-		}
-	}, [state.sequenceCursor, step?.type]);
-
-	const setState = useCallback((mutator: (prev: StepState) => StepState) => {
-		setStepStates((all) => {
-			const prev = all[stepIndex] ?? freshStepState();
-			return { ...all, [stepIndex]: mutator(prev) };
-		});
-	}, [stepIndex]);
 
 	// Text steps and improvisation are always "completable" — no required action.
 	useEffect(() => {
@@ -194,144 +198,77 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 	}, [step, stepIndex]);
 
 	// ── Demo: auto-play the target on step entry, then hand off to the user ──
-	const demoTimersRef = useRef<number[]>([]);
-	const demoActiveNotesRef = useRef<Set<number>>(new Set());
-	const [demoState, setDemoState] = useState<"idle" | "playing" | "done">("done");
-	const [demoCursor, setDemoCursor] = useState(0); // which item in the demo is currently being played (-1 if none)
-
-	const cancelDemo = useCallback(() => {
-		demoTimersRef.current.forEach((id) => window.clearTimeout(id));
-		demoTimersRef.current = [];
-		demoActiveNotesRef.current.forEach((m) => stopNote(m, "course-demo"));
-		demoActiveNotesRef.current.clear();
-	}, [stopNote]);
-
-	// Plays a sequence of items where each item is either a single midi or an array (chord)
-	const startDemoSequence = useCallback(
-		(items: Array<number | number[]>, opts?: { noteDurationMs?: number; gapMs?: number }) => {
-			cancelDemo();
-			void unlockAudio();
-			const noteDuration = opts?.noteDurationMs ?? 600;
-			const chordDuration = Math.max(noteDuration, 900);
-			const gap = opts?.gapMs ?? 200;
-
-			setDemoState("playing");
-			setDemoCursor(0);
-
-			let cursorMs = 250; // small lead-in
-			items.forEach((item, idx) => {
-				const midis = chordSlot(item);
-				const duration = midis.length > 1 ? chordDuration : noteDuration;
-				const startMs = cursorMs;
-
-				const onId = window.setTimeout(() => {
-					setDemoCursor(idx);
-					midis.forEach((m) => {
-						playNote(m, 88, "course-demo", undefined, COLOR_DEMO);
-						demoActiveNotesRef.current.add(m);
-					});
-				}, startMs);
-				const offId = window.setTimeout(() => {
-					midis.forEach((m) => {
-						stopNote(m, "course-demo");
-						demoActiveNotesRef.current.delete(m);
-					});
-				}, startMs + duration);
-				demoTimersRef.current.push(onId, offId);
-
-				cursorMs += duration + gap;
-			});
-
-			const doneId = window.setTimeout(() => {
-				setDemoState("done");
-				setDemoCursor(-1);
-			}, cursorMs + 50);
-			demoTimersRef.current.push(doneId);
-		},
-		[cancelDemo, playNote, stopNote, unlockAudio],
+	const [demoNotes, setDemoNotes] = useState<ParsedNote[]>([]);
+	const [demoRunning, setDemoRunning] = useState(false);
+	const [demoState, setDemoState] = useState<"idle" | "playing" | "done">(() =>
+		stepNeedsDemo(course.steps[0]) ? "idle" : "done",
 	);
 
-	// Plays the manually-authored demo-sequence step (with absolute timing per note)
-	const playLegacyDemoSequence = useCallback(() => {
-		if (!step || step.type !== "demo-sequence") return;
-		cancelDemo();
-		void unlockAudio();
-		setDemoState("playing");
-		setDemoCursor(0);
-		step.notes.forEach((note, idx) => {
-			const onId = window.setTimeout(() => {
-				setDemoCursor(idx);
-				playNote(note.midi, note.velocity ?? 90, "course-demo", undefined, COLOR_DEMO);
-				demoActiveNotesRef.current.add(note.midi);
-			}, note.startSeconds * 1000);
-			const offId = window.setTimeout(() => {
-				stopNote(note.midi, "course-demo");
-				demoActiveNotesRef.current.delete(note.midi);
-			}, (note.startSeconds + note.durationSeconds) * 1000);
-			demoTimersRef.current.push(onId, offId);
-		});
-		const doneId = window.setTimeout(() => {
-			setState((prev) => ({ ...prev, demoPlayed: true, completed: true }));
-			setDemoState("done");
-			setDemoCursor(-1);
-		}, step.durationSeconds * 1000 + 50);
-		demoTimersRef.current.push(doneId);
-	}, [step, cancelDemo, playNote, stopNote, setState, unlockAudio]);
+	// Reset demo state synchronously the moment stepIndex changes. This runs during render
+	// (not in a useEffect), so the FIRST render of a new step already uses fresh demo state —
+	// no flash of stale CourseFallingNotes between step changes.
+	const [demoStepKey, setDemoStepKey] = useState(0);
+	if (demoStepKey !== stepIndex) {
+		setDemoStepKey(stepIndex);
+		setDemoNotes([]);
+		setDemoRunning(false);
+		setDemoState(stepNeedsDemo(step) ? "idle" : "done");
+	}
 
-	// Replay just the demo for the current step (used by the Replay demo side button)
-	const replayDemo = useCallback(() => {
+	const buildSyntheticForStep = useCallback((s: CourseStep): ParsedNote[] => {
+		const items = deriveDemo(s);
+		if (!items || items.length === 0) return [];
+		return buildSyntheticDemoNotes(items, {
+			noteDurationMs: s.demoNoteDurationMs,
+			gapMs: s.demoGapMs,
+		});
+	}, []);
+
+	// Launches the synthetic auto-demo for the current step.
+	useEffect(() => {
 		if (!step) return;
-		if (step.type === "demo-sequence") {
-			playLegacyDemoSequence();
+		if (!stepNeedsDemo(step)) return;
+
+		let cancelled = false;
+		const synth = buildSyntheticForStep(step);
+		if (synth.length === 0) {
+			setDemoState("done");
 			return;
 		}
-		const items = deriveDemo(step);
-		if (!items || items.length === 0) return;
-		startDemoSequence(items, {
-			noteDurationMs: step.demoNoteDurationMs,
-			gapMs: step.demoGapMs,
-		});
-	}, [step, playLegacyDemoSequence, startDemoSequence]);
+		setDemoNotes(synth);
+		void unlockAudio();
+		const timeoutId = window.setTimeout(() => {
+			if (cancelled) return;
+			setDemoRunning(true);
+			setDemoState("playing");
+		}, 350);
 
-	// Run on step entry: auto-demo where applicable
-	useEffect(() => {
-		cancelDemo();
+		return () => {
+			cancelled = true;
+			window.clearTimeout(timeoutId);
+		};
+	}, [step, buildSyntheticForStep, unlockAudio]);
+
+	const handleDemoComplete = useCallback(() => {
+		setDemoState("done");
+		setDemoRunning(false);
+	}, []);
+
+	const replayDemo = useCallback(() => {
 		if (!step) return;
+		if (demoNotes.length === 0) return;
+		setDemoRunning(false);
+		void unlockAudio();
+		window.setTimeout(() => {
+			setDemoRunning(true);
+			setDemoState("playing");
+		}, 50);
+	}, [step, demoNotes.length, unlockAudio]);
 
-		if (step.type === "demo-sequence") {
-			if (step.autoPlayOnEnter) {
-				const t = window.setTimeout(() => playLegacyDemoSequence(), 350);
-				demoTimersRef.current.push(t);
-			} else {
-				setDemoState("done");
-				setDemoCursor(-1);
-			}
-			return cancelDemo;
-		}
-
-		if (step.type === "text" || step.type === "improvisation") {
-			setDemoState("done");
-			setDemoCursor(-1);
-			return cancelDemo;
-		}
-
-		const items = deriveDemo(step);
-		if (!items || items.length === 0) {
-			setDemoState("done");
-			setDemoCursor(-1);
-			return cancelDemo;
-		}
-
-		const t = window.setTimeout(() => {
-			startDemoSequence(items, {
-				noteDurationMs: step.demoNoteDurationMs,
-				gapMs: step.demoGapMs,
-			});
-		}, 400);
-		demoTimersRef.current.push(t);
-
-		return cancelDemo;
-	}, [step, cancelDemo, playLegacyDemoSequence, startDemoSequence]);
+	const cancelDemo = useCallback(() => {
+		setDemoRunning(false);
+		setDemoState("done");
+	}, []);
 
 	// Highlights for the keyboard
 	const highlightSet = useMemo<Set<number>>(() => {
@@ -353,62 +290,39 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 		return map;
 	}, [highlightSet, accentSet]);
 
-	// Build lane items for the falling notes area
+	// Build lane items for the user-turn rendering (after the demo finishes).
+	// During the demo phase, CourseDemoStage renders the real falling notes — these static
+	// items only show once the user is being asked to play.
 	const laneItems = useMemo<LaneItem[]>(() => {
 		if (!step) return [];
-		const inDemo = demoState === "playing";
+		if (demoState === "playing") return [];
 		switch (step.type) {
 			case "play-note": {
-				const playingNow = inDemo && demoCursor === 0;
 				return [
 					{
 						midi: step.midi,
 						progress: 0,
 						height: 0.13,
-						color: state.completed ? COLOR_PLAYED : inDemo ? COLOR_DEMO : COLOR_PRIMARY,
-						glow: playingNow || (!inDemo && !state.completed),
-						faded: state.completed && !playingNow,
-						noDropIn: inDemo,
+						color: state.completed ? COLOR_PLAYED : COLOR_PRIMARY,
+						glow: !state.completed,
+						faded: state.completed,
 					},
 				];
 			}
 			case "play-chord": {
-				const playingNow = inDemo && demoCursor === 0;
 				return step.midis.map((m) => ({
 					midi: m,
 					progress: 0,
 					height: 0.16,
-					color: state.chordHits.has(m) || state.completed
-						? COLOR_PLAYED
-						: inDemo
-							? COLOR_DEMO
-							: COLOR_PRIMARY,
-					glow: playingNow || (!inDemo && !state.chordHits.has(m) && !state.completed),
-					faded: state.completed && !playingNow,
-					noDropIn: inDemo,
+					color: state.chordHits.has(m) || state.completed ? COLOR_PLAYED : COLOR_PRIMARY,
+					glow: !state.chordHits.has(m) && !state.completed,
+					faded: state.completed,
 				}));
 			}
 			case "play-sequence": {
 				const items: LaneItem[] = [];
 				step.sequence.forEach((slot, idx) => {
 					const midis = chordSlot(slot);
-					if (inDemo) {
-						// During demo, show the whole sequence statically, glowing the current item
-						const progress = (step.sequence.length - 1 - idx) * (0.95 / Math.max(1, step.sequence.length));
-						const isPlaying = demoCursor === idx;
-						midis.forEach((m) => {
-							items.push({
-								midi: m,
-								progress,
-								height: 0.07,
-								color: isPlaying ? COLOR_DEMO : "#7d56a3",
-								glow: isPlaying,
-								faded: false,
-								noDropIn: true,
-							});
-						});
-						return;
-					}
 					const isCurrent = idx === state.sequenceCursor;
 					const isFuture = idx > state.sequenceCursor;
 					const isPast = idx < state.sequenceCursor;
@@ -427,28 +341,8 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 				});
 				return items;
 			}
-			case "play-any-of": {
-				if (!inDemo) return [];
-				// Show the demo midis briefly while playing so the user sees which key plays
-				const demo = deriveDemo(step) ?? [];
-				const items: LaneItem[] = [];
-				demo.forEach((slot, idx) => {
-					if (demoCursor !== idx) return;
-					const midis = chordSlot(slot);
-					midis.forEach((m) => {
-						items.push({
-							midi: m,
-							progress: 0,
-							height: 0.13,
-							color: COLOR_DEMO,
-							glow: true,
-							faded: false,
-							noDropIn: true,
-						});
-					});
-				});
-				return items;
-			}
+			case "play-any-of":
+				return [];
 			case "demo-sequence": {
 				// Static visualization of all notes spread by time
 				const total = step.durationSeconds || 1;
@@ -464,7 +358,7 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 			default:
 				return [];
 		}
-	}, [step, state, demoState, demoCursor]);
+	}, [step, state, demoState]);
 
 	// Determine the user's prompt line (eg. "Press any C")
 	const promptText = useMemo<string | null>(() => {
@@ -577,10 +471,14 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 		handleUserNoteRef.current = handleUserNote;
 	}, [handleUserNote]);
 
+	const dispatchUserNote = useCallback((midi: number) => {
+		handleUserNoteRef.current(midi);
+	}, []);
+
 	useEffect(() => {
 		connectMIDI(
 			(note, vel) => {
-				handleUserNoteRef.current(note);
+				dispatchUserNote(note);
 				playNote(note, vel, "self");
 			},
 			(note) => stopNote(note, "self"),
@@ -588,14 +486,14 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 		return () => {
 			connectMIDI();
 		};
-	}, [connectMIDI, playNote, stopNote]);
+	}, [connectMIDI, playNote, stopNote, dispatchUserNote]);
 
 	useKeyboardInput({
 		enabled: keyboardInputEnabled,
 		keybinds,
 		baseMidi: keybindBaseMidi,
 		onPlay: (m, v) => {
-			handleUserNoteRef.current(m);
+			dispatchUserNote(m);
 			playNote(m, v, "self");
 		},
 		onStop: (m) => stopNote(m, "self"),
@@ -608,10 +506,12 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 		(m: number, vel: number) => {
 			unlockAudio();
 			playNote(m, vel, "self");
-			handleUserNoteRef.current(m);
+			dispatchUserNote(m);
 		},
-		[playNote, unlockAudio],
+		[playNote, unlockAudio, dispatchUserNote],
 	);
+
+	const [showFinish, setShowFinish] = useState(false);
 
 	const handleNext = useCallback(() => {
 		if (!step) return;
@@ -619,10 +519,26 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 			cancelDemo();
 			setStepIndex(stepIndex + 1);
 		} else {
-			// Last step — return to course menu
-			router.push("/practice/courses");
+			// Last step — show the course-complete screen
+			cancelDemo();
+			setShowFinish(true);
 		}
-	}, [step, stepIndex, course.steps.length, cancelDemo, router]);
+	}, [step, stepIndex, course.steps.length, cancelDemo]);
+
+	const handleBackToCourses = useCallback(() => {
+		router.push("/practice/courses");
+	}, [router]);
+
+	const handleReplayCourse = useCallback(() => {
+		setShowFinish(false);
+		setStepStates({});
+		setStepIndex(0);
+	}, []);
+
+	const courseSummary = useMemo(
+		() => course.summary ?? summaryFromSteps(course.steps.map((s) => s.title)),
+		[course],
+	);
 
 	const handlePrevious = useCallback(() => {
 		if (stepIndex > 0) {
@@ -636,31 +552,21 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 		setStepStartedAt(performance.now());
 		setStepStates((all) => ({ ...all, [stepIndex]: freshStepState() }));
 		if (step?.type === "improvisation" || step?.type === "text") {
-			// Keep auto-complete behavior
 			setStepStates((all) => {
 				const prev = all[stepIndex] ?? freshStepState();
 				return { ...all, [stepIndex]: { ...prev, completed: true } };
 			});
 			return;
 		}
-		// Re-trigger the demo if the step has one
-		if (step?.type === "demo-sequence") {
-			const t = window.setTimeout(() => playLegacyDemoSequence(), 300);
-			demoTimersRef.current.push(t);
-			return;
+		// Re-trigger the demo
+		if (demoNotes.length > 0) {
+			void unlockAudio();
+			window.setTimeout(() => {
+				setDemoRunning(true);
+				setDemoState("playing");
+			}, 200);
 		}
-		if (!step) return;
-		const items = deriveDemo(step);
-		if (items && items.length > 0) {
-			const t = window.setTimeout(() => {
-				startDemoSequence(items, {
-					noteDurationMs: step.demoNoteDurationMs,
-					gapMs: step.demoGapMs,
-				});
-			}, 300);
-			demoTimersRef.current.push(t);
-		}
-	}, [cancelDemo, step, stepIndex, playLegacyDemoSequence, startDemoSequence]);
+	}, [cancelDemo, step, stepIndex, demoNotes.length, unlockAudio]);
 
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
@@ -735,6 +641,7 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 			/>
 
 			<CourseStepCard
+				courseTitle={course.title}
 				stepIndex={stepIndex}
 				totalSteps={course.steps.length}
 				title={step?.title}
@@ -751,6 +658,16 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 				<div className="relative flex-1 min-h-0">
 					{isImprovStep && step?.type === "improvisation" ? (
 						<ImprovisationStage step={step} playNote={playNote} stopNote={stopNote} unlockAudio={unlockAudio} />
+					) : demoState !== "done" ? (
+						// Keep the demo stage mounted during both "idle" (waiting to start) and
+						// "playing" so we never briefly swap to CourseFallingNotes between phases.
+						<CourseDemoStage
+							notes={demoNotes}
+							running={demoRunning}
+							playNote={playNote}
+							stopNote={stopNote}
+							onComplete={handleDemoComplete}
+						/>
 					) : (
 						<CourseFallingNotes items={laneItems} stepStartedAt={stepStartedAt} />
 					)}
@@ -772,6 +689,15 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 			</div>
 
 			<ChordDisplay heldMidis={localHeldMidis} enabled={settings.chordRecognizerEnabled} />
+
+			{showFinish && (
+				<FinishScreen
+					courseTitle={course.title}
+					summary={courseSummary}
+					onBackToCourses={handleBackToCourses}
+					onReplay={handleReplayCourse}
+				/>
+			)}
 		</div>
 	);
 }

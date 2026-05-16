@@ -129,4 +129,7 @@ export type Course = {
 	description: string;
 	estimatedMinutes: number;
 	steps: CourseStep[];
+	// Bullet points shown on the "Course complete" finish screen. If omitted, the player
+	// auto-derives a summary from the step titles.
+	summary?: string[];
 };

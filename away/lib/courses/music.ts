@@ -30,7 +30,6 @@ export function noteNameToMidi(name: string): number {
 // Standard middle-octave references
 export const MIDDLE_C = 60;
 
-
 export const C_MAJOR = [48, 52, 55];
 // F major (F3 A3 C4)
 export const F_MAJOR = [48, 53, 57];
@@ -43,8 +42,48 @@ export const D_MINOR = [50, 53, 57];
 // E minor (E3 G3 B3)
 export const E_MINOR = [52, 55, 59];
 
+export const C_DOM7 = [48, 52, 55, 58 ];
+
+export const F_DOM7 = [41, 45, 48, 51];
+
+export const G_DOM7 = [43, 47, 50, 53];
+
 // C major scale across one octave starting at middle C
 export const C_MAJOR_SCALE = [60, 62, 64, 65, 67, 69, 71, 72];
+// G major scale starting at G3 (one octave) — has F♯
+export const G_MAJOR_SCALE = [55, 57, 59, 60, 62, 64, 66, 67];
+// F major scale starting at F3 (one octave) — has B♭
+export const F_MAJOR_SCALE = [53, 55, 57, 58, 60, 62, 64, 65];
+// D major scale starting at D3 (one octave) — has F♯ and C♯
+export const D_MAJOR_SCALE = [50, 52, 54, 55, 57, 59, 61, 62];
+// A natural minor scale starting at A3 (one octave) — all white keys
+export const A_NATURAL_MINOR_SCALE = [57, 59, 60, 62, 64, 65, 67, 69];
+
+// C major pentatonic (5 happy notes) — impossible to fail
+export const C_MAJOR_PENTATONIC = [60, 62, 64, 67, 69, 72];
+// A minor pentatonic (the rock/blues backbone)
+export const A_MINOR_PENTATONIC = [57, 60, 62, 64, 67, 69];
+// C blues scale (pentatonic + flat 5)
+export const C_BLUES_SCALE = [60, 63, 65, 66, 67, 70, 72];
+
+// 5-finger positions ("hand position 1") — same notes for both hands but different octaves
+export const C_POSITION_RH = [60, 62, 64, 65, 67]; // RH thumb=C4 → pinky=G4
+export const C_POSITION_LH = [48, 50, 52, 53, 55]; // LH pinky=C3 → thumb=G3
+export const G_POSITION_RH = [67, 69, 71, 72, 74]; // RH thumb=G4 → pinky=D5
+
+// Common chord shapes in additional octaves for hand-independence exercises
+export const C_MAJOR_HIGH = [60, 64, 67]; // C4 E4 G4 (right-hand voicing)
+export const F_MAJOR_HIGH = [65, 69, 72];
+export const G_MAJOR_HIGH = [67, 71, 74];
+export const A_MINOR_HIGH = [69, 72, 76];
+// First-inversion C major (E3 G3 C4) — same chord, different lowest note
+export const C_MAJOR_INV1 = [52, 55, 60];
+// Second-inversion C major (G3 C4 E4)
+export const C_MAJOR_INV2 = [55, 60, 64];
+
+// C major 7th and Dominant 7 — for the "7th chord" lesson
+export const C_MAJ7 = [48, 52, 55, 59]; // C E G B
+export const G7 = [55, 59, 62, 65]; // G B D F
 
 // All white-key MIDIs across an octave range, used for "C major scale" looser definition
 export function whiteKeysInRange(low: number, high: number): number[] {
