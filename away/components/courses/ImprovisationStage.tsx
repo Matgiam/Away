@@ -13,12 +13,14 @@ interface ImprovisationStageProps {
 	playNote: (midi: number, velocity: number, playerId?: string, colorIndex?: number, noteColorHex?: string, soundfontKey?: string) => void;
 	stopNote: (midi: number, playerId?: string, soundfontKey?: string) => void;
 	unlockAudio: () => Promise<void>;
+	// Fires whenever the backing track starts / stops, so the parent can keep the metronome in sync.
+	onRunningChange?: (running: boolean) => void;
 }
 
 // Show falling chord blocks for a single look-ahead window
 const LOOK_AHEAD_BEATS = 8;
 
-export function ImprovisationStage({ step, playNote, stopNote, unlockAudio }: ImprovisationStageProps) {
+export function ImprovisationStage({ step, playNote, stopNote, unlockAudio, onRunningChange }: ImprovisationStageProps) {
 	const { bpm, beatsPerChord, chords } = step;
 	const beatSec = 60 / bpm;
 	const chordSec = beatSec * beatsPerChord;
@@ -41,9 +43,15 @@ export function ImprovisationStage({ step, playNote, stopNote, unlockAudio }: Im
 	useEffect(() => {
 		return () => {
 			stopAllChordTones();
+			onRunningChange?.(false);
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
+
+	// Notify parent whenever the backing track running state changes (used to sync the metronome).
+	useEffect(() => {
+		onRunningChange?.(running);
+	}, [running, onRunningChange]);
 
 	useEffect(() => {
 		if (!running) return;

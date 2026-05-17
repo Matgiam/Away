@@ -166,9 +166,9 @@ export default function HomeClient() {
 								<p className="text-2xl italic text-gray-400 cursor-pointer hover:text-white transition-colors mt-5" onClick={handleMultiplayerClick}>
 									Multiplayer mode
 								</p>
-								<p className="text-2xl italic text-gray-400 cursor-pointer hover:text-white transition-colors mt-5" onClick={handlePracticeClick}>
+								{/* <p className="text-2xl italic text-gray-400 cursor-pointer hover:text-white transition-colors mt-5" onClick={handlePracticeClick}>
 									Practice mode
-								</p>
+								</p> */}
 								<p className="text-2xl italic text-gray-400 cursor-pointer hover:text-white transition-colors mt-5" onClick={handleProfileClick}>
 									Profile
 								</p>

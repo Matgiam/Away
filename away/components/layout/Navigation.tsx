@@ -44,6 +44,8 @@ interface NavigationProps {
 	settings?: AppSettings;
 	updateSetting?: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
 	onResetSettings?: () => void;
+	// Hide the metronome button (used on the multiplayer page where it doesn't make sense)
+	hideMetronome?: boolean;
 }
 
 export const Navigation = ({
@@ -81,6 +83,7 @@ export const Navigation = ({
 	settings,
 	updateSetting,
 	onResetSettings,
+	hideMetronome = false,
 }: NavigationProps) => {
 	const [showSettings, setShowSettings] = useState(false);
 	const [showSoundfontPanel, setShowSoundfontPanel] = useState(false);
@@ -113,7 +116,7 @@ export const Navigation = ({
 	const metronomeBpm = settings?.metronomeBpm ?? 100;
 	const metronomeBeatsPerBar = settings?.metronomeBeatsPerBar ?? 4;
 	const metronomeVolume = settings?.metronomeVolume ?? 60;
-	const canControlMetronome = !!settings && !!updateSetting;
+	const canControlMetronome = !!settings && !!updateSetting && !hideMetronome;
 
 	const canRenderSettings =
 		!!settings &&
@@ -174,33 +177,6 @@ export const Navigation = ({
 						)}
 					</div>
 
-					{canControlMetronome && (
-						<div
-							ref={metronomeAnchorRef}
-							onClick={toggleMetronomePopover}
-							className="cursor-pointer relative"
-							style={{ pointerEvents: "auto" }}
-							title="Metronome"
-						>
-							<DynamicLiquidGlass
-								width={67}
-								height={67}
-								radius={15}
-								refractionLevel={0.8}
-								specularOpacity={0.7}
-								glassBgOpacity={metronomeEnabled || showMetronome ? 0.15 : 0.001}
-							>
-								<MetronomeIcon active={metronomeEnabled} />
-							</DynamicLiquidGlass>
-							{metronomeEnabled && (
-								<span
-									className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#c75ad6] shadow-[0_0_8px_rgba(199,90,214,0.8)] pointer-events-none"
-									aria-hidden
-								/>
-							)}
-						</div>
-					)}
-
 					<div onClick={openSettings} className="cursor-pointer" style={{ pointerEvents: "auto" }}>
 						<DynamicLiquidGlass
 							width={67}
@@ -220,6 +196,35 @@ export const Navigation = ({
 						</DynamicLiquidGlass>
 					</div>
 				</div>
+
+				{canControlMetronome && (
+					<div className="mt-5 flex justify-end">
+						<div
+							ref={metronomeAnchorRef}
+							onClick={toggleMetronomePopover}
+							className="cursor-pointer relative"
+							style={{ pointerEvents: "auto" }}
+							title="Metronome"
+						>
+							{/* <DynamicLiquidGlass
+								width={67}
+								height={67}
+								radius={15}
+								refractionLevel={0.8}
+								specularOpacity={0.7}
+								glassBgOpacity={metronomeEnabled || showMetronome ? 0.15 : 0.001}
+							>
+								<MetronomeIcon active={metronomeEnabled} />
+							</DynamicLiquidGlass> */}
+							{metronomeEnabled && (
+								<span
+									className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#c75ad6] shadow-[0_0_8px_rgba(199,90,214,0.8)] pointer-events-none"
+									aria-hidden
+								/>
+							)}
+						</div>
+					</div>
+				)}
 
 				{onToggleChat && !isChatOpen && (
 					<div onClick={onToggleChat} className="cursor-pointer relative mt-5 inline-block">

@@ -192,8 +192,8 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
 			}`}
 		>
 			<span
-				className={`absolute top-[2px] w-5 h-5 rounded-full bg-white transition-transform ${
-					value ? "translate-x-[26px]" : "translate-x-[2px]"
+				className={`absolute top-[2px] left-[2px] w-5 h-5 rounded-full bg-white transition-transform ${
+					value ? "translate-x-[24px]" : "translate-x-0"
 				}`}
 			/>
 		</button>

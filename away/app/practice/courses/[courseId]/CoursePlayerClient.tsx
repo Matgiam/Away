@@ -170,15 +170,36 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 
 	const step = course.steps[stepIndex];
 
-	// Auto-turn on the metronome at the step's preferred BPM when entering a tempo-bearing step.
-	// The user can still toggle it off; we only nudge it on at step entry, not continuously.
+	// Auto-set the metronome BPM whenever we enter a tempo-bearing step.
+	// For improvisation steps, the metronome stays off until the user starts the backing track
+	// (the ImprovisationStage controls the enabled state via onRunningChange below).
+	// For other tempo'd steps (Mary, scale practice, chord loops), we auto-enable on entry.
 	useEffect(() => {
 		const tempo = stepTempo(step);
 		if (!tempo) return;
 		updateSetting("metronomeBpm", tempo.bpm);
 		updateSetting("metronomeBeatsPerBar", tempo.beatsPerBar);
-		updateSetting("metronomeEnabled", true);
+		if (step?.type !== "improvisation") {
+			updateSetting("metronomeEnabled", true);
+		} else {
+			// Make sure it's off until the backing track starts
+			updateSetting("metronomeEnabled", false);
+		}
 	}, [step, updateSetting]);
+
+	// Turn the metronome off when the course player unmounts (leaving the course).
+	useEffect(() => {
+		return () => {
+			updateSetting("metronomeEnabled", false);
+		};
+	}, [updateSetting]);
+
+	const handleImprovRunningChange = useCallback(
+		(running: boolean) => {
+			updateSetting("metronomeEnabled", running);
+		},
+		[updateSetting],
+	);
 
 	useEffect(() => {
 		heldRef.current = new Set(localHeldMidis);
@@ -679,7 +700,13 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 			<div className="absolute inset-0 z-10 flex flex-col pb-[150px] pt-72">
 				<div className="relative flex-1 min-h-0">
 					{isImprovStep && step?.type === "improvisation" ? (
-						<ImprovisationStage step={step} playNote={playNote} stopNote={stopNote} unlockAudio={unlockAudio} />
+						<ImprovisationStage
+							step={step}
+							playNote={playNote}
+							stopNote={stopNote}
+							unlockAudio={unlockAudio}
+							onRunningChange={handleImprovRunningChange}
+						/>
 					) : demoState !== "done" ? (
 						// Keep the demo stage mounted during both "idle" (waiting to start) and
 						// "playing" so we never briefly swap to CourseFallingNotes between phases.

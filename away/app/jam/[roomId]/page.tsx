@@ -115,6 +115,13 @@ export default function JamRoom() {
 		resetSettings,
 	} = useAudioEngineContext();
 
+	// Multiplayer doesn't have a metronome — make sure it isn't ticking if the user
+	// arrived with it enabled from another page.
+	useEffect(() => {
+		if (settings.metronomeEnabled) updateSetting("metronomeEnabled", false);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
 	const [user, setUser] = useState<any>(null);
 	const [isLoggedIn, setIsLoggedIn] = useState(false);
 	const { state: recordingState, countdown: recordingCountdown, startRecording, stopRecording } = useRecording(user?.id ?? null);
@@ -728,6 +735,7 @@ export default function JamRoom() {
 				settings={settings}
 				updateSetting={updateSetting}
 				onResetSettings={resetSettings}
+				hideMetronome
 			/>
 
 			<div className="absolute inset-0 flex flex-col pb-[150px]">
