@@ -8,10 +8,33 @@ interface UploadsViewProps {
 	loading: boolean;
 	signedIn: boolean;
 	selectedId: string | null;
+	completedIds?: ReadonlySet<string>;
 	onSelect: (id: string) => void;
 	onPlay: (id: string) => void;
 	onDelete: (id: string) => void;
 	onUploadClick: () => void;
+}
+
+function CompletedTick() {
+	return (
+		<span
+			className="inline-flex items-center justify-center w-7 h-7 rounded-full border border-emerald-300/40 bg-emerald-400/15 text-emerald-200 shadow-[0_0_14px_rgba(120,220,160,0.18)] shrink-0"
+			aria-label="Completed"
+			title="Completed"
+		>
+			<svg
+				viewBox="0 0 20 20"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2.4"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+				className="w-3.5 h-3.5"
+			>
+				<path d="M5 10.5l3.2 3.2L15 7" />
+			</svg>
+		</span>
+	);
 }
 
 export function UploadsView({
@@ -19,6 +42,7 @@ export function UploadsView({
 	loading,
 	signedIn,
 	selectedId,
+	completedIds,
 	onSelect,
 	onPlay,
 	onDelete,
@@ -114,6 +138,7 @@ export function UploadsView({
 
 			{uploads.map((upload) => {
 				const isSelected = upload.id === selectedId;
+				const isCompleted = !!completedIds?.has(upload.id);
 				return (
 					<div
 						key={upload.id}
@@ -142,6 +167,7 @@ export function UploadsView({
 									</div>
 								</div>
 								<div className="flex items-center gap-3 shrink-0 ml-4">
+									{isCompleted && <CompletedTick />}
 									<DifficultyBadge difficulty={upload.difficulty} />
 									<button
 										type="button"

@@ -173,9 +173,9 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 	const step = course.steps[stepIndex];
 
 	// Auto-set the metronome BPM whenever we enter a tempo-bearing step.
-	// For improvisation steps, the metronome stays off until the user starts the backing track
-	// (the ImprovisationStage controls the enabled state via onRunningChange below).
-	// For other tempo'd steps (Mary, scale practice, chord loops), we auto-enable on entry.
+	// For non-improv tempo steps we auto-enable the global metronome.
+	// For improvisation, the global metronome stays disabled — ImprovisationStage produces its
+	// own click sound on the same clock as the chord changes so they can never drift apart.
 	useEffect(() => {
 		const tempo = stepTempo(step);
 		if (!tempo) return;
@@ -184,7 +184,6 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 		if (step?.type !== "improvisation") {
 			updateSetting("metronomeEnabled", true);
 		} else {
-			// Make sure it's off until the backing track starts
 			updateSetting("metronomeEnabled", false);
 		}
 	}, [step, updateSetting]);
@@ -195,13 +194,6 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 			updateSetting("metronomeEnabled", false);
 		};
 	}, [updateSetting]);
-
-	const handleImprovRunningChange = useCallback(
-		(running: boolean) => {
-			updateSetting("metronomeEnabled", running);
-		},
-		[updateSetting],
-	);
 
 	const handleEarTrainingCorrect = useCallback(() => {
 		setStepStates((all) => {
@@ -720,7 +712,6 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 							playNote={playNote}
 							stopNote={stopNote}
 							unlockAudio={unlockAudio}
-							onRunningChange={handleImprovRunningChange}
 						/>
 					) : isEarTrainingStep && step?.type === "ear-training" ? (
 						<EarTrainingStage

@@ -38,6 +38,11 @@ type AudioEngineContextValue = ReturnType<typeof useAudioEngine> & {
 	settings: AppSettings;
 	updateSetting: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
 	resetSettings: () => void;
+	// When a feature (eg. improvisation backing) owns the metronome clock itself, it can call
+	// suppressMetronome() to keep the global metronome silent so the two don't double-click out
+	// of phase. Always pair with a matching resumeMetronome() on cleanup.
+	suppressMetronome: () => void;
+	resumeMetronome: () => void;
 };
 
 const AudioEngineContext = createContext<AudioEngineContextValue | null>(null);
@@ -63,6 +68,15 @@ export function AudioEngineProvider({ children }: { children: ReactNode }) {
 	const [keybindBaseMidi, setKeybindBaseMidiState] = useState<number>(loadBaseMidi);
 	const [keybindPreset, setKeybindPresetState] = useState<LayoutPreset | null>(loadActivePreset);
 	const [settings, setSettingsState] = useState<AppSettings>(loadSettings);
+	// Transient (not persisted) — a counter so multiple owners can suppress without trampling
+	// each other. Metronome ticks only when this is 0.
+	const [metronomeSuppressionCount, setMetronomeSuppressionCount] = useState(0);
+	const suppressMetronome = useCallback(() => {
+		setMetronomeSuppressionCount((c) => c + 1);
+	}, []);
+	const resumeMetronome = useCallback(() => {
+		setMetronomeSuppressionCount((c) => Math.max(0, c - 1));
+	}, []);
 
 	const setKeyboardInputEnabled = useCallback((enabled: boolean) => {
 		setKeyboardInputEnabledState(enabled);
@@ -134,9 +148,10 @@ export function AudioEngineProvider({ children }: { children: ReactNode }) {
 		else html.classList.remove("reduced-motion");
 	}, [settings.reducedMotion]);
 
-	// Global metronome — ticks whenever settings.metronomeEnabled is true on any page
+	// Global metronome — ticks whenever settings.metronomeEnabled is true on any page,
+	// unless another component (eg. ImprovisationStage) has temporarily suppressed it.
 	useMetronome({
-		enabled: settings.metronomeEnabled,
+		enabled: settings.metronomeEnabled && metronomeSuppressionCount === 0,
 		bpm: settings.metronomeBpm,
 		beatsPerBar: settings.metronomeBeatsPerBar,
 		volume: settings.metronomeVolume,
@@ -158,6 +173,8 @@ export function AudioEngineProvider({ children }: { children: ReactNode }) {
 			settings,
 			updateSetting,
 			resetSettings,
+			suppressMetronome,
+			resumeMetronome,
 		}),
 		[
 			engine,
@@ -174,6 +191,8 @@ export function AudioEngineProvider({ children }: { children: ReactNode }) {
 			settings,
 			updateSetting,
 			resetSettings,
+			suppressMetronome,
+			resumeMetronome,
 		],
 	);
 

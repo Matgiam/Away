@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CategoryList, type CategoryFilter } from "./CategoryList";
+import { CategoryList, type CategoryFilter, type CategoryStats } from "./CategoryList";
 import { SearchBar } from "./SearchBar";
 import { SongList } from "./SongList";
 import { StartButton } from "./StartButton";
@@ -15,6 +15,10 @@ import {
 	listUploadedSongs,
 	type UploadedSongMeta,
 } from "@/lib/practice/uploads";
+import {
+	ACHIEVEMENT_UNLOCK_EVENT,
+	getCompletedSongs,
+} from "@/lib/achievements";
 import { createClient } from "@/lib/supabase/client";
 
 interface PracticeMenuProps {
@@ -34,6 +38,7 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 	const [uploadModalOpen, setUploadModalOpen] = useState(false);
 	const [userId, setUserId] = useState<string | null>(null);
 	const [authChecked, setAuthChecked] = useState(false);
+	const [completedSongIds, setCompletedSongIds] = useState<string[]>(() => getCompletedSongs());
 
 	const refreshUploads = useCallback(async () => {
 		setUploadsLoading(true);
@@ -46,6 +51,24 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 			setUploadsLoading(false);
 		}
 	}, []);
+
+	// Refresh completed-song markers when the user returns from finishing a song or when an
+	// achievement event fires while this page is mounted.
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const refresh = () => setCompletedSongIds(getCompletedSongs());
+		window.addEventListener(ACHIEVEMENT_UNLOCK_EVENT, refresh);
+		const onVisible = () => {
+			if (document.visibilityState === "visible") refresh();
+		};
+		document.addEventListener("visibilitychange", onVisible);
+		return () => {
+			window.removeEventListener(ACHIEVEMENT_UNLOCK_EVENT, refresh);
+			document.removeEventListener("visibilitychange", onVisible);
+		};
+	}, []);
+
+	const completedSet = useMemo(() => new Set(completedSongIds), [completedSongIds]);
 
 	useEffect(() => {
 		const supabase = createClient();
@@ -95,6 +118,38 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 			return hay.includes(term);
 		});
 	}, [uploads, search]);
+
+	// Per-category {completed, total} for the sidebar — built-in song categories use the static
+	// catalog, "custom" reflects the user's own uploads.
+	const categoryStats = useMemo<Partial<Record<CategoryFilter, CategoryStats>>>(() => {
+		const out: Partial<Record<CategoryFilter, CategoryStats>> = {};
+		for (const song of initialSongs) {
+			const key = song.category as CategoryFilter;
+			const stats = out[key] ?? { completed: 0, total: 0 };
+			stats.total += 1;
+			if (completedSet.has(song.id)) stats.completed += 1;
+			out[key] = stats;
+		}
+		const customCompleted = uploads.reduce(
+			(n, u) => n + (completedSet.has(u.id) ? 1 : 0),
+			0,
+		);
+		out["custom"] = { completed: customCompleted, total: uploads.length };
+		return out;
+	}, [initialSongs, uploads, completedSet]);
+
+	const totalSongStats = useMemo<CategoryStats>(() => {
+		const total = initialSongs.length + uploads.length;
+		const completedBuiltIn = initialSongs.reduce(
+			(n, s) => n + (completedSet.has(s.id) ? 1 : 0),
+			0,
+		);
+		const completedUploads = uploads.reduce(
+			(n, u) => n + (completedSet.has(u.id) ? 1 : 0),
+			0,
+		);
+		return { completed: completedBuiltIn + completedUploads, total };
+	}, [initialSongs, uploads, completedSet]);
 
 	useEffect(() => {
 		if (category === "custom") {
@@ -184,7 +239,12 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 				<div className="grid grid-cols-[300px_1fr] gap-30 flex-1 min-h-0">
 					<div className="flex flex-col items-start gap-7">
 						<SearchBar value={search} onChange={setSearch} />
-						<CategoryList active={category} onChange={handleCategoryChange} />
+						<CategoryList
+							active={category}
+							onChange={handleCategoryChange}
+							stats={categoryStats}
+							totalStats={totalSongStats}
+						/>
 						<StartButton onClick={handleStart} disabled={startDisabled} />
 					</div>
 
@@ -195,6 +255,7 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 								loading={!authChecked || uploadsLoading}
 								signedIn={signedIn}
 								selectedId={selectedId}
+								completedIds={completedSet}
 								onSelect={setSelectedId}
 								onPlay={handlePlayById}
 								onDelete={handleDeleteUpload}
@@ -204,6 +265,7 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 							<SongList
 								songs={filteredSongs}
 								selectedId={selectedId}
+								completedIds={completedSet}
 								onSelect={(song) => setSelectedId(song.id)}
 								onPlay={handlePlayBuiltIn}
 							/>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
 import { CourseFallingNotes, type LaneItem } from "./CourseFallingNotes";
+import { useAudioEngineContext } from "@/components/providers/AudioEngineProvider";
 import type { ImprovisationStep } from "@/lib/courses/types";
 
 const BACKING_COLOR = "#5571a8";
@@ -13,18 +14,26 @@ interface ImprovisationStageProps {
 	playNote: (midi: number, velocity: number, playerId?: string, colorIndex?: number, noteColorHex?: string, soundfontKey?: string) => void;
 	stopNote: (midi: number, playerId?: string, soundfontKey?: string) => void;
 	unlockAudio: () => Promise<void>;
-	// Fires whenever the backing track starts / stops, so the parent can keep the metronome in sync.
+	// Optional — fires whenever the backing track starts / stops, kept for backwards compat.
 	onRunningChange?: (running: boolean) => void;
 }
 
 // Show falling chord blocks for a single look-ahead window
 const LOOK_AHEAD_BEATS = 8;
 
-export function ImprovisationStage({ step, playNote, stopNote, unlockAudio, onRunningChange }: ImprovisationStageProps) {
+export function ImprovisationStage({
+	step,
+	playNote,
+	stopNote,
+	unlockAudio,
+	onRunningChange,
+}: ImprovisationStageProps) {
 	const { bpm, beatsPerChord, chords } = step;
 	const beatSec = 60 / bpm;
 	const chordSec = beatSec * beatsPerChord;
 	const totalLoopSec = chordSec * chords.length;
+
+	const { settings, suppressMetronome, resumeMetronome } = useAudioEngineContext();
 
 	const [running, setRunning] = useState(false);
 	const [beatPos, setBeatPos] = useState(0); // total beats elapsed since play
@@ -33,17 +42,64 @@ export function ImprovisationStage({ step, playNote, stopNote, unlockAudio, onRu
 	const startedAtRef = useRef<number | null>(null);
 	const activeChordIdxRef = useRef(-1);
 	const sustainedRef = useRef<Set<number>>(new Set());
+	// Click sound generator — same clock as chord changes, so the two never drift.
+	const clickCtxRef = useRef<AudioContext | null>(null);
+	const lastClickBeatRef = useRef<number>(-1);
+	const metronomeVolumeRef = useRef(settings.metronomeVolume);
+	useEffect(() => {
+		metronomeVolumeRef.current = settings.metronomeVolume;
+	}, [settings.metronomeVolume]);
+
+	// Take ownership of the metronome while this stage is mounted — keeps the global
+	// metronome silent so it doesn't drift against the chord-change clock.
+	useEffect(() => {
+		suppressMetronome();
+		return () => resumeMetronome();
+	}, [suppressMetronome, resumeMetronome]);
 
 	const stopAllChordTones = () => {
 		sustainedRef.current.forEach((m) => stopNote(m, "course-backing"));
 		sustainedRef.current.clear();
 		activeChordIdxRef.current = -1;
+		lastClickBeatRef.current = -1;
+	};
+
+	const playClick = (isDownbeat: boolean) => {
+		if (typeof window === "undefined") return;
+		if (!clickCtxRef.current || clickCtxRef.current.state === "closed") {
+			const Ctor: typeof AudioContext =
+				window.AudioContext ||
+				(window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+			if (!Ctor) return;
+			clickCtxRef.current = new Ctor();
+		}
+		const ctx = clickCtxRef.current;
+		if (ctx.state === "suspended") ctx.resume().catch(() => {});
+
+		const peakGain = Math.max(0, Math.min(1, metronomeVolumeRef.current / 100));
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+		osc.type = "sine";
+		osc.frequency.value = isDownbeat ? 1500 : 900;
+		const t = ctx.currentTime;
+		gain.gain.setValueAtTime(0.0001, t);
+		gain.gain.exponentialRampToValueAtTime(
+			Math.max(0.0002, peakGain * (isDownbeat ? 1 : 0.7)),
+			t + 0.001,
+		);
+		gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+		osc.start(t);
+		osc.stop(t + 0.08);
 	};
 
 	useEffect(() => {
 		return () => {
 			stopAllChordTones();
 			onRunningChange?.(false);
+			clickCtxRef.current?.close().catch(() => {});
+			clickCtxRef.current = null;
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
@@ -62,6 +118,15 @@ export function ImprovisationStage({ step, playNote, stopNote, unlockAudio, onRu
 			const elapsed = (performance.now() - startedAtRef.current) / 1000;
 			const beats = elapsed / beatSec;
 			setBeatPos(beats);
+
+			// Metronome clicks — share the same elapsed-time clock as the chord scheduler, so
+			// every click lands on the same beat boundary as the backing notes.
+			const beatIdx = Math.floor(beats);
+			if (beatIdx !== lastClickBeatRef.current && beatIdx >= 0) {
+				lastClickBeatRef.current = beatIdx;
+				const isDownbeat = beatIdx % beatsPerChord === 0;
+				playClick(isDownbeat);
+			}
 
 			const loopElapsed = elapsed % totalLoopSec;
 			const idx = Math.floor(loopElapsed / chordSec) % chords.length;
