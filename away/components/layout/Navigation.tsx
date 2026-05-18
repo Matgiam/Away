@@ -116,7 +116,8 @@ export const Navigation = ({
 	const metronomeBpm = settings?.metronomeBpm ?? 100;
 	const metronomeBeatsPerBar = settings?.metronomeBeatsPerBar ?? 4;
 	const metronomeVolume = settings?.metronomeVolume ?? 60;
-	const canControlMetronome = !!settings && !!updateSetting && !hideMetronome;
+	const canControlMetronome =
+		!!settings && !!updateSetting && !hideMetronome && settings.metronomeVisible;
 
 	const canRenderSettings =
 		!!settings &&
@@ -206,7 +207,7 @@ export const Navigation = ({
 							style={{ pointerEvents: "auto" }}
 							title="Metronome"
 						>
-							{/* <DynamicLiquidGlass
+							<DynamicLiquidGlass
 								width={67}
 								height={67}
 								radius={15}
@@ -215,7 +216,7 @@ export const Navigation = ({
 								glassBgOpacity={metronomeEnabled || showMetronome ? 0.15 : 0.001}
 							>
 								<MetronomeIcon active={metronomeEnabled} />
-							</DynamicLiquidGlass> */}
+							</DynamicLiquidGlass>
 							{metronomeEnabled && (
 								<span
 									className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#c75ad6] shadow-[0_0_8px_rgba(199,90,214,0.8)] pointer-events-none"

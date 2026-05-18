@@ -113,10 +113,7 @@ export default function HomeClient() {
 					data.user.email?.split("@")[0] ||
 					data.user.id.substring(0, 8);
 				setUsername(name);
-				sessionStorage.setItem(
-					"away_user",
-					JSON.stringify({ id: data.user.id, email: data.user.email, username: name }),
-				);
+				sessionStorage.setItem("away_user", JSON.stringify({ id: data.user.id, email: data.user.email, username: name }));
 			}
 		};
 		loadUser();
@@ -166,9 +163,9 @@ export default function HomeClient() {
 								<p className="text-2xl italic text-gray-400 cursor-pointer hover:text-white transition-colors mt-5" onClick={handleMultiplayerClick}>
 									Multiplayer mode
 								</p>
-								{/* <p className="text-2xl italic text-gray-400 cursor-pointer hover:text-white transition-colors mt-5" onClick={handlePracticeClick}>
+								<p className="text-2xl italic text-gray-400 cursor-pointer hover:text-white transition-colors mt-5" onClick={handlePracticeClick}>
 									Practice mode
-								</p> */}
+								</p>
 								<p className="text-2xl italic text-gray-400 cursor-pointer hover:text-white transition-colors mt-5" onClick={handleProfileClick}>
 									Profile
 								</p>
@@ -220,12 +217,7 @@ export default function HomeClient() {
 							fallSpeed={settings.noteFallSpeed}
 							cornerRadius={settings.noteCornerRadius}
 						/>
-						{bannerAchievement && (
-							<AchievementBanner
-								achievement={bannerAchievement}
-								onDismiss={() => setBannerAchievement(null)}
-							/>
-						)}
+						{bannerAchievement && <AchievementBanner achievement={bannerAchievement} onDismiss={() => setBannerAchievement(null)} />}
 					</div>
 					<div className="fixed bottom-0 left-0 right-0 z-20">
 						<Piano
