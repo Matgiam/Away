@@ -13,7 +13,7 @@ export type Achievement = {
 };
 
 // Keep in sync with lib/courses/catalog.ts — the "finish every course" tier needs to match.
-const TOTAL_COURSES = 28;
+const TOTAL_COURSES = 32;
 const TOTAL_NORMAL_ACHIEVEMENTS = 20;
 
 export const ACHIEVEMENT_CATEGORIES: { key: AchievementCategory; label: string }[] = [

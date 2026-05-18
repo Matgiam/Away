@@ -4,6 +4,7 @@ export type CourseCategoryKey =
 	| "hand_independence"
 	| "chords"
 	| "intervals"
+	| "ear_training"
 	| "improvisation";
 
 export type CourseCategory = {
@@ -17,6 +18,7 @@ export const COURSE_CATEGORIES: CourseCategory[] = [
 	{ key: "hand_independence", label: "Hand independance" },
 	{ key: "chords", label: "Chords" },
 	{ key: "intervals", label: "Intervals" },
+	{ key: "ear_training", label: "Ear training" },
 	{ key: "improvisation", label: "Improvisation" },
 ];
 
@@ -37,7 +39,8 @@ export type CourseStep =
 	| PlayChordStep
 	| PlaySequenceStep
 	| DemoSequenceStep
-	| ImprovisationStep;
+	| ImprovisationStep
+	| EarTrainingStep;
 
 interface BaseStep {
 	id: string;
@@ -111,6 +114,26 @@ export interface DemoSequenceStep extends BaseStep {
 	// Total duration of the demo (used for auto-stop if no notes provided)
 	durationSeconds: number;
 	autoPlayOnEnter?: boolean;
+}
+
+// Ear-training step: app plays audio (nothing highlighted on the keyboard) and the user
+// picks the right answer from a small list of choices. Used for "is the second note higher
+// or lower", "major or minor", "octave or 5th", etc.
+export interface EarTrainingStep extends BaseStep {
+	type: "ear-training";
+	// The pitches to play. Sequential when isChord is false, simultaneous when true.
+	notes: number[];
+	isChord?: boolean;
+	// Per-note duration in milliseconds (sequential mode). Default 700.
+	noteDurationMs?: number;
+	// Gap between sequential notes in milliseconds. Default 150.
+	gapMs?: number;
+	// Hold time for chord mode in milliseconds. Default 1500.
+	chordHoldMs?: number;
+	// Multiple-choice answers shown to the user.
+	options: Array<{ id: string; label: string }>;
+	// The id of the option that completes the step.
+	correctOptionId: string;
 }
 
 // Improvisation step: backing chords loop, user plays freely over a scale

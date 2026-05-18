@@ -16,6 +16,7 @@ import { CourseFallingNotes, type LaneItem } from "@/components/courses/CourseFa
 import { CourseDemoStage, buildSyntheticDemoNotes } from "@/components/courses/CourseDemoStage";
 import { FinishScreen, summaryFromSteps } from "@/components/courses/FinishScreen";
 import { ImprovisationStage } from "@/components/courses/ImprovisationStage";
+import { EarTrainingStage } from "@/components/courses/EarTrainingStage";
 import { midiToLetter } from "@/lib/courses/music";
 import { markCourseCompleted, checkAndUnlockAchievements } from "@/lib/achievements";
 import type { ParsedNote } from "@/lib/practice/midiParser";
@@ -201,6 +202,14 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 		},
 		[updateSetting],
 	);
+
+	const handleEarTrainingCorrect = useCallback(() => {
+		setStepStates((all) => {
+			const prev = all[stepIndex] ?? freshStepState();
+			if (prev.completed) return all;
+			return { ...all, [stepIndex]: { ...prev, completed: true } };
+		});
+	}, [stepIndex]);
 
 	useEffect(() => {
 		heldRef.current = new Set(localHeldMidis);
@@ -428,6 +437,8 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 				return state.demoPlayed ? "Demo played" : "Listen…";
 			case "improvisation":
 				return "Improvise freely";
+			case "ear-training":
+				return state.completed ? "Correct ✓" : "Listen and pick the answer";
 			case "text":
 			default:
 				return null;
@@ -632,6 +643,7 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 	const canPrevious = stepIndex > 0;
 	const canNext = state.completed;
 	const isImprovStep = step?.type === "improvisation";
+	const isEarTrainingStep = step?.type === "ear-training";
 	const hasDemo = step ? deriveDemo(step) !== null || step.type === "demo-sequence" : false;
 
 	return (
@@ -709,6 +721,15 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 							stopNote={stopNote}
 							unlockAudio={unlockAudio}
 							onRunningChange={handleImprovRunningChange}
+						/>
+					) : isEarTrainingStep && step?.type === "ear-training" ? (
+						<EarTrainingStage
+							step={step}
+							stepKey={stepIndex}
+							playNote={playNote}
+							stopNote={stopNote}
+							unlockAudio={unlockAudio}
+							onCorrect={handleEarTrainingCorrect}
 						/>
 					) : demoState !== "done" ? (
 						// Keep the demo stage mounted during both "idle" (waiting to start) and
