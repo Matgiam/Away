@@ -7,12 +7,11 @@ export function BadgedUsername({ username }: { username: string }) {
   const [equipped] = useState<string | null>(getEquippedBadge);
 
   const badge = equipped ? getAchievement(equipped) : null;
+  const Icon = badge?.icon;
 
   return (
     <span className="inline-flex items-center gap-2">
-      {badge && (
-        <img src={badge.icon} alt="" className="w-5 h-5 object-contain" />
-      )}
+      {Icon && <Icon className="w-6 h-6 shrink-0" aria-hidden />}
       {username}
     </span>
   );

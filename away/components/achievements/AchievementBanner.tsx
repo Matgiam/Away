@@ -12,6 +12,7 @@ interface Props {
 
 export function AchievementBanner({ achievement, onDismiss }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const Icon = achievement.icon;
 
   useGSAP(() => {
     const el = ref.current;
@@ -46,7 +47,7 @@ export function AchievementBanner({ achievement, onDismiss }: Props) {
     >
       <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-[#0a0118]/90 backdrop-blur-xl px-6 py-4 shadow-2xl">
         <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/8 flex items-center justify-center">
-          <img src={achievement.icon} alt="" className="w-6 h-6 object-contain" />
+          <Icon className="w-8 h-8" aria-hidden />
         </div>
         <div>
           <p className="text-white/50 text-xs uppercase tracking-widest font-medium">Achievement Unlocked</p>

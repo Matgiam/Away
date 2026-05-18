@@ -71,7 +71,8 @@ export function AchievementGrid() {
     const isUnlocked = unlocked.includes(ach.id);
     const isEquipped = equipped === ach.id;
     const size = master ? "w-24 h-24" : "w-24 h-24";
-    const iconSize = master ? "w-10 h-10" : "w-10 h-10";
+    const iconSize = master ? "w-14 h-14" : "w-14 h-14";
+    const Icon = ach.icon;
 
     const percent = Math.max(0, Math.min(100, (hoverProgress / ach.threshold) * 100));
 
@@ -93,10 +94,9 @@ export function AchievementGrid() {
                   : "border-white/5 bg-white/[0.01] opacity-30 cursor-default"
           }`}
         >
-          <img
-            src={ach.icon}
-            alt=""
-            className={`${iconSize} object-contain ${isUnlocked ? "" : "grayscale opacity-40"}`}
+          <Icon
+            className={`${iconSize} ${isUnlocked ? "" : "grayscale opacity-40"}`}
+            aria-hidden
           />
         </button>
 

@@ -309,6 +309,7 @@ export const ProfileModal = ({
 									<div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
 										{ACHIEVEMENTS.map((ach) => {
 											const isUnlocked = unlockedAchievementIds.includes(ach.id);
+											const Icon = ach.icon;
 											return (
 												<div
 													key={ach.id}
@@ -319,10 +320,9 @@ export const ProfileModal = ({
 															: "border-white/5 bg-white/[0.01] opacity-40"
 													}`}
 												>
-													<img
-														src={ach.icon}
-														alt={ach.name}
-														className={`w-6 h-6 object-contain ${isUnlocked ? "" : "grayscale opacity-50"}`}
+													<Icon
+														className={`w-8 h-8 ${isUnlocked ? "" : "grayscale opacity-50"}`}
+														aria-label={ach.name}
 													/>
 												</div>
 											);
