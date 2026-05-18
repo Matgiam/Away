@@ -117,6 +117,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 	const [playing, setPlaying] = useState(true);
 	const [speed, setSpeed] = useState(1.0);
 	const [autoPause, setAutoPause] = useState(false);
+	const [practiceHand, setPracticeHand] = useState<"both" | "left" | "right">("both");
 	const [currentTime, setCurrentTime] = useState(0);
 
 	const [waitingChord, setWaitingChord] = useState<Chord | null>(null);
@@ -125,11 +126,13 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 	const playingRef = useRef(false);
 	const speedRef = useRef(speed);
 	const autoPauseRef = useRef(autoPause);
+	const practiceHandRef = useRef(practiceHand);
 	const playheadRef = useRef(0);
 	const lastFrameRef = useRef(0);
 	const nextNoteIndexRef = useRef(0);
 	const chordIndexRef = useRef(0);
 	const waitingChordRef = useRef<Chord | null>(null);
+	const gateMidisRef = useRef<number[]>([]);
 	const hitMidisRef = useRef<Set<number>>(new Set());
 	const activeAutoNotesRef = useRef<Map<number, number>>(new Map());
 
@@ -142,6 +145,9 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 	useEffect(() => {
 		autoPauseRef.current = autoPause;
 	}, [autoPause]);
+	useEffect(() => {
+		practiceHandRef.current = practiceHand;
+	}, [practiceHand]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -205,6 +211,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 
 	const clearGate = useCallback(() => {
 		waitingChordRef.current = null;
+		gateMidisRef.current = [];
 		setWaitingChord(null);
 		hitMidisRef.current = new Set();
 		setHitMidis(EMPTY_SET);
@@ -253,7 +260,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 			}
 			return lo;
 		})();
-	}, [autoPause, chords, clearGate, midi, releaseAllAuto]);
+	}, [autoPause, practiceHand, chords, clearGate, midi, releaseAllAuto]);
 
 	useEffect(() => {
 		if (!midi) return;
@@ -280,16 +287,66 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 			}
 
 			if (autoPauseRef.current) {
+				const handFilter = practiceHandRef.current;
 				const cIdx = chordIndexRef.current;
 				if (cIdx < chords.length) {
 					const nextChord = chords[cIdx];
 					if (t >= nextChord.startSeconds) {
-						playheadRef.current = nextChord.startSeconds;
-						t = nextChord.startSeconds;
-						waitingChordRef.current = nextChord;
-						setWaitingChord(nextChord);
-						hitMidisRef.current = new Set();
-						setHitMidis(EMPTY_SET);
+						// Split the chord by hand so we only gate on the user's hand.
+						const userHandNotes =
+							handFilter === "both"
+								? nextChord.notes
+								: nextChord.notes.filter((n) => handForNote(n) === handFilter);
+						const otherHandNotes =
+							handFilter === "both"
+								? []
+								: nextChord.notes.filter((n) => handForNote(n) !== handFilter);
+
+						if (userHandNotes.length === 0) {
+							// No notes from the user's hand — auto-play the entire chord and skip the gate
+							for (const note of nextChord.notes) {
+								if (activeAutoNotesRef.current.has(note.midi)) {
+									stopNote(note.midi, "practice-auto");
+									activeAutoNotesRef.current.delete(note.midi);
+								}
+								const hand = handForNote(note);
+								playNote(note.midi, note.velocity, "practice-auto", undefined, HAND_COLORS[hand]);
+								activeAutoNotesRef.current.set(
+									note.midi,
+									note.startSeconds + note.durationSeconds,
+								);
+							}
+							chordIndexRef.current += 1;
+							// Advance the next-note pointer past this chord so the open branch
+							// (when auto-pause is later turned off) doesn't replay these.
+							while (
+								nextNoteIndexRef.current < midi.notes.length &&
+								midi.notes[nextNoteIndexRef.current].startSeconds <= nextChord.startSeconds + 0.001
+							) {
+								nextNoteIndexRef.current++;
+							}
+						} else {
+							// Auto-play the other-hand notes right now, gate on the user's hand
+							for (const note of otherHandNotes) {
+								if (activeAutoNotesRef.current.has(note.midi)) {
+									stopNote(note.midi, "practice-auto");
+									activeAutoNotesRef.current.delete(note.midi);
+								}
+								const hand = handForNote(note);
+								playNote(note.midi, note.velocity, "practice-auto", undefined, HAND_COLORS[hand]);
+								activeAutoNotesRef.current.set(
+									note.midi,
+									note.startSeconds + note.durationSeconds,
+								);
+							}
+							playheadRef.current = nextChord.startSeconds;
+							t = nextChord.startSeconds;
+							waitingChordRef.current = nextChord;
+							gateMidisRef.current = userHandNotes.map((n) => n.midi);
+							setWaitingChord(nextChord);
+							hitMidisRef.current = new Set();
+							setHitMidis(EMPTY_SET);
+						}
 					}
 				}
 			} else {
@@ -332,7 +389,8 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 		if (!autoPauseRef.current) return;
 		const waiting = waitingChordRef.current;
 		if (!waiting) return;
-		if (!waiting.midis.includes(m)) return;
+		const gateMidis = gateMidisRef.current;
+		if (!gateMidis.includes(m)) return;
 		if (hitMidisRef.current.has(m)) return;
 
 		const nextHit = new Set(hitMidisRef.current);
@@ -340,9 +398,10 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 		hitMidisRef.current = nextHit;
 		setHitMidis(nextHit);
 
-		if (nextHit.size >= waiting.midis.length) {
+		if (nextHit.size >= gateMidis.length) {
 			chordIndexRef.current += 1;
 			waitingChordRef.current = null;
+			gateMidisRef.current = [];
 			setWaitingChord(null);
 			hitMidisRef.current = new Set();
 			setHitMidis(EMPTY_SET);
@@ -455,10 +514,13 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 		});
 	}, [midi, currentTime]);
 
-	const gateMidis = useMemo<ReadonlySet<number>>(
-		() => (waitingChord ? new Set(waitingChord.midis) : EMPTY_SET),
-		[waitingChord],
-	);
+	const gateMidis = useMemo<ReadonlySet<number>>(() => {
+		if (!waitingChord) return EMPTY_SET;
+		if (practiceHand === "both") return new Set(waitingChord.midis);
+		return new Set(
+			waitingChord.notes.filter((n) => handForNote(n) === practiceHand).map((n) => n.midi),
+		);
+	}, [waitingChord, practiceHand, handForNote]);
 
 	const title = descriptor.artist
 		? `${descriptor.title} - ${descriptor.artist}`
@@ -515,6 +577,8 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 				onToggleAutoPause={() => setAutoPause((v) => !v)}
 				speed={speed}
 				onCycleSpeed={handleCycleSpeed}
+				practiceHand={practiceHand}
+				onPracticeHandChange={setPracticeHand}
 			/>
 
 			<PlayerHud
