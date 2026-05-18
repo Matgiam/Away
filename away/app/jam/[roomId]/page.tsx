@@ -20,10 +20,7 @@ import type { ChatMessage } from "@/hooks/useChat";
 import { sendRoomMessage } from "@/lib/messages";
 import { useFriends } from "@/hooks/useFriends";
 import { acceptFriendRequest, removeFriendship, sendFriendRequest, updateMyUsername } from "@/lib/friends";
-import { saveSessionStats } from "@/lib/stats";
 import { incrementTotalNotes, checkAndUnlockAchievements } from "@/lib/achievements";
-import { AchievementBanner } from "@/components/achievements/AchievementBanner";
-import type { Achievement } from "@/lib/achievements";
 import { useRecording } from "@/hooks/useRecording";
 import { ChordDisplay } from "@/components/layout/ChordDisplay";
 
@@ -76,8 +73,6 @@ export default function JamRoom() {
 
 	const myTempId = useRef(getOrCreatePlayerId());
 	const joinedAtRef = useRef(Date.now());
-	const notesPlayedRef = useRef(0);
-	const [bannerAchievement, setBannerAchievement] = useState<Achievement | null>(null);
 
 	const {
 		pianoKeys,
@@ -380,14 +375,10 @@ export default function JamRoom() {
 
 	const handleLocalPlay = useCallback(
 		(note: number, velocity: number = 127) => {
-			notesPlayedRef.current += 1;
 			playNote(note, velocity, "self");
 			broadcastNoteSupabaseRef.current(note, velocity, true);
-			const total = incrementTotalNotes();
-			const newAch = checkAndUnlockAchievements(total);
-			if (newAch.length > 0) {
-				setBannerAchievement(newAch[0]);
-			}
+			incrementTotalNotes();
+			checkAndUnlockAchievements();
 		},
 		[playNote],
 	);
@@ -665,11 +656,6 @@ export default function JamRoom() {
 			});
 			releaseAllForPlayerRef.current("self");
 
-			const uid = myUserIdRef.current;
-			if (uid) {
-				const elapsed = Math.round((Date.now() - joinedAtRef.current) / 1000);
-				saveSessionStats(uid, elapsed, notesPlayedRef.current);
-			}
 			roomChannelRef.current = null;
 			try {
 				room.untrack();
@@ -679,11 +665,6 @@ export default function JamRoom() {
 	}, [roomId, safeDecrement]);
 
 	const handleLeave = useCallback(async () => {
-		const userId = myUserIdRef.current;
-		if (userId) {
-			const elapsed = Math.round((Date.now() - joinedAtRef.current) / 1000);
-			await saveSessionStats(userId, elapsed, notesPlayedRef.current);
-		}
 		await safeDecrement();
 		sessionStorage.removeItem("hostedRoomId");
 		router.push("/multiplayer");
@@ -805,13 +786,6 @@ export default function JamRoom() {
 					if (profileTarget?.isMe) handleUsernameChange(next);
 				}}
 			/>
-
-			{bannerAchievement && (
-				<AchievementBanner
-					achievement={bannerAchievement}
-					onDismiss={() => setBannerAchievement(null)}
-				/>
-			)}
 
 			<ChordDisplay heldMidis={localHeldMidis} enabled={settings.chordRecognizerEnabled} />
 		</div>

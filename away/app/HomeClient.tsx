@@ -11,8 +11,6 @@ import { updateMyUsername } from "@/lib/friends";
 import { useAudioEngineContext } from "@/components/providers/AudioEngineProvider";
 import { useKeyboardInput } from "@/hooks/useKeyboardInput";
 import { incrementTotalNotes, checkAndUnlockAchievements } from "@/lib/achievements";
-import { AchievementBanner } from "@/components/achievements/AchievementBanner";
-import type { Achievement } from "@/lib/achievements";
 import { useRecording } from "@/hooks/useRecording";
 import { ChordDisplay } from "@/components/layout/ChordDisplay";
 
@@ -22,7 +20,6 @@ export default function HomeClient() {
 	const [username, setUsername] = useState("");
 	const [isLoggedIn, setIsLoggedIn] = useState(false);
 	const [userId, setUserId] = useState<string | null>(null);
-	const [bannerAchievement, setBannerAchievement] = useState<Achievement | null>(null);
 	const notesThisSessionRef = useRef(0);
 	const { state: recordingState, countdown: recordingCountdown, startRecording, stopRecording } = useRecording(userId);
 
@@ -66,11 +63,8 @@ export default function HomeClient() {
 			unlockAudio();
 			playNote(midi, vel, "self");
 			notesThisSessionRef.current += 1;
-			const total = incrementTotalNotes();
-			const newAch = checkAndUnlockAchievements(total);
-			if (newAch.length > 0) {
-				setBannerAchievement(newAch[0]);
-			}
+			incrementTotalNotes();
+			checkAndUnlockAchievements();
 		},
 		[playNote, unlockAudio],
 	);
@@ -217,7 +211,6 @@ export default function HomeClient() {
 							fallSpeed={settings.noteFallSpeed}
 							cornerRadius={settings.noteCornerRadius}
 						/>
-						{bannerAchievement && <AchievementBanner achievement={bannerAchievement} onDismiss={() => setBannerAchievement(null)} />}
 					</div>
 					<div className="fixed bottom-0 left-0 right-0 z-20">
 						<Piano

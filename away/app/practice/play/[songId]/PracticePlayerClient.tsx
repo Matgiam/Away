@@ -18,6 +18,7 @@ import { buildChords, chordIndexForTime, type Chord } from "@/lib/practice/chord
 import { buildHandAssignment, type Hand } from "@/lib/practice/hands";
 import type { BuiltInSong } from "@/lib/practice/songs";
 import { downloadUploadedMidi, getUploadedSongMeta, isUploadId } from "@/lib/practice/uploads";
+import { markSongCompleted, checkAndUnlockAchievements } from "@/lib/achievements";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -283,6 +284,8 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 				playingRef.current = false;
 				setPlaying(false);
 				releaseAllAuto();
+				markSongCompleted(songId);
+				checkAndUnlockAchievements();
 				return;
 			}
 
@@ -383,7 +386,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 			cancelAnimationFrame(frameId);
 			lastFrameRef.current = 0;
 		};
-	}, [midi, chords, handForNote, playNote, stopNote, releaseAllAuto, totalDuration]);
+	}, [midi, chords, handForNote, playNote, stopNote, releaseAllAuto, totalDuration, songId]);
 
 	const handleUserNote = useCallback((m: number) => {
 		if (!autoPauseRef.current) return;

@@ -25,7 +25,7 @@ export function PracticeSideControls({
 }: PracticeSideControlsProps) {
 	return (
 		<div
-			style={{ position: "absolute", top: "26%", right: "1%", zIndex: 50 }}
+			style={{ position: "absolute", top: "30%", right: "1%", zIndex: 50 }}
 			className="flex flex-col items-center gap-4"
 		>
 			<Pill onClick={onSelectSong} active={false} label="Select song" />

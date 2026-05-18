@@ -1,5 +1,26 @@
 import { createClient } from "@/lib/supabase/client";
 
+export type ServerStats = {
+  notesPlayed: number;
+  timePlayedSeconds: number;
+  connexions: number;
+};
+
+export async function getServerStats(userId: string): Promise<ServerStats | null> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("user_stats")
+    .select("notes_played, time_played_seconds, connexions")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!data) return null;
+  return {
+    notesPlayed: data.notes_played ?? 0,
+    timePlayedSeconds: data.time_played_seconds ?? 0,
+    connexions: data.connexions ?? 0,
+  };
+}
+
 export async function saveSessionStats(
   userId: string,
   sessionSeconds: number,

@@ -17,6 +17,7 @@ import { CourseDemoStage, buildSyntheticDemoNotes } from "@/components/courses/C
 import { FinishScreen, summaryFromSteps } from "@/components/courses/FinishScreen";
 import { ImprovisationStage } from "@/components/courses/ImprovisationStage";
 import { midiToLetter } from "@/lib/courses/music";
+import { markCourseCompleted, checkAndUnlockAchievements } from "@/lib/achievements";
 import type { ParsedNote } from "@/lib/practice/midiParser";
 import type { Course, CourseStep } from "@/lib/courses/types";
 
@@ -564,9 +565,11 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 		} else {
 			// Last step — show the course-complete screen
 			cancelDemo();
+			markCourseCompleted(course.id);
+			checkAndUnlockAchievements();
 			setShowFinish(true);
 		}
-	}, [step, stepIndex, course.steps.length, cancelDemo]);
+	}, [step, stepIndex, course.steps.length, course.id, cancelDemo]);
 
 	const handleBackToCourses = useCallback(() => {
 		router.push("/practice/courses");

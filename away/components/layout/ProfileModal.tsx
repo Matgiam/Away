@@ -9,7 +9,12 @@ import {
 	updateMyUsername,
 	type PublicProfile,
 } from "@/lib/friends";
-import { ACHIEVEMENTS, getUnlockedAchievementIdsForNotes } from "@/lib/achievements";
+import {
+	ACHIEVEMENTS,
+	getUnlockedAchievementIdsForNotes,
+	getUnlockedAchievements,
+} from "@/lib/achievements";
+import { AchievementGrid } from "@/components/achievements/AchievementGrid";
 
 interface ProfileModalProps {
 	open: boolean;
@@ -80,10 +85,13 @@ export const ProfileModal = ({
 		};
 	}, [open, userId, fallbackDisplayName]);
 
-	const unlockedAchievementIds = useMemo(
-		() => getUnlockedAchievementIdsForNotes(profile?.notesPlayed ?? 0),
-		[profile?.notesPlayed],
-	);
+	// For the viewer's own profile we can read the full localStorage unlock list (includes
+	// time/courses/songs/master). For other players we fall back to deriving notes-only
+	// unlocks from the server stats — the rest live on each player's device.
+	const unlockedAchievementIds = useMemo(() => {
+		if (isSelf) return getUnlockedAchievements();
+		return getUnlockedAchievementIdsForNotes(profile?.notesPlayed ?? 0);
+	}, [isSelf, profile?.notesPlayed]);
 
 	if (!open) return null;
 
@@ -295,28 +303,32 @@ export const ProfileModal = ({
 										{unlockedAchievementIds.length}/{ACHIEVEMENTS.length} unlocked
 									</span>
 								</div>
-								<div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
-									{ACHIEVEMENTS.map((ach) => {
-										const isUnlocked = unlockedAchievementIds.includes(ach.id);
-										return (
-											<div
-												key={ach.id}
-												title={isUnlocked ? `${ach.name} — ${ach.description}` : `Locked: ${ach.description}`}
-												className={`aspect-square rounded-xl border flex items-center justify-center ${
-													isUnlocked
-														? "border-white/15 bg-white/[0.05]"
-														: "border-white/5 bg-white/[0.01] opacity-40"
-												}`}
-											>
-												<img
-													src={ach.icon}
-													alt={ach.name}
-													className={`w-6 h-6 object-contain ${isUnlocked ? "" : "grayscale opacity-50"}`}
-												/>
-											</div>
-										);
-									})}
-								</div>
+								{isSelf ? (
+									<AchievementGrid />
+								) : (
+									<div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
+										{ACHIEVEMENTS.map((ach) => {
+											const isUnlocked = unlockedAchievementIds.includes(ach.id);
+											return (
+												<div
+													key={ach.id}
+													title={isUnlocked ? `${ach.name} — ${ach.description}` : `Locked — ${ach.description}`}
+													className={`aspect-square rounded-xl border flex items-center justify-center ${
+														isUnlocked
+															? "border-white/15 bg-white/[0.05]"
+															: "border-white/5 bg-white/[0.01] opacity-40"
+													}`}
+												>
+													<img
+														src={ach.icon}
+														alt={ach.name}
+														className={`w-6 h-6 object-contain ${isUnlocked ? "" : "grayscale opacity-50"}`}
+													/>
+												</div>
+											);
+										})}
+									</div>
+								)}
 							</section>
 
 							{isSelf && (

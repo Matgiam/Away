@@ -3,6 +3,9 @@ import { Geist, Geist_Mono, Inter, Lobster } from "next/font/google";
 import "./globals.css";
 import { AudioEngineProvider } from "@/components/providers/AudioEngineProvider";
 import { PresenceProvider } from "@/components/providers/PresenceProvider";
+import { TimeTracker } from "@/components/achievements/TimeTracker";
+import { AchievementBannerHost } from "@/components/achievements/AchievementBannerHost";
+import { SessionStatsSync } from "@/components/achievements/SessionStatsSync";
 
 
 const geistSans = Geist({
@@ -53,7 +56,10 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <PresenceProvider>
           <AudioEngineProvider>
-{children}
+            <TimeTracker />
+            <SessionStatsSync />
+            <AchievementBannerHost />
+            {children}
           </AudioEngineProvider>
         </PresenceProvider>
       </body>
