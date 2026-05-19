@@ -89,10 +89,9 @@ export function SessionStatsSync() {
         // Bumped totals may have unlocked something.
         checkAndUnlockAchievements();
       } catch {
-        // Network failure — be conservative and assume the server already has what we have,
-        // so we don't double-push on retry. The next bootstrap will reconcile.
-        writeSyncMark(LAST_SYNC_NOTES_KEY, getTotalNotes());
-        writeSyncMark(LAST_SYNC_SECONDS_KEY, getTotalSeconds());
+        // Network failure — leave the existing sync marks untouched so the next bootstrap
+        // can retry from the previous state. (Earlier we wrote the current local value here,
+        // which permanently set delta=0 and silently blocked future flushes.)
       }
       bootstrapped = true;
       // Push any pending delta right away — don't wait the full 30 s for the first flush.
@@ -128,15 +127,21 @@ export function SessionStatsSync() {
       void flush();
     };
 
+    // Other components (eg. ProfileModal opening for self) can ask us to push immediately
+    // instead of waiting up to 30 s for the next interval tick.
+    const onFlushRequest = () => void flush();
+
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("beforeunload", onBeforeUnload);
     window.addEventListener("pagehide", onBeforeUnload);
+    window.addEventListener("away:flush-stats", onFlushRequest);
 
     return () => {
       if (interval) clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("beforeunload", onBeforeUnload);
       window.removeEventListener("pagehide", onBeforeUnload);
+      window.removeEventListener("away:flush-stats", onFlushRequest);
       authListener?.subscription.unsubscribe();
       void flush();
     };

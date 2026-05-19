@@ -90,10 +90,26 @@ export const ProfileModal = ({
 	// For the viewer's own profile we can read the full localStorage unlock list (includes
 	// time/courses/songs/master). For other players we fall back to deriving notes-only
 	// unlocks from the server stats — the rest live on each player's device.
+	// Filter to ids that still exist in the current ACHIEVEMENTS catalog so legacy
+	// (renamed/removed) ids in localStorage don't inflate the "25 / 21 unlocked" counter.
 	const unlockedAchievementIds = useMemo(() => {
-		if (isSelf) return getUnlockedAchievements();
-		return getUnlockedAchievementIdsForNotes(profile?.notesPlayed ?? 0);
+		const valid = new Set(ACHIEVEMENTS.map((a) => a.id));
+		const raw = isSelf
+			? getUnlockedAchievements()
+			: getUnlockedAchievementIdsForNotes(profile?.notesPlayed ?? 0);
+		return raw.filter((id) => valid.has(id));
 	}, [isSelf, profile?.notesPlayed]);
+
+	// When the user opens their own profile, ask SessionStatsSync to push any pending
+	// localStorage stats up to the server so the modal (and any friend who opens this profile
+	// next) shows fresh numbers without waiting for the 30-second tick.
+	useEffect(() => {
+		if (!open || !isSelf) return;
+		if (typeof window === "undefined") return;
+		try {
+			window.dispatchEvent(new Event("away:flush-stats"));
+		} catch {}
+	}, [open, isSelf]);
 
 	if (!open) return null;
 

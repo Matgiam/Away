@@ -604,7 +604,10 @@ export default function JamRoom() {
 			setPeerSustainRef.current(payload.senderId, !!payload.active, sf);
 		});
 
-		room.on("presence", { event: "sync" }, () => {
+		// Rebuild the local players list from the current presence state. Re-runs on every
+		// presence event — including soundfont/note-color updates that fire as join events on
+		// existing keys (Supabase doesn't emit a fresh "sync" for a re-track of the same key).
+		const refreshFromPresence = () => {
 			const state = room.presenceState<PresencePlayer>();
 
 			const entries = Object.entries(state).map(([presenceKey, presences]) => {
@@ -656,7 +659,11 @@ export default function JamRoom() {
 					removePeerRef.current(pid);
 				}
 			});
-		});
+		};
+
+		room.on("presence", { event: "sync" }, refreshFromPresence);
+		room.on("presence", { event: "join" }, refreshFromPresence);
+		room.on("presence", { event: "leave" }, refreshFromPresence);
 
 		room.subscribe(async (status) => {
 			if (status === "SUBSCRIBED") {
