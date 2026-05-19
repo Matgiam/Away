@@ -23,7 +23,17 @@ const NOTE_COLOR_HEX_STORAGE_KEY = "away:noteColorHex";
 const LEGACY_WHITE_INDEX_KEY = "away:whiteNoteColorIndex";
 const LEGACY_BLACK_INDEX_KEY = "away:blackNoteColorIndex";
 const LEGACY_SINGLE_INDEX_KEY = "away:noteColorIndex";
+const SOUNDFONT_STORAGE_KEY = "away:selectedSoundfont";
 const DEFAULT_NOTE_COLOR_HEX = PLAYER_COLORS_SOLID[0];
+
+function loadPersistedSoundfont(): string | null {
+	if (typeof window === "undefined") return null;
+	try {
+		return window.localStorage.getItem(SOUNDFONT_STORAGE_KEY);
+	} catch {
+		return null;
+	}
+}
 
 function loadPersistedVolume(): number {
 	if (typeof window === "undefined") return DEFAULT_VOLUME_PERCENT;
@@ -110,6 +120,12 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 	const setCurrentSoundfont = useCallback((key: string) => {
 		currentSoundfontRef.current = key;
 		setCurrentSoundfontState(key);
+		// Persist so the user's choice survives a reload / browser restart.
+		if (typeof window !== "undefined") {
+			try {
+				window.localStorage.setItem(SOUNDFONT_STORAGE_KEY, key);
+			} catch {}
+		}
 	}, []);
 	const [loadedSoundfonts, setLoadedSoundfonts] = useState<string[]>([]);
 	const [loadingSoundfont, setLoadingSoundfont] = useState<string | null>(null);
@@ -470,6 +486,26 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		},
 		[loadSoundfont, setCurrentSoundfont],
 	);
+
+	// Restore the soundfont the user had selected before they left the site. Runs once when
+	// the saved key becomes available (built-ins are immediate; dynamic ones arrive after
+	// fetchDynamicSoundfonts resolves, hence the dep on `instruments`).
+	const soundfontRestoredRef = useRef(false);
+	useEffect(() => {
+		if (soundfontRestoredRef.current) return;
+		const saved = loadPersistedSoundfont();
+		if (!saved) {
+			soundfontRestoredRef.current = true;
+			return;
+		}
+		if (saved === currentSoundfontRef.current) {
+			soundfontRestoredRef.current = true;
+			return;
+		}
+		if (!instrumentsRef.current[saved]) return; // wait for dynamic catalog
+		soundfontRestoredRef.current = true;
+		void selectSoundfont(saved);
+	}, [instruments, selectSoundfont]);
 
 	const ensureSoundfontLoaded = useCallback(
 		(key: string) => {

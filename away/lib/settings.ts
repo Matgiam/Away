@@ -90,6 +90,7 @@ export const AWAY_STORAGE_KEYS = [
 	"away:keyboardInputEnabled",
 	"away:keybindBaseMidi",
 	"away:appSettings",
+	"away:selectedSoundfont",
 ];
 
 export function resetAllSettings(): void {
