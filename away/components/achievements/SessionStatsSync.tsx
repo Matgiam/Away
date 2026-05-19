@@ -57,11 +57,19 @@ export function SessionStatsSync() {
       if (deltaNotes <= 0 && deltaSeconds <= 0) return;
       flushing = true;
       try {
-        await saveSessionStats(userId, Math.max(0, deltaSeconds), Math.max(0, deltaNotes));
-        writeSyncMark(LAST_SYNC_NOTES_KEY, currentNotes);
-        writeSyncMark(LAST_SYNC_SECONDS_KEY, currentSeconds);
-      } catch {
-        // Network issue or transient error — leave the marks alone so the next tick retries.
+        const ok = await saveSessionStats(
+          userId,
+          Math.max(0, deltaSeconds),
+          Math.max(0, deltaNotes),
+        );
+        if (ok) {
+          // Only advance the sync watermark when the write actually landed. If it failed
+          // (RLS, network), leave the marks alone so the next tick re-pushes the same delta.
+          writeSyncMark(LAST_SYNC_NOTES_KEY, currentNotes);
+          writeSyncMark(LAST_SYNC_SECONDS_KEY, currentSeconds);
+        }
+      } catch (err) {
+        console.warn("[SessionStatsSync] flush threw:", err);
       } finally {
         flushing = false;
       }

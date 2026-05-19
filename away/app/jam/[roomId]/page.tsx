@@ -141,12 +141,19 @@ export default function JamRoom() {
 
 	const [pendingFriendIds, setPendingFriendIds] = useState<Set<string>>(new Set());
 
-	const [profileTarget, setProfileTarget] = useState<PlayerEntry | null>(null);
+	// We only store the id of the player whose profile is open. The rest (userId, displayName,
+	// friend status, etc.) is derived from the live `players` state, so if the target user's
+	// presence updates after the modal opens — e.g. their auth resolves and adds their userId —
+	// the modal picks up the change immediately instead of holding a stale snapshot.
+	const [profileTargetId, setProfileTargetId] = useState<string | null>(null);
+	const profileTarget = useMemo(
+		() => (profileTargetId ? players.find((p) => p.id === profileTargetId) ?? null : null),
+		[profileTargetId, players],
+	);
 	const handleViewProfile = useCallback((playerId: string) => {
-		const found = playersRef.current.find((p) => p.id === playerId);
-		if (found) setProfileTarget(found);
+		setProfileTargetId(playerId);
 	}, []);
-	const handleCloseProfile = useCallback(() => setProfileTarget(null), []);
+	const handleCloseProfile = useCallback(() => setProfileTargetId(null), []);
 
 	const roomChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 	const isRedirectingRef = useRef(false);
