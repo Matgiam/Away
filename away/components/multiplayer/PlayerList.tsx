@@ -99,8 +99,13 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 
 				const isPopoverOpen = openPopoverId === player.id;
 				const isHovered = hoveredId === player.id;
-				const peerSoundfontName = player.soundfont
-					? soundfontNameByKey.get(player.soundfont) ?? player.soundfont
+				// For my own entry use the live `currentSoundfont` prop instead of the
+				// synced `player.soundfont`, so the popover updates immediately when I switch.
+				const effectiveSoundfont = player.isMe
+					? currentSoundfont ?? player.soundfont
+					: player.soundfont;
+				const peerSoundfontName = effectiveSoundfont
+					? soundfontNameByKey.get(effectiveSoundfont) ?? effectiveSoundfont
 					: undefined;
 				// Show the copy clipboard for any other player who exposes a soundfont — even
 				// if it happens to match yours right now. Real-time presence updates change
