@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 220" role="img" aria-label="A minor scale — all white keys from A to A, no black keys">
+  <rect width="760" height="220" fill="#0a0118" />
+  <g transform="translate(20 30)">
+    <!-- 8 white keys, A through A, painted in the minor-blue -->
+    <rect x="0"   y="0" width="90" height="170" fill="#5571a8" stroke="#1a1108" stroke-width="2" />
+    <rect x="90"  y="0" width="90" height="170" fill="#5571a8" stroke="#1a1108" stroke-width="2" />
+    <rect x="180" y="0" width="90" height="170" fill="#5571a8" stroke="#1a1108" stroke-width="2" />
+    <rect x="270" y="0" width="90" height="170" fill="#5571a8" stroke="#1a1108" stroke-width="2" />
+    <rect x="360" y="0" width="90" height="170" fill="#5571a8" stroke="#1a1108" stroke-width="2" />
+    <rect x="450" y="0" width="90" height="170" fill="#5571a8" stroke="#1a1108" stroke-width="2" />
+    <rect x="540" y="0" width="90" height="170" fill="#5571a8" stroke="#1a1108" stroke-width="2" />
+    <rect x="630" y="0" width="90" height="170" fill="#5571a8" stroke="#1a1108" stroke-width="2" />
+    <!-- Black keys (NOT used in A minor — shown for landmarks only) -->
+    <g fill="#161616">
+      <rect x="60"  y="0" width="60" height="105" />
+      <rect x="240" y="0" width="60" height="105" />
+      <rect x="330" y="0" width="60" height="105" />
+      <rect x="420" y="0" width="60" height="105" />
+      <rect x="600" y="0" width="60" height="105" />
+    </g>
+    <!-- Letter labels -->
+    <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700" fill="#fff" text-anchor="middle">
+      <text x="45"  y="150">A</text>
+      <text x="135" y="150">B</text>
+      <text x="225" y="150">C</text>
+      <text x="315" y="150">D</text>
+      <text x="405" y="150">E</text>
+      <text x="495" y="150">F</text>
+      <text x="585" y="150">G</text>
+      <text x="675" y="150">A</text>
+    </g>
+    <!-- W H W W H W W pattern (natural minor) -->
+    <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" font-weight="700" fill="#9aaadb" text-anchor="middle">
+      <text x="90"  y="-4">W</text>
+      <text x="180" y="-4">H</text>
+      <text x="270" y="-4">W</text>
+      <text x="360" y="-4">W</text>
+      <text x="450" y="-4">H</text>
+      <text x="540" y="-4">W</text>
+      <text x="630" y="-4">W</text>
+    </g>
+    <text x="360" y="-20" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="700" fill="#c75ad6" text-anchor="middle">A natural minor — A B C D E F G A (all white keys, sad mood)</text>
+  </g>
+</svg>

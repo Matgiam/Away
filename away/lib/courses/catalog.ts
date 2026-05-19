@@ -641,8 +641,8 @@ const COURSES_LIST: Course[] = [
 				title: "Same keys, different start",
 				body: "All white keys from A to A. Same notes as C major — sounds sad.",
 				highlightKeys: A_NATURAL_MINOR_SCALE,
-				image: "/courses/a-minor-chord.svg",
-				imageAlt: "A minor uses the same 7 white keys — starting on A gives a sad mood",
+				image: "/courses/a-minor-scale.svg",
+				imageAlt: "A natural minor scale — all white keys from A to A, W-H-W-W-H-W-W pattern",
 			},
 			{
 				id: "2",
@@ -652,7 +652,7 @@ const COURSES_LIST: Course[] = [
 				sequence: A_NATURAL_MINOR_SCALE,
 				sequenceLabels: ["A", "B", "C", "D", "E", "F", "G", "A"],
 				highlightKeys: A_NATURAL_MINOR_SCALE,
-				image: "/courses/a-minor-chord.svg",
+				image: "/courses/a-minor-scale.svg",
 				imageAlt: "A minor uses the same 7 white keys — starting on A gives a sad mood",
 			},
 			{
@@ -663,7 +663,7 @@ const COURSES_LIST: Course[] = [
 				midis: A_MINOR,
 				chordName: "Am",
 				highlightKeys: A_MINOR,
-				image: "/courses/a-minor-chord.svg",
+				image: "/courses/a-minor-scale.svg",
 				imageAlt: "A minor uses the same 7 white keys — starting on A gives a sad mood",
 			},
 			{
@@ -671,7 +671,7 @@ const COURSES_LIST: Course[] = [
 				type: "text",
 				title: "Major or minor?",
 				body: "Start on C: happy. Start on A: sad. Same 7 white keys.",
-				image: "/courses/a-minor-chord.svg",
+				image: "/courses/a-minor-scale.svg",
 				imageAlt: "A minor uses the same 7 white keys — starting on A gives a sad mood",
 			},
 		],
