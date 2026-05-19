@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PLAYER_COLORS_SOLID } from "@/lib/playerColors";
 import { BadgedUsername } from "@/components/achievements/BadgedUsername";
+import { getAchievement } from "@/lib/achievements";
 import type { SoundfontOption } from "@/hooks/useAudioEngine";
 
 interface Player {
@@ -12,6 +13,7 @@ interface Player {
 	colorIndex: number;
 	noteColorHex?: string;
 	soundfont?: string;
+	equippedBadge?: string | null;
 	isMe: boolean;
 	isFriend?: boolean;
 }
@@ -119,10 +121,24 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 						<div className="flex items-center gap-3 relative">
 							<button
 								onClick={() => setOpenPopoverId(isPopoverOpen ? null : player.id)}
-								className="text-white font-bold text-base tracking-wide hover:text-white/70 transition-colors text-left"
+								className="text-white font-bold text-base tracking-wide hover:text-white/70 transition-colors text-left inline-flex items-center gap-2"
 								title={player.isMe ? "Your profile" : `${player.displayName}'s profile`}
 							>
-								{player.isMe ? <BadgedUsername username={player.displayName} /> : player.displayName}
+								{player.isMe ? (
+									// BadgedUsername reads the equipped badge from localStorage (live updates).
+									<BadgedUsername username={player.displayName} />
+								) : (
+									<>
+										{(() => {
+											const ach = player.equippedBadge
+												? getAchievement(player.equippedBadge)
+												: null;
+											const Icon = ach?.icon;
+											return Icon ? <Icon className="w-6 h-6 shrink-0" aria-hidden /> : null;
+										})()}
+										<span>{player.displayName}</span>
+									</>
+								)}
 							</button>
 
 							{showSoundfontTooltip && !isPopoverOpen && (

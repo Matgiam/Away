@@ -21,7 +21,12 @@ import type { ChatMessage } from "@/hooks/useChat";
 import { sendRoomMessage } from "@/lib/messages";
 import { useFriends } from "@/hooks/useFriends";
 import { acceptFriendRequest, removeFriendship, sendFriendRequest, updateMyUsername } from "@/lib/friends";
-import { incrementTotalNotes, checkAndUnlockAchievements } from "@/lib/achievements";
+import {
+	incrementTotalNotes,
+	checkAndUnlockAchievements,
+	getEquippedBadge,
+	BADGE_EQUIP_EVENT,
+} from "@/lib/achievements";
 import { useRecording } from "@/hooks/useRecording";
 import { ChordDisplay } from "@/components/layout/ChordDisplay";
 
@@ -31,6 +36,7 @@ type PresencePlayer = {
 	userId?: string;
 	noteColorHex?: string;
 	soundfont?: string;
+	equippedBadge?: string | null;
 };
 
 type PlayerEntry = {
@@ -40,6 +46,7 @@ type PlayerEntry = {
 	colorIndex: number;
 	noteColorHex?: string;
 	soundfont?: string;
+	equippedBadge?: string | null;
 	isMe: boolean;
 	isFriend: boolean;
 };
@@ -268,6 +275,7 @@ export default function JamRoom() {
 	const myUserIdRef = useRef<string | null>(null);
 	const noteColorRef = useRef(noteColor);
 	const currentSoundfontRef = useRef(currentSoundfont);
+	const equippedBadgeRef = useRef<string | null>(null);
 	useEffect(() => {
 		noteColorRef.current = noteColor;
 	}, [noteColor]);
@@ -281,8 +289,24 @@ export default function JamRoom() {
 			userId: myUserIdRef.current ?? undefined,
 			noteColorHex: noteColorRef.current,
 			soundfont: currentSoundfontRef.current,
+			equippedBadge: equippedBadgeRef.current,
 		});
 	}, []);
+
+	// Read the equipped badge from localStorage on mount, then re-track whenever the user
+	// equips / unequips a badge so other players see the change live next to my name.
+	useEffect(() => {
+		equippedBadgeRef.current = getEquippedBadge();
+		trackPresence();
+		if (typeof window === "undefined") return;
+		const onEquipChange = (e: Event) => {
+			const detail = (e as CustomEvent<string | null>).detail;
+			equippedBadgeRef.current = detail ?? null;
+			trackPresence();
+		};
+		window.addEventListener(BADGE_EQUIP_EVENT, onEquipChange);
+		return () => window.removeEventListener(BADGE_EQUIP_EVENT, onEquipChange);
+	}, [trackPresence]);
 
 	useEffect(() => {
 		myNameRef.current = myName;
@@ -626,6 +650,7 @@ export default function JamRoom() {
 					joinedAt: data?.joinedAt ?? 0,
 					noteColorHex: data?.noteColorHex,
 					soundfont: data?.soundfont,
+					equippedBadge: data?.equippedBadge ?? null,
 				};
 			});
 
@@ -645,6 +670,7 @@ export default function JamRoom() {
 				colorIndex: index,
 				noteColorHex: e.noteColorHex,
 				soundfont: e.soundfont,
+				equippedBadge: e.equippedBadge,
 				isMe: e.id === myTempId.current,
 				isFriend: !!e.userId && friendIds.has(e.userId),
 			}));
