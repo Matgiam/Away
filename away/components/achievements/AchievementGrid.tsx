@@ -70,8 +70,6 @@ export function AchievementGrid() {
   const renderBadge = (ach: Achievement, master: boolean) => {
     const isUnlocked = unlocked.includes(ach.id);
     const isEquipped = equipped === ach.id;
-    const size = master ? "w-24 h-24" : "w-24 h-24";
-    const iconSize = master ? "w-14 h-14" : "w-14 h-14";
     const Icon = ach.icon;
 
     const percent = Math.max(0, Math.min(100, (hoverProgress / ach.threshold) * 100));
@@ -84,7 +82,7 @@ export function AchievementGrid() {
           aria-disabled={!isUnlocked}
           onMouseEnter={() => showTooltip(ach)}
           onMouseLeave={hideTooltip}
-          className={`${size} rounded-2xl border flex items-center justify-center transition-all ${
+          className={`aspect-square w-full rounded-2xl border flex items-center justify-center transition-all ${
             master && isUnlocked
               ? "border-yellow-200/40 bg-gradient-to-br from-yellow-500/20 via-purple-500/15 to-pink-500/20 shadow-[0_0_30px_rgba(212,170,255,0.25)]"
               : isEquipped
@@ -95,7 +93,7 @@ export function AchievementGrid() {
           }`}
         >
           <Icon
-            className={`${iconSize} ${isUnlocked ? "" : "grayscale opacity-40"}`}
+            className={`w-[55%] h-[55%] ${isUnlocked ? "" : "grayscale opacity-40"}`}
             aria-hidden
           />
         </button>
@@ -153,12 +151,12 @@ export function AchievementGrid() {
         <p className="text-white/30 text-sm italic">No achievements yet.</p>
       )}
 
-      <div className="flex flex-wrap gap-3">
+      {/* Fixed 7-column grid — 20 normal + 1 master = exactly 3 rows on every screen, so the
+          layout is identical regardless of viewport width (the tiles scale via aspect-square). */}
+      <div className="grid grid-cols-7 gap-3">
         {normalAchievements.map((ach) => renderBadge(ach, false))}
-        {masterAchievement && <div className="pt-0">{renderBadge(masterAchievement, true)}</div>}
+        {masterAchievement && renderBadge(masterAchievement, true)}
       </div>
-
-      
     </div>
   );
 }
