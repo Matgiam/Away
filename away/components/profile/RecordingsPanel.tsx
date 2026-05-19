@@ -144,7 +144,7 @@ export function RecordingsPanel({ userId }: { userId: string }) {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-white/8 bg-[#0a0118]/70 backdrop-blur-xl p-5">
+      <div className="rounded-2xl border border-white/8 bg-[#0a0118]/70 backdrop-blur-xl p-5 flex-1 min-h-0">
         <h2 className="text-white font-semibold text-lg mb-4">Recordings</h2>
         <p className="text-white/30 text-sm italic">Loading...</p>
       </div>
@@ -167,12 +167,12 @@ export function RecordingsPanel({ userId }: { userId: string }) {
           onDelete={handleDelete}
         />
       )}
-      <div className="rounded-2xl border border-white/8 bg-[#0a0118]/70 backdrop-blur-xl p-5">
-        <h2 className="text-white font-semibold text-lg mb-4">Recordings</h2>
+      <div className="rounded-2xl border border-white/8 bg-[#0a0118]/70 backdrop-blur-xl p-5 flex flex-col flex-1 min-h-0">
+        <h2 className="text-white font-semibold text-lg mb-4 shrink-0">Recordings</h2>
         {recordings.length === 0 ? (
           <p className="text-white/30 text-sm italic">No recordings yet. Press the record button while playing to capture your session.</p>
         ) : (
-          <div className="flex flex-wrap gap-3 overflow-y-hidden">
+          <div className="flex flex-wrap gap-3 overflow-y-auto pr-1 -mr-1 min-h-0">
             {recordings.map((r) => (
               <RecordingThumbnail key={r.id} recording={r} onClick={setViewing} onDelete={handleDelete} />
             ))}

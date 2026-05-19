@@ -144,8 +144,8 @@ export default async function ProfilePage() {
 					</div>
 
 					{/* RIGHT COLUMN — Achievements + Recordings */}
-					<div className="flex flex-col gap-8 min-w-0 self-start" style={{ flex: "1 1 0" }}>
-						<section className="flex flex-col rounded-2xl border border-white/8 bg-[#0a0118]/70 backdrop-blur-xl p-5 min-w-0">
+					<div className="flex flex-col gap-8 min-w-0 min-h-0" style={{ flex: "1 1 0" }}>
+						<section className="flex flex-col rounded-2xl border border-white/8 bg-[#0a0118]/70 backdrop-blur-xl p-5 min-w-0 shrink-0">
 							<h2 className="text-white font-semibold text-lg mb-4 shrink-0">Achievements</h2>
 							<AchievementGrid />
 						</section>

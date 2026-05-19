@@ -143,6 +143,20 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 	const { state: recordingState, countdown: recordingCountdown, startRecording, stopRecording } =
 		useRecording(userId);
 
+	// Force note labels + chord recognizer ON while a course is open — they're the most useful
+	// learning aids here. Restore the user's previous preference when they leave.
+	useEffect(() => {
+		const prevShowNoteLabels = settings.showNoteLabels;
+		const prevChordRecognizerEnabled = settings.chordRecognizerEnabled;
+		updateSetting("showNoteLabels", true);
+		updateSetting("chordRecognizerEnabled", true);
+		return () => {
+			updateSetting("showNoteLabels", prevShowNoteLabels);
+			updateSetting("chordRecognizerEnabled", prevChordRecognizerEnabled);
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
 	useEffect(() => {
 		const load = async () => {
 			const supabase = createClient();
