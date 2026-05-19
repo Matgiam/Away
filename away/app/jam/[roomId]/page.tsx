@@ -160,15 +160,22 @@ export default function JamRoom() {
 	}, [roomId]);
 
 	const chatAnchorRef = useRef<HTMLDivElement>(null);
-	const [chatPos, setChatPos] = useState<{ top: number; right: number } | null>(null);
+	const [chatPos, setChatPos] = useState<{ top: number; right: number; height: number } | null>(null);
 
 	useEffect(() => {
 		const updateChatPos = () => {
 			if (!chatAnchorRef.current) return;
 			const rect = chatAnchorRef.current.getBoundingClientRect();
+			const top = rect.bottom + 12;
+			// Reserve enough space at the bottom for the piano (150px) plus a small gap,
+			// so the chat input never gets covered by the keys.
+			const PIANO_RESERVED = 170;
+			const available = Math.max(220, window.innerHeight - top - PIANO_RESERVED);
+			const height = Math.min(window.innerHeight * 0.53, available);
 			setChatPos({
-				top: rect.bottom + 12,
+				top,
 				right: Math.max(12, window.innerWidth - rect.right),
+				height,
 			});
 		};
 		updateChatPos();
@@ -181,33 +188,47 @@ export default function JamRoom() {
 		};
 	}, []);
 
+	// Refresh handling — when the user hits F5/Ctrl+R inside a jam room we want to leave the
+	// room (decrement the counter, redirect back to /multiplayer) instead of silently re-joining
+	// the same room with a stale player count.
+	//
+	// We use the Navigation Timing API to detect a reload deterministically (instead of the
+	// old beforeunload + sessionStorage dance, which silently broke when the browser skipped
+	// beforeunload). On any reload of this route, leave the room.
 	useEffect(() => {
-		const REFRESH_KEY = "jamRoomRefreshed";
-		const wasRefreshed = sessionStorage.getItem(REFRESH_KEY);
-		if (wasRefreshed === roomId) {
-			sessionStorage.removeItem(REFRESH_KEY);
-			isRedirectingRef.current = true;
-			(async () => {
-				await safeDecrement();
-				router.replace("/multiplayer");
-			})();
-			return;
-		}
-		const handleBeforeUnload = () => {
-			sessionStorage.setItem(REFRESH_KEY, roomId);
+		if (typeof window === "undefined") return;
+		const nav = performance.getEntriesByType("navigation")[0] as
+			| PerformanceNavigationTiming
+			| undefined;
+		const isReload = nav?.type === "reload";
+		if (!isReload) return;
+		isRedirectingRef.current = true;
+		(async () => {
+			await safeDecrement();
+			router.replace("/multiplayer");
+		})();
+	}, [roomId, router, safeDecrement]);
+
+	// Catch the back button / tab close as well — fire a best-effort decrement so the room
+	// counter doesn't get stuck. The channel-cleanup effect handles the React unmount case;
+	// this covers the case where the page is being unloaded entirely.
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const handleUnload = () => {
+			// Untrack our presence immediately so other clients see us leave; the row counter
+			// is decremented by the channel cleanup below (or by the next mount on reload).
 			roomChannelRef.current?.untrack();
 		};
 		const handlePopState = () => {
-			sessionStorage.removeItem(REFRESH_KEY);
 			safeDecrement();
 		};
-		window.addEventListener("beforeunload", handleBeforeUnload);
+		window.addEventListener("pagehide", handleUnload);
 		window.addEventListener("popstate", handlePopState);
 		return () => {
-			window.removeEventListener("beforeunload", handleBeforeUnload);
+			window.removeEventListener("pagehide", handleUnload);
 			window.removeEventListener("popstate", handlePopState);
 		};
-	}, [roomId, router, safeDecrement]);
+	}, [safeDecrement]);
 
 	useEffect(() => {
 		const checkUser = async () => {
@@ -647,7 +668,10 @@ export default function JamRoom() {
 		return () => {
 			const mountedDuration = Date.now() - channelMountedAtRef.current;
 			const isStrictModeTest = mountedDuration < 100;
-			if (!isStrictModeTest && sessionStorage.getItem("jamRoomRefreshed") !== roomId) {
+			// Skip if this is a React-strict-mode double-mount, or if the refresh-detection
+			// effect already kicked off the redirect+decrement above (which sets
+			// isRedirectingRef.current = true).
+			if (!isStrictModeTest && !isRedirectingRef.current) {
 				safeDecrement();
 			}
 
@@ -757,7 +781,7 @@ export default function JamRoom() {
 			{isChatOpen && chatPos && (
 				<div
 					className="fixed"
-					style={{ top: chatPos.top, right: chatPos.right, zIndex: 60 }}
+					style={{ top: chatPos.top, right: chatPos.right, height: chatPos.height, zIndex: 60 }}
 				>
 					<ChatPanel
 						messages={messages}
@@ -774,7 +798,14 @@ export default function JamRoom() {
 			<ProfileModal
 				open={!!profileTarget}
 				onClose={handleCloseProfile}
-				userId={profileTarget?.userId ?? null}
+				// When the user opens their own profile, fall back to the auth user id — the
+				// presence track sometimes runs before auth has resolved, leaving the entry's
+				// userId undefined. Without this the modal would say "jamming as a guest".
+				userId={
+					profileTarget?.isMe
+						? user?.id ?? profileTarget?.userId ?? null
+						: profileTarget?.userId ?? null
+				}
 				isSelf={!!profileTarget?.isMe}
 				myUserId={user?.id ?? null}
 				fallbackDisplayName={profileTarget?.displayName}

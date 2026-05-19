@@ -112,6 +112,21 @@ export const Navigation = ({
 	};
 	const closeMetronome = () => setShowMetronome(false);
 
+	// Plain click on the metronome icon: flip on/off directly — quick and obvious.
+	// Right-click (or shift/alt-click): open the popover for BPM / beats / volume tweaks.
+	const handleMetronomeClick = (e: React.MouseEvent) => {
+		if (e.shiftKey || e.altKey) {
+			toggleMetronomePopover();
+			return;
+		}
+		if (!settings || !updateSetting) return;
+		updateSetting("metronomeEnabled", !metronomeEnabled);
+	};
+	const handleMetronomeContextMenu = (e: React.MouseEvent) => {
+		e.preventDefault();
+		toggleMetronomePopover();
+	};
+
 	const metronomeEnabled = settings?.metronomeEnabled ?? false;
 	const metronomeBpm = settings?.metronomeBpm ?? 100;
 	const metronomeBeatsPerBar = settings?.metronomeBeatsPerBar ?? 4;
@@ -202,10 +217,11 @@ export const Navigation = ({
 					<div className="mt-5 flex justify-end">
 						<div
 							ref={metronomeAnchorRef}
-							onClick={toggleMetronomePopover}
+							onClick={handleMetronomeClick}
+							onContextMenu={handleMetronomeContextMenu}
 							className="cursor-pointer relative"
 							style={{ pointerEvents: "auto" }}
-							title="Metronome"
+							title={`Metronome — click to ${metronomeEnabled ? "mute" : "play"} · right-click for BPM`}
 						>
 							<DynamicLiquidGlass
 								width={67}

@@ -46,9 +46,13 @@ export function ImprovisationStage({
 	const clickCtxRef = useRef<AudioContext | null>(null);
 	const lastClickBeatRef = useRef<number>(-1);
 	const metronomeVolumeRef = useRef(settings.metronomeVolume);
+	const metronomeEnabledRef = useRef(settings.metronomeEnabled);
 	useEffect(() => {
 		metronomeVolumeRef.current = settings.metronomeVolume;
 	}, [settings.metronomeVolume]);
+	useEffect(() => {
+		metronomeEnabledRef.current = settings.metronomeEnabled;
+	}, [settings.metronomeEnabled]);
 
 	// Take ownership of the metronome while this stage is mounted — keeps the global
 	// metronome silent so it doesn't drift against the chord-change clock.
@@ -120,12 +124,16 @@ export function ImprovisationStage({
 			setBeatPos(beats);
 
 			// Metronome clicks — share the same elapsed-time clock as the chord scheduler, so
-			// every click lands on the same beat boundary as the backing notes.
+			// every click lands on the same beat boundary as the backing notes. Respects the
+			// user's metronome on/off toggle in the navigation, so they can silence the click
+			// mid-improv without stopping the backing track.
 			const beatIdx = Math.floor(beats);
 			if (beatIdx !== lastClickBeatRef.current && beatIdx >= 0) {
 				lastClickBeatRef.current = beatIdx;
-				const isDownbeat = beatIdx % beatsPerChord === 0;
-				playClick(isDownbeat);
+				if (metronomeEnabledRef.current) {
+					const isDownbeat = beatIdx % beatsPerChord === 0;
+					playClick(isDownbeat);
+				}
 			}
 
 			const loopElapsed = elapsed % totalLoopSec;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { notifyNavigationStart } from "@/lib/navigation";
 
 // Wraps Next's router so that every programmatic navigation:
@@ -43,5 +43,9 @@ export function useAppRouter() {
 		[router],
 	);
 
-	return { push, replace, back, prefetch };
+	// Stable object reference so consumers can safely depend on this in useEffect/useMemo.
+	return useMemo(
+		() => ({ push, replace, back, prefetch }),
+		[push, replace, back, prefetch],
+	);
 }

@@ -13,6 +13,8 @@ import {
 	ACHIEVEMENTS,
 	getUnlockedAchievementIdsForNotes,
 	getUnlockedAchievements,
+	getTotalNotes,
+	getTotalSeconds,
 } from "@/lib/achievements";
 import { AchievementGrid } from "@/components/achievements/AchievementGrid";
 
@@ -275,12 +277,12 @@ export const ProfileModal = ({
 								<dl className="grid grid-cols-2 md:grid-cols-4 gap-4">
 									<StatItem
 										label="Time played"
-										value={formatTime(profile?.timePlayedSeconds ?? 0)}
+										value={formatTime(isSelf ? Math.max(getTotalSeconds(), profile?.timePlayedSeconds ?? 0) : profile?.timePlayedSeconds ?? 0)}
 										loading={loading && !profile}
 									/>
 									<StatItem
 										label="Notes played"
-										value={(profile?.notesPlayed ?? 0).toLocaleString("en-US").replace(/,/g, "")}
+										value={(isSelf ? Math.max(getTotalNotes(), profile?.notesPlayed ?? 0) : profile?.notesPlayed ?? 0).toLocaleString("en-US").replace(/,/g, "")}
 										loading={loading && !profile}
 									/>
 									<StatItem

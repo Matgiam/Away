@@ -143,16 +143,17 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 	const { state: recordingState, countdown: recordingCountdown, startRecording, stopRecording } =
 		useRecording(userId);
 
-	// Force note labels + chord recognizer ON while a course is open — they're the most useful
-	// learning aids here. Restore the user's previous preference when they leave.
+	// Force note labels on and show the metronome button while a course is open — both are
+	// useful learning aids here. The chord recognizer stays at the user's setting (it can be
+	// distracting when learning a course step). Restore previous values on leave.
 	useEffect(() => {
 		const prevShowNoteLabels = settings.showNoteLabels;
-		const prevChordRecognizerEnabled = settings.chordRecognizerEnabled;
+		const prevMetronomeVisible = settings.metronomeVisible;
 		updateSetting("showNoteLabels", true);
-		updateSetting("chordRecognizerEnabled", true);
+		updateSetting("metronomeVisible", true);
 		return () => {
 			updateSetting("showNoteLabels", prevShowNoteLabels);
-			updateSetting("chordRecognizerEnabled", prevChordRecognizerEnabled);
+			updateSetting("metronomeVisible", prevMetronomeVisible);
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
@@ -186,23 +187,17 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 
 	const step = course.steps[stepIndex];
 
-	// Auto-set the metronome BPM whenever we enter a tempo-bearing step.
-	// For non-improv tempo steps we auto-enable the global metronome.
-	// For improvisation, the global metronome stays disabled — ImprovisationStage produces its
-	// own click sound on the same clock as the chord changes so they can never drift apart.
+	// Auto-set the metronome BPM/beats so that if the user clicks the metronome button it
+	// already matches the step. We DON'T auto-enable the click itself — the user toggles it on
+	// from the nav button when they want it (the click can get annoying when always on).
 	useEffect(() => {
 		const tempo = stepTempo(step);
 		if (!tempo) return;
 		updateSetting("metronomeBpm", tempo.bpm);
 		updateSetting("metronomeBeatsPerBar", tempo.beatsPerBar);
-		if (step?.type !== "improvisation") {
-			updateSetting("metronomeEnabled", true);
-		} else {
-			updateSetting("metronomeEnabled", false);
-		}
 	}, [step, updateSetting]);
 
-	// Turn the metronome off when the course player unmounts (leaving the course).
+	// Make sure the metronome stops on the way out of the course player.
 	useEffect(() => {
 		return () => {
 			updateSetting("metronomeEnabled", false);

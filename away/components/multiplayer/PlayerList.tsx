@@ -45,7 +45,17 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 }) => {
 	const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
 	const [hoveredId, setHoveredId] = useState<string | null>(null);
+	const [copiedPlayerId, setCopiedPlayerId] = useState<string | null>(null);
 	const popoverRef = useRef<HTMLDivElement>(null);
+
+	const handleCopySoundfont = (playerId: string, soundfontKey: string) => {
+		if (!onCopySoundfont) return;
+		onCopySoundfont(soundfontKey);
+		setCopiedPlayerId(playerId);
+		window.setTimeout(() => {
+			setCopiedPlayerId((current) => (current === playerId ? null : current));
+		}, 1500);
+	};
 
 	const soundfontNameByKey = useMemo(() => {
 		const map = new Map<string, string>();
@@ -90,12 +100,14 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 				const peerSoundfontName = player.soundfont
 					? soundfontNameByKey.get(player.soundfont) ?? player.soundfont
 					: undefined;
-				const canCopySoundfont =
-					!player.isMe &&
-					!!player.soundfont &&
-					!!onCopySoundfont &&
-					player.soundfont !== currentSoundfont;
+				// Show the copy clipboard for any other player who exposes a soundfont — even
+				// if it happens to match yours right now. Real-time presence updates change
+				// `player.soundfont` (the popover re-renders with the new name), so a single
+				// click always copies their current sound, not the one they had when you opened
+				// the popover.
+				const canCopySoundfont = !player.isMe && !!player.soundfont && !!onCopySoundfont;
 				const showSoundfontTooltip = (isHovered || isPopoverOpen) && !!peerSoundfontName;
+				const isCopied = copiedPlayerId === player.id;
 
 				return (
 					<div
@@ -162,12 +174,63 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 							{isPopoverOpen && (
 								<div
 									ref={popoverRef}
-									className="absolute left-0 top-full mt-2 z-[60] min-w-[200px] rounded-xl border border-white/10 bg-[#0a0118]/95 backdrop-blur-xl shadow-2xl py-1.5"
+									className="absolute left-0 top-full mt-2 z-[60] min-w-[220px] rounded-xl border border-white/10 bg-[#0a0118]/95 backdrop-blur-xl shadow-2xl py-1.5"
 								>
 									{peerSoundfontName && (
 										<div className="px-4 py-2 border-b border-white/10">
 											<div className="text-[10px] uppercase tracking-wider text-white/40">Soundfont</div>
-											<div className="text-sm text-white/90 italic mt-0.5">{peerSoundfontName}</div>
+											<div className="flex items-center gap-2 mt-0.5">
+												<span className="text-sm text-white/90 italic truncate">
+													{peerSoundfontName}
+												</span>
+												{canCopySoundfont && player.soundfont && (
+													<button
+														type="button"
+														onClick={(e) => {
+															e.stopPropagation();
+															handleCopySoundfont(player.id, player.soundfont!);
+														}}
+														className={`ml-auto flex items-center justify-center w-6 h-6 rounded-md transition-colors shrink-0 ${
+															isCopied
+																? "text-emerald-300 bg-emerald-400/10"
+																: "text-white/50 hover:text-white hover:bg-white/10"
+														}`}
+														title={
+															isCopied
+																? "Soundfont copied"
+																: `Use ${peerSoundfontName}`
+														}
+														aria-label="Copy this player's soundfont"
+													>
+														{isCopied ? (
+															<svg
+																viewBox="0 0 24 24"
+																fill="none"
+																stroke="currentColor"
+																strokeWidth="2.4"
+																strokeLinecap="round"
+																strokeLinejoin="round"
+																className="w-3.5 h-3.5"
+															>
+																<path d="M5 12l5 5L20 7" />
+															</svg>
+														) : (
+															<svg
+																viewBox="0 0 24 24"
+																fill="none"
+																stroke="currentColor"
+																strokeWidth="1.8"
+																strokeLinecap="round"
+																strokeLinejoin="round"
+																className="w-3.5 h-3.5"
+															>
+																<rect x="9" y="9" width="11" height="11" rx="2" />
+																<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+															</svg>
+														)}
+													</button>
+												)}
+											</div>
 										</div>
 									)}
 									<button
@@ -179,17 +242,6 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 									>
 										View profile
 									</button>
-									{canCopySoundfont && (
-										<button
-											onClick={() => {
-												setOpenPopoverId(null);
-												if (player.soundfont) onCopySoundfont!(player.soundfont);
-											}}
-											className="w-full text-left px-4 py-2 text-sm text-white/90 hover:bg-white/10 transition-colors italic"
-										>
-											Copy soundfont
-										</button>
-									)}
 								</div>
 							)}
 						</div>

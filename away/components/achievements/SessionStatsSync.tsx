@@ -67,35 +67,36 @@ export function SessionStatsSync() {
       }
     };
 
-    // Pull authoritative totals from the server once, then promote localStorage up to that
-    // baseline so the achievement counters reflect cross-device history.
+    // Reconcile server <-> localStorage on first mount:
+    //   • If server has more (cross-device history) — pull it down into localStorage.
+    //   • If localStorage has more (legacy plays that pre-date this sync) — mark the sync at
+    //     the server value so the first flush pushes the gap up. This is the case that was
+    //     silently dropping data before: marking sync = current local meant delta=0 forever.
     const bootstrap = async (id: string) => {
       userId = id;
       try {
         const server = await getServerStats(id);
-        if (server) {
-          if (server.notesPlayed > getTotalNotes()) {
-            setTotalNotes(server.notesPlayed);
-          }
-          if (server.timePlayedSeconds > getTotalSeconds()) {
-            setTotalSeconds(server.timePlayedSeconds);
-          }
-          // Mark everything up to the current local total as "already synced" — any growth
-          // from this point is what we'll push on the next flush.
-          writeSyncMark(LAST_SYNC_NOTES_KEY, getTotalNotes());
-          writeSyncMark(LAST_SYNC_SECONDS_KEY, getTotalSeconds());
-          // The bumped totals may have unlocked something.
-          checkAndUnlockAchievements();
-        } else {
-          // No row yet — whatever's in localStorage will get pushed on the first flush.
-          writeSyncMark(LAST_SYNC_NOTES_KEY, 0);
-          writeSyncMark(LAST_SYNC_SECONDS_KEY, 0);
-        }
+        const serverNotes = server?.notesPlayed ?? 0;
+        const serverSeconds = server?.timePlayedSeconds ?? 0;
+
+        if (serverNotes > getTotalNotes()) setTotalNotes(serverNotes);
+        if (serverSeconds > getTotalSeconds()) setTotalSeconds(serverSeconds);
+
+        // Anything beyond what the server has is "unsynced" — the next flush picks it up.
+        writeSyncMark(LAST_SYNC_NOTES_KEY, serverNotes);
+        writeSyncMark(LAST_SYNC_SECONDS_KEY, serverSeconds);
+
+        // Bumped totals may have unlocked something.
+        checkAndUnlockAchievements();
       } catch {
+        // Network failure — be conservative and assume the server already has what we have,
+        // so we don't double-push on retry. The next bootstrap will reconcile.
         writeSyncMark(LAST_SYNC_NOTES_KEY, getTotalNotes());
         writeSyncMark(LAST_SYNC_SECONDS_KEY, getTotalSeconds());
       }
       bootstrapped = true;
+      // Push any pending delta right away — don't wait the full 30 s for the first flush.
+      void flush();
     };
 
     const supabase = createClient();

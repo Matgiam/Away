@@ -81,16 +81,17 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 	const [username, setUsername] = useState("");
 	const { state: recordingState, countdown: recordingCountdown, startRecording, stopRecording } = useRecording(userId);
 
-	// Force note labels + chord recognizer ON while practicing — they're the most useful learning
-	// aids here. Restore the user's previous preference when leaving the practice page.
+	// Force note labels on and show the metronome button while practicing — both are useful
+	// learning aids here. The chord recognizer stays at the user's setting (it can be
+	// distracting while playing a song). Restore previous values when leaving.
 	useEffect(() => {
 		const prevShowNoteLabels = settings.showNoteLabels;
-		const prevChordRecognizerEnabled = settings.chordRecognizerEnabled;
+		const prevMetronomeVisible = settings.metronomeVisible;
 		updateSetting("showNoteLabels", true);
-		updateSetting("chordRecognizerEnabled", true);
+		updateSetting("metronomeVisible", true);
 		return () => {
 			updateSetting("showNoteLabels", prevShowNoteLabels);
-			updateSetting("chordRecognizerEnabled", prevChordRecognizerEnabled);
+			updateSetting("metronomeVisible", prevMetronomeVisible);
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
