@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 240" role="img" aria-label="Are the two notes the same pitch or different?">
+  <rect width="760" height="240" fill="#0a0118" />
+  <text x="380" y="32" font-family="ui-sans-serif, system-ui, sans-serif" font-size="20" font-weight="700" fill="#c75ad6" text-anchor="middle">Same pitch — or different?</text>
+  <!-- SAME: two notes on the same line -->
+  <g transform="translate(80 90)">
+    <line x1="0" y1="60" x2="240" y2="60" stroke="#ffffff" stroke-width="2" stroke-dasharray="6 6" opacity="0.4" />
+    <circle cx="50"  cy="60" r="18" fill="#c75ad6" stroke="#fff" stroke-width="2" />
+    <circle cx="190" cy="60" r="18" fill="#c75ad6" stroke="#fff" stroke-width="2" />
+    <text x="120" y="120" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="800" fill="#c75ad6" text-anchor="middle">Same =</text>
+  </g>
+  <!-- DIFFERENT: two notes at different heights -->
+  <g transform="translate(440 90)">
+    <circle cx="50"  cy="80" r="18" fill="#ff8d96" stroke="#fff" stroke-width="2" />
+    <circle cx="190" cy="30" r="18" fill="#9bf8fd" stroke="#fff" stroke-width="2" />
+    <path d="M 50 80 L 190 30" stroke="#ffffff" stroke-width="2" stroke-dasharray="4 4" opacity="0.4" />
+    <text x="120" y="120" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="800" fill="#9bf8fd" text-anchor="middle">Different ≠</text>
+  </g>
+</svg>

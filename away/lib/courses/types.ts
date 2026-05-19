@@ -46,6 +46,13 @@ interface BaseStep {
 	id: string;
 	title?: string;
 	body: string;
+	// Optional illustration to render inside the step card (path relative to /public).
+	// Use for diagrams that make the concept concrete: keyboard layouts, chord shapes,
+	// finger numbers, posture, etc. Skip on highly interactive steps where the falling-note
+	// lane already conveys the action.
+	image?: string;
+	// Short alt text for the image (also shown under the image as a caption).
+	imageAlt?: string;
 	// MIDIs to highlight on the piano while this step is active
 	highlightKeys?: number[];
 	// Optional secondary highlights (used to show "all C notes" etc.)

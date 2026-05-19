@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 240" role="img" aria-label="Both hands playing together — left hand bass, right hand melody">
+  <rect width="760" height="240" fill="#0a0118" />
+  <text x="380" y="32" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18" font-weight="700" fill="#c75ad6" text-anchor="middle">Both hands together — left = bass, right = melody</text>
+  <g transform="translate(20 60)">
+    <!-- 21 white keys = 3 octaves (mini) -->
+    <g stroke="#1a1108" stroke-width="1.5">
+      <rect x="0"   y="0" width="34" height="150" fill="#5571a8" />
+      <rect x="34"  y="0" width="34" height="150" fill="#f5efe2" />
+      <rect x="68"  y="0" width="34" height="150" fill="#5571a8" />
+      <rect x="102" y="0" width="34" height="150" fill="#f5efe2" />
+      <rect x="136" y="0" width="34" height="150" fill="#5571a8" />
+      <rect x="170" y="0" width="34" height="150" fill="#f5efe2" />
+      <rect x="204" y="0" width="34" height="150" fill="#f5efe2" />
+      <rect x="238" y="0" width="34" height="150" fill="#f5efe2" />
+      <rect x="272" y="0" width="34" height="150" fill="#f5efe2" />
+      <rect x="306" y="0" width="34" height="150" fill="#f5efe2" />
+      <rect x="340" y="0" width="34" height="150" fill="#f5efe2" />
+      <rect x="374" y="0" width="34" height="150" fill="#f5efe2" />
+      <rect x="408" y="0" width="34" height="150" fill="#f5efe2" />
+      <rect x="442" y="0" width="34" height="150" fill="#f5efe2" />
+      <rect x="476" y="0" width="34" height="150" fill="#c75ad6" />
+      <rect x="510" y="0" width="34" height="150" fill="#f5efe2" />
+      <rect x="544" y="0" width="34" height="150" fill="#c75ad6" />
+      <rect x="578" y="0" width="34" height="150" fill="#f5efe2" />
+      <rect x="612" y="0" width="34" height="150" fill="#c75ad6" />
+      <rect x="646" y="0" width="34" height="150" fill="#f5efe2" />
+      <rect x="680" y="0" width="34" height="150" fill="#f5efe2" />
+    </g>
+    <g fill="#161616">
+      <rect x="23"  y="0" width="22" height="90" />
+      <rect x="57"  y="0" width="22" height="90" />
+      <rect x="125" y="0" width="22" height="90" />
+      <rect x="159" y="0" width="22" height="90" />
+      <rect x="193" y="0" width="22" height="90" />
+      <rect x="261" y="0" width="22" height="90" />
+      <rect x="295" y="0" width="22" height="90" />
+      <rect x="363" y="0" width="22" height="90" />
+      <rect x="397" y="0" width="22" height="90" />
+      <rect x="431" y="0" width="22" height="90" />
+      <rect x="499" y="0" width="22" height="90" />
+      <rect x="533" y="0" width="22" height="90" />
+      <rect x="601" y="0" width="22" height="90" />
+      <rect x="635" y="0" width="22" height="90" />
+      <rect x="669" y="0" width="22" height="90" />
+    </g>
+    <text x="68"  y="180" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" font-weight="700" fill="#5571a8" text-anchor="middle">Left hand</text>
+    <text x="578" y="180" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" font-weight="700" fill="#c75ad6" text-anchor="middle">Right hand</text>
+  </g>
+</svg>

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 220" role="img" aria-label="Right hand C position: thumb on middle C, pinky on G">
+  <rect width="700" height="220" fill="#0a0118" />
+  <!-- 8 white keys (C to C) -->
+  <g transform="translate(20 30)">
+    <rect x="0"   y="0" width="80" height="170" fill="#c75ad6" stroke="#1a1108" stroke-width="2" />
+    <rect x="80"  y="0" width="80" height="170" fill="#c75ad6" stroke="#1a1108" stroke-width="2" />
+    <rect x="160" y="0" width="80" height="170" fill="#c75ad6" stroke="#1a1108" stroke-width="2" />
+    <rect x="240" y="0" width="80" height="170" fill="#c75ad6" stroke="#1a1108" stroke-width="2" />
+    <rect x="320" y="0" width="80" height="170" fill="#c75ad6" stroke="#1a1108" stroke-width="2" />
+    <rect x="400" y="0" width="80" height="170" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+    <rect x="480" y="0" width="80" height="170" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+    <rect x="560" y="0" width="80" height="170" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+
+    <!-- Black keys -->
+    <g fill="#161616">
+      <rect x="60"  y="0" width="44" height="105" />
+      <rect x="140" y="0" width="44" height="105" />
+      <rect x="300" y="0" width="44" height="105" />
+      <rect x="380" y="0" width="44" height="105" />
+      <rect x="460" y="0" width="44" height="105" />
+    </g>
+
+    <!-- Letter labels -->
+    <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="20" font-weight="700" fill="#1a1108" text-anchor="middle">
+      <text x="40"  y="150">C</text>
+      <text x="120" y="150">D</text>
+      <text x="200" y="150">E</text>
+      <text x="280" y="150">F</text>
+      <text x="360" y="150">G</text>
+      <text x="440" y="150">A</text>
+      <text x="520" y="150">B</text>
+      <text x="600" y="150">C</text>
+    </g>
+
+    <!-- Finger numbers above C-G keys -->
+    <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700" fill="#fff" text-anchor="middle">
+      <circle cx="40"  cy="-12" r="16" fill="#c75ad6" stroke="#fff" stroke-width="1.5" />
+      <text x="40"  y="-5">1</text>
+      <circle cx="120" cy="-12" r="16" fill="#c75ad6" stroke="#fff" stroke-width="1.5" />
+      <text x="120" y="-5">2</text>
+      <circle cx="200" cy="-12" r="16" fill="#c75ad6" stroke="#fff" stroke-width="1.5" />
+      <text x="200" y="-5">3</text>
+      <circle cx="280" cy="-12" r="16" fill="#c75ad6" stroke="#fff" stroke-width="1.5" />
+      <text x="280" y="-5">4</text>
+      <circle cx="360" cy="-12" r="16" fill="#c75ad6" stroke="#fff" stroke-width="1.5" />
+      <text x="360" y="-5">5</text>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 260" role="img" aria-label="The pop progression vi-IV-I-V loop: Am F C G">
+  <rect width="760" height="260" fill="#0a0118" />
+  <text x="380" y="28" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18" font-weight="700" fill="#c75ad6" text-anchor="middle">The pop loop — vi · IV · I · V</text>
+  <g font-family="ui-sans-serif, system-ui, sans-serif" font-weight="800" text-anchor="middle">
+    <!-- Four chord blocks arranged horizontally with arrows -->
+    <g>
+      <rect x="60"  y="80" width="130" height="100" rx="20" fill="#5571a8" stroke="#fff" stroke-width="2" />
+      <text x="125" y="130" font-size="36" fill="#fff">Am</text>
+      <text x="125" y="200" font-size="14" fill="#9aaadb">vi</text>
+    </g>
+    <g>
+      <rect x="230" y="80" width="130" height="100" rx="20" fill="#3a5a8a" stroke="#fff" stroke-width="2" />
+      <text x="295" y="130" font-size="36" fill="#fff">F</text>
+      <text x="295" y="200" font-size="14" fill="#9aaadb">IV</text>
+    </g>
+    <g>
+      <rect x="400" y="80" width="130" height="100" rx="20" fill="#7a2db0" stroke="#fff" stroke-width="2" />
+      <text x="465" y="130" font-size="36" fill="#fff">C</text>
+      <text x="465" y="200" font-size="14" fill="#c75ad6">I</text>
+    </g>
+    <g>
+      <rect x="570" y="80" width="130" height="100" rx="20" fill="#a04a82" stroke="#fff" stroke-width="2" />
+      <text x="635" y="130" font-size="36" fill="#fff">G</text>
+      <text x="635" y="200" font-size="14" fill="#f0abfc">V</text>
+    </g>
+  </g>
+  <!-- Loop arrows -->
+  <g stroke="#fff" stroke-width="2" fill="none" opacity="0.7">
+    <path d="M 192 130 L 226 130" />
+    <path d="M 222 124 L 226 130 L 222 136" />
+    <path d="M 362 130 L 396 130" />
+    <path d="M 392 124 L 396 130 L 392 136" />
+    <path d="M 532 130 L 566 130" />
+    <path d="M 562 124 L 566 130 L 562 136" />
+    <!-- loopback -->
+    <path d="M 700 70 Q 700 40 380 40 Q 60 40 60 70" />
+    <path d="M 64 64 L 60 70 L 56 64" />
+  </g>
+  <text x="380" y="244" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" font-style="italic" fill="#9aaadb" text-anchor="middle">"Let It Be", "Don't Stop Believin'", and countless others</text>
+</svg>

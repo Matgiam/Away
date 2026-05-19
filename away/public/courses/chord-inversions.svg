@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 260" role="img" aria-label="C major chord in root, 1st, and 2nd inversion">
+  <rect width="900" height="260" fill="#0a0118" />
+  <text x="450" y="26" font-family="ui-sans-serif, system-ui, sans-serif" font-size="17" font-weight="700" fill="#c75ad6" text-anchor="middle">Same three notes — three different bass notes</text>
+  <!-- helper: mini octave keyboard with selected white keys highlighted purple -->
+  <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">
+
+    <!-- ROOT: C E G -->
+    <g transform="translate(40 50)">
+      <rect x="0"   y="0" width="36" height="160" fill="#c75ad6" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="36"  y="0" width="36" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="72"  y="0" width="36" height="160" fill="#c75ad6" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="108" y="0" width="36" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="144" y="0" width="36" height="160" fill="#c75ad6" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="180" y="0" width="36" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="216" y="0" width="36" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <g fill="#161616">
+        <rect x="24"  y="0" width="24" height="95" />
+        <rect x="60"  y="0" width="24" height="95" />
+        <rect x="132" y="0" width="24" height="95" />
+        <rect x="168" y="0" width="24" height="95" />
+        <rect x="204" y="0" width="24" height="95" />
+      </g>
+      <text x="18"  y="140">C</text>
+      <text x="90"  y="140">E</text>
+      <text x="162" y="140">G</text>
+      <text x="126" y="195" fill="#c75ad6" font-size="14">Root — C / E / G</text>
+    </g>
+
+    <!-- 1st INVERSION: E G C -->
+    <g transform="translate(340 50)">
+      <rect x="0"   y="0" width="36" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="36"  y="0" width="36" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="72"  y="0" width="36" height="160" fill="#c75ad6" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="108" y="0" width="36" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="144" y="0" width="36" height="160" fill="#c75ad6" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="180" y="0" width="36" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="216" y="0" width="36" height="160" fill="#c75ad6" stroke="#1a1108" stroke-width="1.5" />
+      <g fill="#161616">
+        <rect x="24"  y="0" width="24" height="95" />
+        <rect x="60"  y="0" width="24" height="95" />
+        <rect x="132" y="0" width="24" height="95" />
+        <rect x="168" y="0" width="24" height="95" />
+        <rect x="204" y="0" width="24" height="95" />
+      </g>
+      <text x="90"  y="140">E</text>
+      <text x="162" y="140">G</text>
+      <text x="234" y="140">C</text>
+      <text x="126" y="195" fill="#c75ad6" font-size="14">1st inversion — E / G / C</text>
+    </g>
+
+    <!-- 2nd INVERSION: G C E -->
+    <g transform="translate(640 50)">
+      <rect x="0"   y="0" width="36" height="160" fill="#c75ad6" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="36"  y="0" width="36" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="72"  y="0" width="36" height="160" fill="#c75ad6" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="108" y="0" width="36" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="144" y="0" width="36" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="180" y="0" width="36" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="216" y="0" width="36" height="160" fill="#c75ad6" stroke="#1a1108" stroke-width="1.5" />
+      <g fill="#161616">
+        <rect x="24"  y="0" width="24" height="95" />
+        <rect x="60"  y="0" width="24" height="95" />
+        <rect x="132" y="0" width="24" height="95" />
+        <rect x="168" y="0" width="24" height="95" />
+        <rect x="204" y="0" width="24" height="95" />
+      </g>
+      <text x="18"  y="140">G</text>
+      <text x="90"  y="140">C</text>
+      <text x="234" y="140">E</text>
+      <text x="126" y="195" fill="#c75ad6" font-size="14">2nd inversion — G / C / E</text>
+    </g>
+  </g>
+</svg>

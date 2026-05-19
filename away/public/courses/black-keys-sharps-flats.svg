@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 260" role="img" aria-label="Black keys named as sharps and flats — each black key has two names">
+  <rect width="760" height="260" fill="#0a0118" />
+  <text x="380" y="28" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18" font-weight="700" fill="#c75ad6" text-anchor="middle">Each black key has TWO names — a sharp (♯) and a flat (♭)</text>
+  <g transform="translate(20 50)">
+    <!-- 7 white keys C..B -->
+    <rect x="0"   y="0" width="100" height="180" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+    <rect x="100" y="0" width="100" height="180" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+    <rect x="200" y="0" width="100" height="180" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+    <rect x="300" y="0" width="100" height="180" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+    <rect x="400" y="0" width="100" height="180" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+    <rect x="500" y="0" width="100" height="180" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+    <rect x="600" y="0" width="100" height="180" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+    <g fill="#161616">
+      <rect x="65"  y="0" width="70" height="115" />
+      <rect x="165" y="0" width="70" height="115" />
+      <rect x="365" y="0" width="70" height="115" />
+      <rect x="465" y="0" width="70" height="115" />
+      <rect x="565" y="0" width="70" height="115" />
+    </g>
+    <!-- White-key letters -->
+    <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700" fill="#1a1108" text-anchor="middle">
+      <text x="50"  y="160">C</text>
+      <text x="150" y="160">D</text>
+      <text x="250" y="160">E</text>
+      <text x="350" y="160">F</text>
+      <text x="450" y="160">G</text>
+      <text x="550" y="160">A</text>
+      <text x="650" y="160">B</text>
+    </g>
+    <!-- Black-key sharp/flat labels (two-tier) -->
+    <g font-family="ui-sans-serif, system-ui, sans-serif" font-weight="700" text-anchor="middle">
+      <text x="100" y="40" font-size="14" fill="#c75ad6">C♯</text>
+      <text x="100" y="58" font-size="11" fill="#9aaadb">D♭</text>
+      <text x="200" y="40" font-size="14" fill="#c75ad6">D♯</text>
+      <text x="200" y="58" font-size="11" fill="#9aaadb">E♭</text>
+      <text x="400" y="40" font-size="14" fill="#c75ad6">F♯</text>
+      <text x="400" y="58" font-size="11" fill="#9aaadb">G♭</text>
+      <text x="500" y="40" font-size="14" fill="#c75ad6">G♯</text>
+      <text x="500" y="58" font-size="11" fill="#9aaadb">A♭</text>
+      <text x="600" y="40" font-size="14" fill="#c75ad6">A♯</text>
+      <text x="600" y="58" font-size="11" fill="#9aaadb">B♭</text>
+    </g>
+  </g>
+</svg>

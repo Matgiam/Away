@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 240" role="img" aria-label="Four common intervals: octave, fifth, major third, minor third">
+  <rect width="760" height="240" fill="#0a0118" />
+  <text x="380" y="30" font-family="ui-sans-serif, system-ui, sans-serif" font-size="17" font-weight="700" fill="#c75ad6" text-anchor="middle">Four intervals to know by ear</text>
+  <g font-family="ui-sans-serif, system-ui, sans-serif" font-weight="700" text-anchor="middle">
+    <g transform="translate(40 70)">
+      <circle cx="40" cy="100" r="14" fill="#c75ad6" />
+      <circle cx="120" cy="20"  r="14" fill="#c75ad6" />
+      <path d="M 40 86 L 120 34" stroke="#c75ad6" stroke-width="3" />
+      <text x="80" y="155" font-size="18" fill="#c75ad6">Octave</text>
+      <text x="80" y="175" font-size="11" font-style="italic" fill="#c75ad6">C → C</text>
+    </g>
+    <g transform="translate(220 70)">
+      <circle cx="40" cy="100" r="14" fill="#9bf8fd" />
+      <circle cx="120" cy="50"  r="14" fill="#9bf8fd" />
+      <path d="M 40 86 L 120 64" stroke="#9bf8fd" stroke-width="3" />
+      <text x="80" y="155" font-size="18" fill="#9bf8fd">Fifth</text>
+      <text x="80" y="175" font-size="11" font-style="italic" fill="#9bf8fd">C → G · open, strong</text>
+    </g>
+    <g transform="translate(400 70)">
+      <circle cx="40" cy="100" r="14" fill="#ffb86b" />
+      <circle cx="120" cy="70"  r="14" fill="#ffb86b" />
+      <path d="M 40 86 L 120 84" stroke="#ffb86b" stroke-width="3" />
+      <text x="80" y="155" font-size="18" fill="#ffb86b">Major 3rd</text>
+      <text x="80" y="175" font-size="11" font-style="italic" fill="#ffb86b">C → E · happy</text>
+    </g>
+    <g transform="translate(580 70)">
+      <circle cx="40" cy="100" r="14" fill="#9aaadb" />
+      <circle cx="120" cy="78"  r="14" fill="#9aaadb" />
+      <path d="M 40 86 L 120 92" stroke="#9aaadb" stroke-width="3" />
+      <text x="80" y="155" font-size="18" fill="#9aaadb">Minor 3rd</text>
+      <text x="80" y="175" font-size="11" font-style="italic" fill="#9aaadb">C → E♭ · sadder</text>
+    </g>
+  </g>
+</svg>

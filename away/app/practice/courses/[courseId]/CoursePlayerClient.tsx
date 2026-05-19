@@ -705,6 +705,8 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 				totalSteps={course.steps.length}
 				title={step?.title}
 				body={step?.body ?? ""}
+				image={step?.image}
+				imageAlt={step?.imageAlt}
 				prompt={promptText}
 				canPrevious={canPrevious}
 				canNext={canNext}

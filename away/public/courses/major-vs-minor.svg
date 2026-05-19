@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 260" role="img" aria-label="Major vs minor: lowering the middle note a half step turns C major into C minor">
+  <rect width="760" height="260" fill="#0a0118" />
+  <!-- Title -->
+  <text x="380" y="28" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18" font-weight="700" fill="#c75ad6" text-anchor="middle">Move the middle note down a half step — major becomes minor</text>
+
+  <!-- LEFT keyboard: C major -->
+  <g transform="translate(20 60)">
+    <rect x="0" y="0" width="64" height="160" fill="#c75ad6" stroke="#1a1108" stroke-width="2" />
+    <rect x="64" y="0" width="64" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+    <rect x="128" y="0" width="64" height="160" fill="#c75ad6" stroke="#1a1108" stroke-width="2" />
+    <rect x="192" y="0" width="64" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+    <rect x="256" y="0" width="64" height="160" fill="#c75ad6" stroke="#1a1108" stroke-width="2" />
+    <g fill="#161616">
+      <rect x="44" y="0" width="40" height="100" />
+      <rect x="108" y="0" width="40" height="100" />
+      <rect x="236" y="0" width="40" height="100" />
+    </g>
+    <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="18" font-weight="700" fill="#fff" text-anchor="middle">
+      <text x="32"  y="140">C</text>
+      <text x="160" y="140">E</text>
+      <text x="288" y="140">G</text>
+    </g>
+    <text x="160" y="190" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" font-weight="700" fill="#c75ad6" text-anchor="middle">C major (happy)</text>
+  </g>
+
+  <!-- RIGHT keyboard: C minor (E♭ instead of E) -->
+  <g transform="translate(420 60)">
+    <rect x="0" y="0" width="64" height="160" fill="#5571a8" stroke="#1a1108" stroke-width="2" />
+    <rect x="64" y="0" width="64" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+    <rect x="128" y="0" width="64" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+    <rect x="192" y="0" width="64" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+    <rect x="256" y="0" width="64" height="160" fill="#5571a8" stroke="#1a1108" stroke-width="2" />
+    <g fill="#161616">
+      <rect x="44" y="0" width="40" height="100" />
+      <!-- E♭ highlighted -->
+      <rect x="108" y="0" width="40" height="100" fill="#5571a8" />
+      <rect x="236" y="0" width="40" height="100" />
+    </g>
+    <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="18" font-weight="700" fill="#fff" text-anchor="middle">
+      <text x="32"  y="140">C</text>
+      <text x="128" y="60">E♭</text>
+      <text x="288" y="140">G</text>
+    </g>
+    <text x="160" y="190" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" font-weight="700" fill="#9aaadb" text-anchor="middle">C minor (sad)</text>
+  </g>
+
+  <!-- Arrow showing the move -->
+  <g stroke="#fff" stroke-width="2" fill="none">
+    <path d="M 360 130 L 410 130" />
+    <path d="M 405 124 L 410 130 L 405 136" />
+  </g>
+</svg>

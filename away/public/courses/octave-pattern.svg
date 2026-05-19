@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 200" role="img" aria-label="Two octaves of piano keys showing the repeating 2 + 3 black-key pattern">
+  <rect width="900" height="200" fill="#0a0118" />
+  <!-- 14 white keys (2 octaves) -->
+  <g>
+    <g transform="translate(20 0)">
+      <!-- Octave 1: C D E F G A B -->
+      <rect x="0"   y="20" width="60" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+      <rect x="60"  y="20" width="60" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+      <rect x="120" y="20" width="60" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+      <rect x="180" y="20" width="60" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+      <rect x="240" y="20" width="60" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+      <rect x="300" y="20" width="60" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+      <rect x="360" y="20" width="60" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+      <!-- Octave 2 -->
+      <rect x="420" y="20" width="60" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+      <rect x="480" y="20" width="60" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+      <rect x="540" y="20" width="60" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+      <rect x="600" y="20" width="60" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+      <rect x="660" y="20" width="60" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+      <rect x="720" y="20" width="60" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+      <rect x="780" y="20" width="60" height="160" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+    </g>
+    <!-- Black keys (2+3 pattern per octave) -->
+    <g fill="#161616">
+      <!-- Octave 1 -->
+      <rect x="60"  y="20" width="36" height="100" />
+      <rect x="120" y="20" width="36" height="100" />
+      <!-- gap -->
+      <rect x="240" y="20" width="36" height="100" />
+      <rect x="300" y="20" width="36" height="100" />
+      <rect x="360" y="20" width="36" height="100" />
+      <!-- Octave 2 -->
+      <rect x="480" y="20" width="36" height="100" />
+      <rect x="540" y="20" width="36" height="100" />
+      <rect x="660" y="20" width="36" height="100" />
+      <rect x="720" y="20" width="36" height="100" />
+      <rect x="780" y="20" width="36" height="100" />
+    </g>
+  </g>
+  <!-- Highlight C keys with a soft glow + label -->
+  <g>
+    <rect x="20"  y="140" width="60" height="40" fill="#7a2db0" opacity="0.85" />
+    <rect x="440" y="140" width="60" height="40" fill="#7a2db0" opacity="0.85" />
+    <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700" fill="#fff" text-anchor="middle">
+      <text x="50" y="170">C</text>
+      <text x="470" y="170">C</text>
+    </g>
+  </g>
+  <!-- Bracket lines marking the octave -->
+  <g stroke="#c75ad6" stroke-width="3" fill="none">
+    <path d="M 20 14 L 20 6 L 500 6 L 500 14" />
+  </g>
+  <text x="260" y="14" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="600" fill="#c75ad6" text-anchor="middle">1 octave</text>
+</svg>

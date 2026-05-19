@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 240" role="img" aria-label="Listen to two notes — decide whether the second one goes up or down">
+  <rect width="760" height="240" fill="#0a0118" />
+  <text x="380" y="32" font-family="ui-sans-serif, system-ui, sans-serif" font-size="20" font-weight="700" fill="#c75ad6" text-anchor="middle">Two notes — which way did the pitch move?</text>
+  <!-- UP arrow with rising note dots -->
+  <g transform="translate(60 60)">
+    <circle cx="40"  cy="120" r="14" fill="#fff" />
+    <text x="40"  y="125" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="700" fill="#0a0118" text-anchor="middle">1</text>
+    <circle cx="200" cy="40"  r="14" fill="#9bf8fd" />
+    <text x="200" y="45" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="700" fill="#0a0118" text-anchor="middle">2</text>
+    <path d="M 56 110 L 184 56" stroke="#9bf8fd" stroke-width="4" stroke-linecap="round" fill="none" />
+    <!-- arrow head -->
+    <path d="M 178 48 L 188 52 L 184 62" stroke="#9bf8fd" stroke-width="4" stroke-linecap="round" fill="none" />
+    <text x="120" y="170" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="800" fill="#9bf8fd" text-anchor="middle">↑ Up</text>
+  </g>
+  <!-- DOWN arrow with falling note dots -->
+  <g transform="translate(420 60)">
+    <circle cx="40"  cy="40"  r="14" fill="#fff" />
+    <text x="40"  y="45" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="700" fill="#0a0118" text-anchor="middle">1</text>
+    <circle cx="200" cy="120" r="14" fill="#ff8d96" />
+    <text x="200" y="125" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="700" fill="#0a0118" text-anchor="middle">2</text>
+    <path d="M 56 50 L 184 110" stroke="#ff8d96" stroke-width="4" stroke-linecap="round" fill="none" />
+    <path d="M 176 100 L 188 116 L 172 120" stroke="#ff8d96" stroke-width="4" stroke-linecap="round" fill="none" />
+    <text x="120" y="170" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="800" fill="#ff8d96" text-anchor="middle">↓ Down</text>
+  </g>
+</svg>

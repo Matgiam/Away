@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 240" role="img" aria-label="Cmaj7 — stack one more note on top of a C major triad">
+  <rect width="760" height="240" fill="#0a0118" />
+  <text x="380" y="28" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18" font-weight="700" fill="#c75ad6" text-anchor="middle">Stack one more note → 7th chord</text>
+  <g transform="translate(50 50)">
+    <!-- 7 white keys C..B -->
+    <rect x="0"   y="0" width="92" height="170" fill="#c75ad6" stroke="#1a1108" stroke-width="2" />
+    <rect x="92"  y="0" width="92" height="170" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+    <rect x="184" y="0" width="92" height="170" fill="#c75ad6" stroke="#1a1108" stroke-width="2" />
+    <rect x="276" y="0" width="92" height="170" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+    <rect x="368" y="0" width="92" height="170" fill="#c75ad6" stroke="#1a1108" stroke-width="2" />
+    <rect x="460" y="0" width="92" height="170" fill="#f5efe2" stroke="#1a1108" stroke-width="2" />
+    <rect x="552" y="0" width="92" height="170" fill="#c75ad6" stroke="#1a1108" stroke-width="2" />
+    <g fill="#161616">
+      <rect x="61"  y="0" width="62" height="105" />
+      <rect x="153" y="0" width="62" height="105" />
+      <rect x="337" y="0" width="62" height="105" />
+      <rect x="429" y="0" width="62" height="105" />
+      <rect x="521" y="0" width="62" height="105" />
+    </g>
+    <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700" fill="#fff" text-anchor="middle">
+      <text x="46"  y="150">C</text>
+      <text x="230" y="150">E</text>
+      <text x="414" y="150">G</text>
+      <text x="598" y="150">B</text>
+    </g>
+    <text x="322" y="-8" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" font-weight="700" fill="#c75ad6" text-anchor="middle">Cmaj7 — C · E · G · B (jazzy / dreamy)</text>
+  </g>
+</svg>

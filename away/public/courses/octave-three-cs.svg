@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 200" role="img" aria-label="Three octaves of C — low, middle, high">
+  <rect width="760" height="200" fill="#0a0118" />
+  <g transform="translate(20 30)">
+    <!-- 21 white keys = 3 octaves -->
+    <g>
+      <rect x="0"   y="0" width="33" height="140" fill="#c75ad6" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="33"  y="0" width="33" height="140" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="66"  y="0" width="33" height="140" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="99"  y="0" width="33" height="140" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="132" y="0" width="33" height="140" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="165" y="0" width="33" height="140" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="198" y="0" width="33" height="140" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="231" y="0" width="33" height="140" fill="#c75ad6" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="264" y="0" width="33" height="140" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="297" y="0" width="33" height="140" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="330" y="0" width="33" height="140" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="363" y="0" width="33" height="140" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="396" y="0" width="33" height="140" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="429" y="0" width="33" height="140" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="462" y="0" width="33" height="140" fill="#c75ad6" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="495" y="0" width="33" height="140" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="528" y="0" width="33" height="140" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="561" y="0" width="33" height="140" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="594" y="0" width="33" height="140" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="627" y="0" width="33" height="140" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+      <rect x="660" y="0" width="33" height="140" fill="#f5efe2" stroke="#1a1108" stroke-width="1.5" />
+    </g>
+    <g fill="#161616">
+      <rect x="22" y="0" width="22" height="85" />
+      <rect x="55" y="0" width="22" height="85" />
+      <rect x="121" y="0" width="22" height="85" />
+      <rect x="154" y="0" width="22" height="85" />
+      <rect x="187" y="0" width="22" height="85" />
+      <rect x="253" y="0" width="22" height="85" />
+      <rect x="286" y="0" width="22" height="85" />
+      <rect x="352" y="0" width="22" height="85" />
+      <rect x="385" y="0" width="22" height="85" />
+      <rect x="418" y="0" width="22" height="85" />
+      <rect x="484" y="0" width="22" height="85" />
+      <rect x="517" y="0" width="22" height="85" />
+      <rect x="583" y="0" width="22" height="85" />
+      <rect x="616" y="0" width="22" height="85" />
+      <rect x="649" y="0" width="22" height="85" />
+    </g>
+    <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">
+      <text x="16"  y="120">C2</text>
+      <text x="247" y="120">C4</text>
+      <text x="478" y="120">C6</text>
+    </g>
+    <text x="346" y="-6" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" font-weight="700" fill="#c75ad6" text-anchor="middle">Same note, three octaves apart</text>
+  </g>
+</svg>

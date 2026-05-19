@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 240" role="img" aria-label="Major chords sound happy — minor chords sound sad">
+  <rect width="760" height="240" fill="#0a0118" />
+  <text x="380" y="32" font-family="ui-sans-serif, system-ui, sans-serif" font-size="20" font-weight="700" fill="#c75ad6" text-anchor="middle">Listen to the chord — happy or sad?</text>
+  <!-- Happy face = Major -->
+  <g transform="translate(140 60)">
+    <circle cx="60" cy="80" r="60" fill="#c75ad6" />
+    <circle cx="40" cy="70" r="6" fill="#0a0118" />
+    <circle cx="80" cy="70" r="6" fill="#0a0118" />
+    <path d="M 32 95 Q 60 120 88 95" stroke="#0a0118" stroke-width="5" fill="none" stroke-linecap="round" />
+    <text x="60" y="170" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="800" fill="#c75ad6" text-anchor="middle">Major</text>
+    <text x="60" y="195" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" font-style="italic" fill="#c75ad6" text-anchor="middle">bright · happy</text>
+  </g>
+  <!-- Sad face = Minor -->
+  <g transform="translate(440 60)">
+    <circle cx="60" cy="80" r="60" fill="#5571a8" />
+    <circle cx="40" cy="70" r="6" fill="#0a0118" />
+    <circle cx="80" cy="70" r="6" fill="#0a0118" />
+    <path d="M 32 115 Q 60 90 88 115" stroke="#0a0118" stroke-width="5" fill="none" stroke-linecap="round" />
+    <text x="60" y="170" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="800" fill="#9aaadb" text-anchor="middle">Minor</text>
+    <text x="60" y="195" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" font-style="italic" fill="#9aaadb" text-anchor="middle">dark · sad</text>
+  </g>
+</svg>
