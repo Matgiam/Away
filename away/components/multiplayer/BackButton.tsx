@@ -1,12 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/hooks/useAppRouter";
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function BackButton() {
-	const router = useRouter();
+	const router = useAppRouter();
 	const [isHovered, setIsHovered] = useState(false);
+	useEffect(() => {
+		router.prefetch("/");
+	}, [router]);
 	return (
 		<button onClick={() => router.push("/")}>
 			<div onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)} className="absolute top-5 left-5 cursor-pointer z-150 hover:scale-110 transition-transform">

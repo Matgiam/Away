@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/hooks/useAppRouter";
 import { SilkBackground } from "@/components/effects/SilkBackground";
 import { Navigation } from "@/components/layout/Navigation";
 import { Piano } from "@/components/multiplayer/Piano";
@@ -44,7 +44,7 @@ const HAND_COLORS: Record<Hand, string> = {
 const EMPTY_SET: ReadonlySet<number> = new Set();
 
 export default function PracticePlayerClient({ songId, initialBuiltIn }: PracticePlayerClientProps) {
-	const router = useRouter();
+	const router = useAppRouter();
 	const {
 		pianoKeys,
 		playNote,

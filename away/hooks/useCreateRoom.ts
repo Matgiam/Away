@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/hooks/useAppRouter";
 import { supabase } from "@/lib/supabase";
 import { createClient } from "@/lib/supabase/client";
 import type { Accessibility, Room, CreateStep } from "./useRooms";
@@ -38,7 +38,7 @@ export async function getDisplayName(): Promise<string> {
 export const myTempId = getOrCreatePlayerId();
 
 export function useCreateRoom() {
-	const router = useRouter();
+	const router = useAppRouter();
 	const [showCreate, setShowCreate] = useState(false);
 	const [createStep, setCreateStep] = useState<CreateStep>("settings");
 	const [accessibility, setAccessibility] = useState<Accessibility>("public");

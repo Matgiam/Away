@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/hooks/useAppRouter";
 import { SilkBackground } from "@/components/effects/SilkBackground";
 import { Navigation } from "@/components/layout/Navigation";
 import { Piano } from "@/components/multiplayer/Piano";
@@ -105,7 +105,7 @@ function chordSlot(item: number | number[]): number[] {
 }
 
 export default function CoursePlayerClient({ course }: CoursePlayerClientProps) {
-	const router = useRouter();
+	const router = useAppRouter();
 	const {
 		pianoKeys,
 		playNote,

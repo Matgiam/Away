@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/hooks/useAppRouter";
 import { createClient } from "@/lib/supabase/client";
 import { Piano } from "@/components/multiplayer/Piano";
 import { Visualizer } from "@/components/multiplayer/Visualizer";
@@ -23,7 +23,15 @@ export default function HomeClient() {
 	const notesThisSessionRef = useRef(0);
 	const { state: recordingState, countdown: recordingCountdown, startRecording, stopRecording } = useRecording(userId);
 
-	const router = useRouter();
+	const router = useAppRouter();
+
+	// Prefetch the destinations behind every home-screen menu item so the click feels instant.
+	useEffect(() => {
+		router.prefetch("/multiplayer");
+		router.prefetch("/practice");
+		router.prefetch("/protected/profile");
+		router.prefetch("/settings");
+	}, [router]);
 
 	const {
 		pianoKeys,

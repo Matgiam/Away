@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/hooks/useAppRouter";
 import { CategoryList, type CategoryFilter, type CategoryStats } from "./CategoryList";
 import { SearchBar } from "./SearchBar";
 import { SongList } from "./SongList";
@@ -26,7 +26,12 @@ interface PracticeMenuProps {
 }
 
 export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
-	const router = useRouter();
+	const router = useAppRouter();
+
+	// Prefetch sibling tab so switching feels instant.
+	useEffect(() => {
+		router.prefetch("/practice/courses");
+	}, [router]);
 
 	const [tab, setTab] = useState<PracticeTab>("songs");
 	const [search, setSearch] = useState("");
@@ -170,6 +175,13 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 			setSelectedId(filteredSongs[0].id);
 		}
 	}, [filteredSongs, filteredUploads, category, selectedId]);
+
+	// Prefetch the currently-selected song's play page so hitting Start (or double-click) feels
+	// instantaneous — Next will already have the route's RSC payload in cache.
+	useEffect(() => {
+		if (!selectedId) return;
+		router.prefetch(`/practice/play/${encodeURIComponent(selectedId)}`);
+	}, [router, selectedId]);
 
 	const handlePlayById = useCallback(
 		(id: string) => {

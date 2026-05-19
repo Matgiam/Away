@@ -6,6 +6,7 @@ import { PresenceProvider } from "@/components/providers/PresenceProvider";
 import { TimeTracker } from "@/components/achievements/TimeTracker";
 import { AchievementBannerHost } from "@/components/achievements/AchievementBannerHost";
 import { SessionStatsSync } from "@/components/achievements/SessionStatsSync";
+import { NavigationIndicator } from "@/components/layout/NavigationIndicator";
 
 
 const geistSans = Geist({
@@ -59,6 +60,7 @@ export default function RootLayout({
             <TimeTracker />
             <SessionStatsSync />
             <AchievementBannerHost />
+            <NavigationIndicator />
             {children}
           </AudioEngineProvider>
         </PresenceProvider>

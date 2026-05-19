@@ -1,13 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/hooks/useAppRouter";
 import { useAudioEngineContext } from "@/components/providers/AudioEngineProvider";
 import { SettingsPanel } from "@/components/layout/SettingsPanel";
 import { SilkBackground } from "@/components/effects/SilkBackground";
 import BackButton from "@/components/multiplayer/BackButton";
 
 export default function SettingsPage() {
-	const router = useRouter();
+	const router = useAppRouter();
 	const {
 		masterVolume,
 		setMasterVolume,

@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/hooks/useAppRouter";
 import { supabase } from "@/lib/supabase";
 import type { Room } from "./useRooms";
 
 export function useJoinRoom() {
-	const router = useRouter();
+	const router = useAppRouter();
 	const [joiningRoom, setJoiningRoom] = useState<Room | null>(null);
 	const [joinPassword, setJoinPassword] = useState("");
 	const [joinError, setJoinError] = useState("");

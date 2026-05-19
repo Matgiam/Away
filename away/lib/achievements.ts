@@ -247,6 +247,7 @@ const COMPLETED_COURSES_KEY = "away:completed_courses";
 const COMPLETED_SONGS_KEY = "away:completed_songs";
 
 export const ACHIEVEMENT_UNLOCK_EVENT = "away:achievement-unlocked";
+export const BADGE_EQUIP_EVENT = "away:badge-equipped";
 
 function readNumber(key: string): number {
   if (typeof window === "undefined") return 0;
@@ -364,6 +365,9 @@ export function setEquippedBadge(id: string | null): void {
     } else {
       localStorage.removeItem(EQUIPPED_KEY);
     }
+  } catch {}
+  try {
+    window.dispatchEvent(new CustomEvent<string | null>(BADGE_EQUIP_EVENT, { detail: id }));
   } catch {}
 }
 

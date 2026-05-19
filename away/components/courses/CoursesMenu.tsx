@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter } from "@/hooks/useAppRouter";
 import { PracticeTabs, type PracticeTab } from "@/components/practice/PracticeTabs";
 import { SearchBar } from "@/components/practice/SearchBar";
 import { StartButton } from "@/components/practice/StartButton";
@@ -18,7 +18,12 @@ interface CoursesMenuProps {
 }
 
 export function CoursesMenu({ courses }: CoursesMenuProps) {
-	const router = useRouter();
+	const router = useAppRouter();
+
+	// Prefetch the sibling tab so switching feels instant.
+	useEffect(() => {
+		router.prefetch("/practice");
+	}, [router]);
 	const [search, setSearch] = useState("");
 	const [category, setCategory] = useState<CourseCategoryKey>("intro");
 	const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -79,6 +84,13 @@ export function CoursesMenu({ courses }: CoursesMenuProps) {
 			setSelectedId(filtered[0].id);
 		}
 	}, [filtered, selectedId]);
+
+	// Prefetch the currently-selected course's player page so hitting Start (or double-click)
+	// feels instant.
+	useEffect(() => {
+		if (!selectedId) return;
+		router.prefetch(`/practice/courses/${encodeURIComponent(selectedId)}`);
+	}, [router, selectedId]);
 
 	const handleTabChange = (next: PracticeTab) => {
 		if (next === "songs" || next === "import") {

@@ -3,16 +3,18 @@
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useAppRouter } from "@/hooks/useAppRouter";
 
 export function DisconnectButton() {
 	const router = useRouter();
+	const appRouter = useAppRouter();
 	const [loading, setLoading] = useState(false);
 
 	const handleDisconnect = async () => {
 		setLoading(true);
 		const supabase = createClient();
 		await supabase.auth.signOut();
-		router.push("/auth/login");
+		appRouter.push("/auth/login");
 		router.refresh();
 	};
 

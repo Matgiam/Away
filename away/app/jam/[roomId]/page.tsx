@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
+import { useAppRouter } from "@/hooks/useAppRouter";
 import { supabase } from "@/lib/supabase";
 import { createClient } from "@/lib/supabase/client";
 import { Piano } from "@/components/multiplayer/Piano";
@@ -66,7 +67,7 @@ async function decrementOrDelete(roomId: string) {
 
 export default function JamRoom() {
 	const params = useParams();
-	const router = useRouter();
+	const router = useAppRouter();
 	const roomId = params.roomId as string;
 
 	const [showKeys, setShowKeys] = useState(true);
