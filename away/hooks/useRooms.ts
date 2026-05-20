@@ -7,17 +7,24 @@ import { fetchFriends } from "@/lib/friends";
 
 export type Accessibility = "public" | "private" | "friends";
 
+// Public room data shown in the lobby list. `password` is NOT included here — it's never
+// shipped to clients. Use the generated `has_password` boolean to know if a room is locked,
+// and call the `join_private_room` Postgres function to verify the password server-side.
 export type Room = {
 	id: string;
 	name: string;
 	host: string;
 	host_user_id: string | null;
 	accessibility: Accessibility;
-	password: string | null;
+	has_password: boolean;
 	max_players: number;
 	current_players: number;
 	created_at: string;
 };
+
+// All non-sensitive columns selected from the rooms table.
+const ROOM_PUBLIC_COLUMNS =
+	"id, name, host, host_user_id, accessibility, has_password, max_players, current_players, created_at";
 
 export type CreateStep = "settings" | "name";
 
@@ -28,8 +35,11 @@ export function useRooms() {
 	const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
 
 	const fetchRooms = useCallback(async () => {
-		const { data } = await supabase.from("rooms").select("*").order("created_at", { ascending: false });
-		if (data) setRooms(data);
+		const { data } = await supabase
+			.from("rooms")
+			.select(ROOM_PUBLIC_COLUMNS)
+			.order("created_at", { ascending: false });
+		if (data) setRooms(data as Room[]);
 	}, []);
 
 	useEffect(() => {

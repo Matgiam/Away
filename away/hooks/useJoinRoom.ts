@@ -29,7 +29,14 @@ export function useJoinRoom() {
 
 	const handleJoinWithPassword = async () => {
 		if (!joiningRoom) return;
-		if (joinPassword !== joiningRoom.password) {
+		// Password is never sent to the client — we ask the server to verify via the
+		// `join_private_room` SECURITY DEFINER function. Returns true only if the password
+		// matches the stored value for this room.
+		const { data: ok, error } = await supabase.rpc("join_private_room", {
+			p_room_id: joiningRoom.id,
+			p_password: joinPassword,
+		});
+		if (error || !ok) {
 			setJoinError("Wrong password");
 			return;
 		}

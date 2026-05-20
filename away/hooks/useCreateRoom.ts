@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useAppRouter } from "@/hooks/useAppRouter";
 import { supabase } from "@/lib/supabase";
 import { createClient } from "@/lib/supabase/client";
-import type { Accessibility, Room, CreateStep } from "./useRooms";
+import type { Accessibility, CreateStep } from "./useRooms";
 
 export type { CreateStep };
 
@@ -59,7 +59,10 @@ export function useCreateRoom() {
 		const hostUserId = userData.user?.id ?? null;
 
 		const roomId = Math.random().toString(36).substring(2, 7);
-		const newRoom: Room = {
+		// Insert payload includes `password` for the server, but never enters our public Room
+		// type (which the lobby reads). The DB has a generated `has_password` boolean column
+		// that the lobby reads instead — see public/lib/courses RLS notes.
+		const newRoom = {
 			id: roomId,
 			name: roomName.trim(),
 			host: hostName,
