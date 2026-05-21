@@ -1,0 +1,44 @@
+# =============================================================================
+# Repo-root .gitignore — applies everywhere below.
+# away/.gitignore handles Next.js-specific patterns; this file covers Python,
+# OS noise, IDE files, and the transcribe-server scaffolding.
+# =============================================================================
+# Byte-cache and compiled artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+*.whl
+
+# Per-job uploads / outputs the server creates at runtime
+transcribe-server/data/
+transcribe-server/.uvicorn-pid
+
+# pip / packaging caches
+.pip-cache/
+pip-wheel-metadata/
+
+# --- IDEs --------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- OS noise ----------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Windows accidentally creates a literal file named "nul" when a script
+# redirects to "nul" without using "$null" — harmless but pollutes git status.
+nul
+NUL
+
+# --- Env files ---------------------------------------------------------------
+.env
+.env.local
+.env.*.local

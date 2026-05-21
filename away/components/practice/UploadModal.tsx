@@ -3,16 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { parseMidi } from "@/lib/practice/midiParser";
 import { prettifyFileName } from "@/lib/practice/songs";
-import {
-	saveUploadedSong,
-	type UploadDifficulty,
-} from "@/lib/practice/uploads";
+import { saveUploadedSong, type UploadDifficulty } from "@/lib/practice/uploads";
 import { estimateDifficulty } from "@/lib/practice/difficulty";
 import {
 	AUDIO_EXTENSIONS,
 	MAX_AUDIO_BYTES,
+	getDefaultTranscribeEngine,
 	isAudioFileName,
+	isTranskunAvailable,
 	transcribeAudioToMidi,
+	type TranscribeEngine,
 } from "@/lib/practice/transcribe";
 
 interface UploadModalProps {
@@ -49,6 +49,12 @@ export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModal
 	const [transcribeProgress, setTranscribeProgress] = useState(0);
 	const [transcribeMessage, setTranscribeMessage] = useState("Loading model…");
 	const [audioFileName, setAudioFileName] = useState("");
+	// Picked by the user before they drop a file. Defaults to the higher-quality
+	// engine when it's available, otherwise the fast browser one. The actual
+	// engine that runs is locked in at the moment they drop the file (in
+	// activeEngineRef) so flipping the toggle mid-upload doesn't get weird.
+	const [selectedEngine, setSelectedEngine] = useState<TranscribeEngine>(getDefaultTranscribeEngine);
+	const activeEngineRef = useRef<TranscribeEngine>(selectedEngine);
 
 	const reset = useCallback(() => {
 		setStage("drop");
@@ -65,6 +71,7 @@ export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModal
 		setTranscribeProgress(0);
 		setTranscribeMessage("Loading model…");
 		setAudioFileName("");
+		setSelectedEngine(getDefaultTranscribeEngine());
 		if (inputRef.current) inputRef.current.value = "";
 	}, []);
 
@@ -72,9 +79,7 @@ export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModal
 		if (!open) reset();
 	}, [open, reset]);
 
-	const acceptForSource = source === "midi"
-		? ".mid,.midi,audio/midi,audio/x-midi"
-		: AUDIO_ACCEPT;
+	const acceptForSource = source === "midi" ? ".mid,.midi,audio/midi,audio/x-midi" : AUDIO_ACCEPT;
 
 	const consumeMidiBuffer = useCallback((file: File, fileName: string, buffer: ArrayBuffer) => {
 		const parsed = parseMidi(buffer);
@@ -90,23 +95,26 @@ export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModal
 		setStage("form");
 	}, []);
 
-	const handleMidiFile = useCallback(async (file: File) => {
-		setError(null);
-		if (!/\.midi?$/i.test(file.name)) {
-			setError("Only .mid / .midi files are supported.");
-			return;
-		}
-		if (file.size > MAX_MIDI_BYTES) {
-			setError("File too large (max 10 MB).");
-			return;
-		}
-		try {
-			const buffer = await file.arrayBuffer();
-			consumeMidiBuffer(file, file.name, buffer);
-		} catch (e) {
-			setError(e instanceof Error ? e.message : "Could not read this MIDI file.");
-		}
-	}, [consumeMidiBuffer]);
+	const handleMidiFile = useCallback(
+		async (file: File) => {
+			setError(null);
+			if (!/\.midi?$/i.test(file.name)) {
+				setError("Only .mid / .midi files are supported.");
+				return;
+			}
+			if (file.size > MAX_MIDI_BYTES) {
+				setError("File too large (max 10 MB).");
+				return;
+			}
+			try {
+				const buffer = await file.arrayBuffer();
+				consumeMidiBuffer(file, file.name, buffer);
+			} catch (e) {
+				setError(e instanceof Error ? e.message : "Could not read this MIDI file.");
+			}
+		},
+		[consumeMidiBuffer],
+	);
 
 	const handleAudioFile = useCallback(
 		async (file: File) => {
@@ -123,12 +131,18 @@ export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModal
 			setStage("transcribing");
 			setTranscribeProgress(0);
 			setTranscribeMessage("Loading model…");
+			activeEngineRef.current = selectedEngine;
 
 			try {
-				const midiBuffer = await transcribeAudioToMidi(file, (event) => {
-					setTranscribeProgress(event.progress);
-					setTranscribeMessage(event.message);
-				});
+				const midiBuffer = await transcribeAudioToMidi(
+					file,
+					(event) => {
+						setTranscribeProgress(event.progress);
+						setTranscribeMessage(event.message);
+					},
+					undefined,
+					selectedEngine,
+				);
 				const midiName = file.name.replace(/\.[^.]+$/, "") + ".mid";
 				const midiFile = new File([midiBuffer], midiName, { type: "audio/midi" });
 				consumeMidiBuffer(midiFile, midiName, midiBuffer);
@@ -137,7 +151,7 @@ export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModal
 				setStage("drop");
 			}
 		},
-		[consumeMidiBuffer],
+		[consumeMidiBuffer, selectedEngine],
 	);
 
 	const handleFile = useCallback(
@@ -150,8 +164,7 @@ export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModal
 
 	const handleSave = useCallback(async () => {
 		if (!pendingFile) return;
-		const finalDifficulty: UploadDifficulty =
-			difficulty === "auto" ? pendingAutoDifficulty : difficulty;
+		const finalDifficulty: UploadDifficulty = difficulty === "auto" ? pendingAutoDifficulty : difficulty;
 		setStage("saving");
 		setError(null);
 		try {
@@ -169,17 +182,7 @@ export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModal
 			setError(e instanceof Error ? e.message : "Failed to save upload.");
 			setStage("form");
 		}
-	}, [
-		pendingFile,
-		pendingDuration,
-		pendingBpm,
-		pendingAutoDifficulty,
-		title,
-		artist,
-		difficulty,
-		onUploaded,
-		onClose,
-	]);
+	}, [pendingFile, pendingDuration, pendingBpm, pendingAutoDifficulty, title, artist, difficulty, onUploaded, onClose]);
 
 	if (!open) return null;
 
@@ -193,11 +196,7 @@ export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModal
 			<div className="w-full max-w-xl mx-4 rounded-2xl border border-white/10 bg-[#0d0620]/90 backdrop-blur-xl shadow-2xl overflow-hidden">
 				<div className="flex items-center justify-between px-8 py-5 border-b border-white/5">
 					<h2 className="text-xl font-semibold italic text-white/90">Import MIDI</h2>
-					<button
-						onClick={onClose}
-						className="text-white/50 hover:text-white transition-colors text-2xl leading-none"
-						aria-label="Close"
-					>
+					<button onClick={onClose} className="text-white/50 hover:text-white transition-colors text-2xl leading-none" aria-label="Close">
 						×
 					</button>
 				</div>
@@ -208,6 +207,7 @@ export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModal
 					) : stage === "drop" ? (
 						<>
 							<SourceToggle source={source} onChange={setSource} />
+							{source === "audio" && <EngineToggle selected={selectedEngine} onChange={setSelectedEngine} serverAvailable={isTranskunAvailable()} />}
 							<DropZone
 								source={source}
 								dragOver={dragOver}
@@ -225,16 +225,10 @@ export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModal
 									if (file) handleFile(file);
 								}}
 							/>
-							{error && (
-								<p className="mt-4 text-rose-300/80 italic text-sm text-center">{error}</p>
-							)}
+							{error && <p className="mt-4 text-rose-300/80 italic text-sm text-center">{error}</p>}
 						</>
 					) : stage === "transcribing" ? (
-						<TranscribingStage
-							progress={transcribeProgress}
-							message={transcribeMessage}
-							fileName={audioFileName}
-						/>
+						<TranscribingStage progress={transcribeProgress} message={transcribeMessage} fileName={audioFileName} engine={activeEngineRef.current} />
 					) : (
 						<form
 							onSubmit={(e) => {
@@ -267,25 +261,18 @@ export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModal
 							</Field>
 
 							<div>
-								<label className="block text-[10px] uppercase tracking-widest text-white/40 mb-2">
-									Difficulty
-								</label>
+								<label className="block text-[10px] uppercase tracking-widest text-white/40 mb-2">Difficulty</label>
 								<div className="grid grid-cols-4 gap-2">
 									{(["auto", "easy", "medium", "hard"] as const).map((d) => {
 										const isActive = difficulty === d;
-										const label =
-											d === "auto"
-												? `Auto (${pendingAutoDifficulty})`
-												: d.charAt(0).toUpperCase() + d.slice(1);
+										const label = d === "auto" ? `Auto (${pendingAutoDifficulty})` : d.charAt(0).toUpperCase() + d.slice(1);
 										return (
 											<button
 												key={d}
 												type="button"
 												onClick={() => setDifficulty(d)}
 												className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
-													isActive
-														? "border-white/30 bg-white/10 text-white"
-														: "border-white/10 bg-white/5 text-white/55 hover:text-white/80"
+													isActive ? "border-white/30 bg-white/10 text-white" : "border-white/10 bg-white/5 text-white/55 hover:text-white/80"
 												}`}
 											>
 												{label}
@@ -333,13 +320,7 @@ export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModal
 	);
 }
 
-function SourceToggle({
-	source,
-	onChange,
-}: {
-	source: Source;
-	onChange: (s: Source) => void;
-}) {
+function SourceToggle({ source, onChange }: { source: Source; onChange: (s: Source) => void }) {
 	return (
 		<div className="grid grid-cols-2 gap-2 mb-5">
 			<ToggleButton active={source === "midi"} onClick={() => onChange("midi")}>
@@ -349,6 +330,67 @@ function SourceToggle({
 				Audio file
 			</ToggleButton>
 		</div>
+	);
+}
+
+function EngineToggle({
+	selected,
+	onChange,
+	serverAvailable,
+}: {
+	selected: TranscribeEngine;
+	onChange: (engine: TranscribeEngine) => void;
+	serverAvailable: boolean;
+}) {
+	return (
+		<div className="grid grid-cols-2 gap-2 mb-5">
+			<EngineCard active={selected === "basic-pitch"} onClick={() => onChange("basic-pitch")} title="Fast" detail="~30 seconds · decent quality" />
+			<EngineCard
+				active={selected === "transkun"}
+				onClick={() => serverAvailable && onChange("transkun")}
+				disabled={!serverAvailable}
+				title="High quality"
+				detail={serverAvailable ? "~3 minutes · much cleaner notes" : "Server not configured"}
+			/>
+		</div>
+	);
+}
+
+function EngineCard({
+	active,
+	onClick,
+	disabled,
+
+	title,
+
+	detail,
+}: {
+	active: boolean;
+	onClick: () => void;
+	disabled?: boolean;
+	title: string;
+
+	detail: string;
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			disabled={disabled}
+			className={`rounded-xl border px-4 py-3 text-left transition-colors ${
+				disabled
+					? "border-white/5 bg-white/[0.02] text-white/30 cursor-not-allowed"
+					: active
+						? "border-white/30 bg-white/10 text-white"
+						: "border-white/10 bg-white/5 text-white/70 hover:text-white hover:bg-white/8"
+			}`}
+		>
+			<div className="flex items-center gap-2 text-sm font-medium">
+				<span>{title}</span>
+			</div>
+
+			<div className="text-[11px] text-white/45 mt-0.5">{detail}</div>
+		</button>
 	);
 }
 
@@ -392,13 +434,8 @@ function SignInPrompt() {
 				<path d="M8 11V8a4 4 0 1 1 8 0v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
 			</svg>
 			<p className="text-white text-lg italic font-semibold mb-1">Sign in to import MIDI</p>
-			<p className="text-white/55 text-sm max-w-sm">
-				Your uploads are saved to your account so you only see your own files on any device.
-			</p>
-			<a
-				href="/auth/login"
-				className="mt-6 px-6 py-2 rounded-lg bg-white text-black font-medium hover:scale-[1.02] transition-transform"
-			>
+			<p className="text-white/55 text-sm max-w-sm">Your uploads are saved to your account so you only see your own files on any device.</p>
+			<a href="/auth/login" className="mt-6 px-6 py-2 rounded-lg bg-white text-black font-medium hover:scale-[1.02] transition-transform">
 				Sign in
 			</a>
 		</div>
@@ -437,20 +474,10 @@ function DropZone({
 			}`}
 		>
 			<svg width="38" height="38" viewBox="0 0 24 24" fill="none" className="text-white/55 mb-4">
-				<path
-					d="M12 16V4m0 0-4 4m4-4 4 4M4 20h16"
-					stroke="currentColor"
-					strokeWidth="1.6"
-					strokeLinecap="round"
-					strokeLinejoin="round"
-				/>
+				<path d="M12 16V4m0 0-4 4m4-4 4 4M4 20h16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
 			</svg>
-			<p className="text-white/80 italic text-base mb-1">
-				{isMidi ? "Drag a MIDI file here" : "Drag an audio file here"}
-			</p>
-			<p className="text-white/40 text-sm mb-5">
-				{isMidi ? ".mid or .midi · max 10 MB" : ".mp3, .wav, .flac, .ogg · max 50 MB"}
-			</p>
+			<p className="text-white/80 italic text-base mb-1">{isMidi ? "Drag a MIDI file here" : "Drag an audio file here"}</p>
+			<p className="text-white/40 text-sm mb-5">{isMidi ? ".mid or .midi · max 10 MB" : ".mp3, .wav, .flac, .ogg · max 50 MB"}</p>
 			<button
 				type="button"
 				onClick={onPickFile}
@@ -466,30 +493,35 @@ function TranscribingStage({
 	progress,
 	message,
 	fileName,
+	engine,
 }: {
 	progress: number;
 	message: string;
 	fileName: string;
+	engine: TranscribeEngine;
 }) {
 	const clamped = Math.max(0, Math.min(100, Math.round(progress)));
+	const isTranskun = engine === "transkun";
 	return (
 		<div className="py-10 flex flex-col items-center">
-			<div className="text-6xl font-bold tabular-nums text-white mb-6 drop-shadow-[0_2px_10px_rgba(255,255,255,0.15)]">
-				{clamped}%
-			</div>
+			<div className="text-6xl font-bold tabular-nums text-white mb-6 drop-shadow-[0_2px_10px_rgba(255,255,255,0.15)]">{clamped}%</div>
 			<div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-6">
-				<div
-					className="h-full bg-white/80 transition-[width] duration-300 ease-out"
-					style={{ width: `${clamped}%` }}
-				/>
+				<div className="h-full bg-white/80 transition-[width] duration-300 ease-out" style={{ width: `${clamped}%` }} />
 			</div>
-			<p className="text-white/75 italic text-sm">{message}</p>
-			{fileName && (
-				<p className="text-white/35 text-xs mt-2 truncate max-w-full">{fileName}</p>
-			)}
-			<p className="text-white/40 text-xs mt-6 max-w-sm text-center">
-				Audio-to-MIDI transcription runs in your browser. The first time may
-				take a moment to download the model. Feel free to leave this tab open.
+			<p className="text-white/75 italic text-sm text-center px-2">{message}</p>
+			{fileName && <p className="text-white/35 text-xs mt-2 truncate max-w-full">{fileName}</p>}
+			<p className="text-white/40 text-xs mt-6 max-w-sm text-center leading-relaxed">
+				{isTranskun ? (
+					<>
+						Running <span className="text-white/70">Transkun</span>, a high-quality transformer + semi-CRF model, on the server. Expect 2-5 minutes
+						per song. Leave this tab open — the result lands here when it finishes.
+					</>
+				) : (
+					<>
+						Audio-to-MIDI transcription runs in your browser. The first time may take a moment to download the model. Feel free to leave this tab
+						open.
+					</>
+				)}
 			</p>
 		</div>
 	);
@@ -498,9 +530,7 @@ function TranscribingStage({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
 	return (
 		<label className="block">
-			<span className="block text-[10px] uppercase tracking-widest text-white/40 mb-2">
-				{label}
-			</span>
+			<span className="block text-[10px] uppercase tracking-widest text-white/40 mb-2">{label}</span>
 			<div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">{children}</div>
 		</label>
 	);

@@ -1,14 +1,24 @@
-// Audio → MIDI transcription, running entirely in the user's browser via
-// Spotify's open-source Basic Pitch model. No backend required.
+// Audio → MIDI transcription.
 //
-// The model files live in public/models/basic-pitch/ and are kept in sync with
-// the @spotify/basic-pitch npm package by the "sync:basic-pitch-model" script
-// (see package.json — runs automatically as a postinstall step).
+// Two engines are available:
+//
+//   1. **Transkun (server)** — high-quality transformer + semi-CRF model
+//      running on Hugging Face Spaces. Activated when
+//      NEXT_PUBLIC_TRANSCRIBE_API_URL is set in .env.local.
+//
+//   2. **Basic Pitch (browser fallback)** — Spotify's small CNN running in
+//      TensorFlow.js. Model files live in public/models/basic-pitch/.
+//
+// Same return shape either way so callers don't care which one ran.
+
+import { transcribeAudioToMidiServer } from "./transcribeServer";
 
 export const AUDIO_EXTENSIONS = [".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac", ".aiff"] as const;
 export const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
 
 const MODEL_URL = "/models/basic-pitch/model.json";
+
+export type TranscribeEngine = "transkun" | "basic-pitch";
 
 export type TranscribeProgress = {
 	phase: "model" | "decode" | "transcribe" | "midi" | "done";
@@ -23,7 +33,44 @@ export function isAudioFileName(name: string): boolean {
 	return AUDIO_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
+const TRANSKUN_URL = (process.env.NEXT_PUBLIC_TRANSCRIBE_API_URL ?? "").trim();
+const TRANSKUN_KEY = (process.env.NEXT_PUBLIC_TRANSCRIBE_API_KEY ?? "").trim() || undefined;
+
+// True when the Transkun server URL is configured in .env.local. When false,
+// the UI hides / disables the high-quality option.
+export function isTranskunAvailable(): boolean {
+	return TRANSKUN_URL.length > 0;
+}
+
+// The engine that will be used when the caller doesn't specify one. Prefers
+// Transkun if it's configured.
+export function getDefaultTranscribeEngine(): TranscribeEngine {
+	return isTranskunAvailable() ? "transkun" : "basic-pitch";
+}
+
+// Backwards-compat alias for code that still asks for the "active" engine.
+export const getActiveTranscribeEngine = getDefaultTranscribeEngine;
+
 export async function transcribeAudioToMidi(
+	file: File,
+	onProgress: TranscribeProgressCallback,
+	signal?: AbortSignal,
+	engine?: TranscribeEngine,
+): Promise<ArrayBuffer> {
+	const chosen = engine ?? getDefaultTranscribeEngine();
+
+	if (chosen === "transkun") {
+		if (!TRANSKUN_URL) {
+			throw new Error(
+				"High-quality transcription is not configured. Set NEXT_PUBLIC_TRANSCRIBE_API_URL in .env.local.",
+			);
+		}
+		return transcribeAudioToMidiServer(file, TRANSKUN_URL, TRANSKUN_KEY, onProgress, signal);
+	}
+	return transcribeBasicPitchInBrowser(file, onProgress);
+}
+
+async function transcribeBasicPitchInBrowser(
 	file: File,
 	onProgress: TranscribeProgressCallback,
 ): Promise<ArrayBuffer> {
