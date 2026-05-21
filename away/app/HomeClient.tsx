@@ -20,6 +20,8 @@ export default function HomeClient() {
 	const [username, setUsername] = useState("");
 	const [isLoggedIn, setIsLoggedIn] = useState(false);
 	const [userId, setUserId] = useState<string | null>(null);
+	const [isAdmin, setIsAdmin] = useState(false);
+	const [pendingReviews, setPendingReviews] = useState(0);
 	const notesThisSessionRef = useRef(0);
 	const { state: recordingState, countdown: recordingCountdown, startRecording, stopRecording } = useRecording(userId);
 
@@ -31,7 +33,8 @@ export default function HomeClient() {
 		router.prefetch("/practice");
 		router.prefetch("/protected/profile");
 		router.prefetch("/settings");
-	}, [router]);
+		if (isAdmin) router.prefetch("/admin/midi-review");
+	}, [router, isAdmin]);
 
 	const {
 		pianoKeys,
@@ -108,13 +111,26 @@ export default function HomeClient() {
 			if (data.user) {
 				setUserId(data.user.id);
 				setIsLoggedIn(true);
-				const { data: profile } = await supabase.from("profiles").select("username").eq("id", data.user.id).maybeSingle();
+				const { data: profile } = await supabase
+					.from("profiles")
+					.select("username, is_admin")
+					.eq("id", data.user.id)
+					.maybeSingle();
 				const name =
 					profile?.username ||
 					(data.user.user_metadata?.username as string | undefined) ||
 					data.user.email?.split("@")[0] ||
 					data.user.id.substring(0, 8);
 				setUsername(name);
+				const admin = !!(profile as { is_admin?: boolean } | null)?.is_admin;
+				setIsAdmin(admin);
+				if (admin) {
+					const { count } = await supabase
+						.from("community_midis")
+						.select("*", { count: "exact", head: true })
+						.eq("status", "pending");
+					setPendingReviews(count ?? 0);
+				}
 				sessionStorage.setItem("away_user", JSON.stringify({ id: data.user.id, email: data.user.email, username: name }));
 			}
 		};
@@ -140,6 +156,7 @@ export default function HomeClient() {
 	const handleProfileClick = () => router.push("/protected/profile");
 	const handleSettingsClick = () => router.push("/settings");
 	const handlePracticeClick = () => router.push("/practice");
+	const handleAdminClick = () => router.push("/admin/midi-review");
 
 	const backgroundAnimated = settings.backgroundAnimated && !settings.reducedMotion;
 
@@ -174,6 +191,19 @@ export default function HomeClient() {
 								<p className="text-2xl italic text-gray-400 cursor-pointer hover:text-white transition-colors mt-5" onClick={handleSettingsClick}>
 									Settings
 								</p>
+								{isAdmin && (
+									<p
+										className="text-2xl italic text-gray-400 cursor-pointer hover:text-white transition-colors mt-5 flex items-center gap-3"
+										onClick={handleAdminClick}
+									>
+										Admin
+										{pendingReviews > 0 && (
+											<span className="text-sm not-italic px-2 py-0.5 rounded-full bg-rose-500/25 border border-rose-300/40 text-rose-100 tabular-nums">
+												{pendingReviews}
+											</span>
+										)}
+									</p>
+								)}
 							</div>
 						</div>
 					</div>

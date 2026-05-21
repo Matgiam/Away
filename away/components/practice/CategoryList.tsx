@@ -3,7 +3,7 @@
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
 import type { SongCategoryKey } from "@/lib/practice/songs";
 
-export type CategoryFilter = SongCategoryKey | "custom";
+export type CategoryFilter = SongCategoryKey | "custom" | "community";
 
 export type CategoryStats = { completed: number; total: number };
 
@@ -21,6 +21,7 @@ const CATEGORY_ITEMS: { key: CategoryFilter; label: string }[] = [
 	{ key: "anime", label: "Anime" },
 	{ key: "popular", label: "Pop" },
 	{ key: "classical", label: "Classical" },
+	{ key: "community", label: "Community" },
 	{ key: "custom", label: "Custom" },
 ];
 
@@ -28,7 +29,7 @@ export function CategoryList({ active, onChange, stats, totalStats }: CategoryLi
 	return (
 		<DynamicLiquidGlass
 			width={300}
-			height={360}
+			height={410}
 			radius={20}
 			refractionLevel={0.7}
 			specularOpacity={0.5}

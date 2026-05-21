@@ -1,10 +1,29 @@
 "use client";
 
+import { useMemo } from "react";
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
+import { useVirtualList } from "@/hooks/useVirtualList";
+import type { CommunityMidi, CommunityStatus } from "@/lib/practice/community";
 import type { UploadDifficulty, UploadedSongMeta } from "@/lib/practice/uploads";
 
+// A row in the Custom category can come from the user's own private uploads OR
+// from a community MIDI they added via "Add to Custom". The wrapper type lets
+// the rest of the component stay agnostic.
+export type CustomRow =
+	| {
+			kind: "upload";
+			id: string;
+			upload: UploadedSongMeta;
+			submission: CommunityMidi | null;
+	  }
+	| {
+			kind: "community";
+			id: string;
+			community: CommunityMidi;
+	  };
+
 interface UploadsViewProps {
-	uploads: UploadedSongMeta[];
+	rows: CustomRow[];
 	loading: boolean;
 	signedIn: boolean;
 	selectedId: string | null;
@@ -13,7 +32,13 @@ interface UploadsViewProps {
 	onPlay: (id: string) => void;
 	onDelete: (id: string) => void;
 	onUploadClick: () => void;
+	onPublish: (upload: UploadedSongMeta) => void;
+	onRemoveCommunity: (communityId: string) => void;
 }
+
+const ROW_HEIGHT = 76;
+const ROW_GAP = 12;
+const UPLOAD_BUTTON_HEIGHT = 64;
 
 function CompletedTick() {
 	return (
@@ -38,7 +63,7 @@ function CompletedTick() {
 }
 
 export function UploadsView({
-	uploads,
+	rows,
 	loading,
 	signedIn,
 	selectedId,
@@ -47,7 +72,23 @@ export function UploadsView({
 	onPlay,
 	onDelete,
 	onUploadClick,
+	onPublish,
+	onRemoveCommunity,
 }: UploadsViewProps) {
+	const { containerRef, onScroll, totalHeight, startIndex, endIndex, offsetForIndex } =
+		useVirtualList({
+			itemCount: rows.length,
+			itemHeight: ROW_HEIGHT,
+			gap: ROW_GAP,
+			overscan: 4,
+		});
+
+	const visibleIndices = useMemo(() => {
+		const out: number[] = [];
+		for (let i = startIndex; i < endIndex; i++) out.push(i);
+		return out;
+	}, [startIndex, endIndex]);
+
 	if (!signedIn) {
 		return (
 			<div className="flex h-full w-full items-center justify-center">
@@ -79,7 +120,7 @@ export function UploadsView({
 		);
 	}
 
-	if (uploads.length === 0) {
+	if (rows.length === 0) {
 		return (
 			<div className="flex h-full w-full items-center justify-center">
 				<button
@@ -108,15 +149,20 @@ export function UploadsView({
 	}
 
 	return (
-		<div className="practice-song-list h-full w-full overflow-y-auto pr-4 flex flex-col gap-3">
+		<div
+			ref={containerRef}
+			onScroll={onScroll}
+			className="practice-song-list h-full w-full overflow-y-auto pr-4"
+		>
 			<button
 				type="button"
 				onClick={onUploadClick}
-				className="block transition-transform hover:scale-[1.005]"
+				className="block transition-transform hover:scale-[1.005] mb-3"
+				style={{ height: UPLOAD_BUTTON_HEIGHT }}
 			>
 				<DynamicLiquidGlass
 					width={680}
-					height={64}
+					height={UPLOAD_BUTTON_HEIGHT}
 					radius={14}
 					refractionLevel={0.7}
 					specularOpacity={0.55}
@@ -136,72 +182,146 @@ export function UploadsView({
 				</DynamicLiquidGlass>
 			</button>
 
-			{uploads.map((upload) => {
-				const isSelected = upload.id === selectedId;
-				const isCompleted = !!completedIds?.has(upload.id);
-				return (
-					<div
-						key={upload.id}
-						className="block transition-transform hover:scale-[1.005]"
-					>
-						<DynamicLiquidGlass
-							width={680}
-							height={76}
-							radius={14}
-							refractionLevel={0.7}
-							specularOpacity={0.55}
-							glassBgOpacity={isSelected ? 0.12 : 0.02}
+			<div style={{ position: "relative", height: totalHeight }}>
+				{visibleIndices.map((absoluteIndex) => {
+					const row = rows[absoluteIndex];
+					if (!row) return null;
+					const top = offsetForIndex(absoluteIndex);
+					const isSelected = row.id === selectedId;
+					const isCompleted = !!completedIds?.has(row.id);
+					return (
+						<div
+							key={row.id}
+							style={{
+								position: "absolute",
+								top,
+								left: 0,
+								right: 0,
+								height: ROW_HEIGHT,
+							}}
+							className="transition-transform hover:scale-[1.005]"
 						>
-							<div
-								onClick={() => onSelect(upload.id)}
-								onDoubleClick={() => onPlay(upload.id)}
-								className="flex h-full w-full items-center justify-between px-7 cursor-pointer"
+							<DynamicLiquidGlass
+								width={680}
+								height={ROW_HEIGHT}
+								radius={14}
+								refractionLevel={0.7}
+								specularOpacity={0.55}
+								glassBgOpacity={isSelected ? 0.12 : 0.02}
 							>
-								<div className="flex-1 min-w-0">
-									<div
-										className={`text-lg italic font-semibold tracking-wide truncate text-left ${
-											isSelected ? "text-white" : "text-white/80"
-										}`}
-									>
-										{formatTitle(upload)}
+								<div
+									onClick={() => onSelect(row.id)}
+									onDoubleClick={() => onPlay(row.id)}
+									className="flex h-full w-full items-center justify-between px-7 cursor-pointer"
+								>
+									<div className="flex-1 min-w-0 flex flex-col">
+										<div
+											className={`text-lg italic font-semibold tracking-wide truncate text-left ${
+												isSelected ? "text-white" : "text-white/80"
+											}`}
+										>
+											{formatTitle(row)}
+										</div>
+										{row.kind === "community" && (
+											<div className="text-[11px] italic text-white/40 truncate text-left">
+												From community · added from {row.community.submitterUsername ?? "another player"}
+											</div>
+										)}
+										{row.kind === "upload" && row.submission && (
+											<SubmissionStatusLine submission={row.submission} />
+										)}
+									</div>
+									<div className="flex items-center gap-3 shrink-0 ml-4">
+										{isCompleted && <CompletedTick />}
+										<DifficultyBadge difficulty={difficultyOf(row)} />
+
+										{row.kind === "upload" && (!row.submission || row.submission.status === "rejected") && (
+											<button
+												type="button"
+												onClick={(e) => {
+													e.stopPropagation();
+													onPublish(row.upload);
+												}}
+												className="text-xs italic uppercase tracking-widest px-2.5 py-1 rounded-full border border-violet-300/30 bg-violet-500/15 text-violet-200/90 hover:bg-violet-500/25 transition-colors"
+												title="Submit this MIDI for community review"
+											>
+												Publish
+											</button>
+										)}
+
+										<button
+											type="button"
+											onClick={(e) => {
+												e.stopPropagation();
+												if (row.kind === "upload") {
+													if (confirm(`Delete "${row.upload.title}"?`)) onDelete(row.id);
+												} else {
+													if (confirm(`Remove "${row.community.title}" from your custom songs?`))
+														onRemoveCommunity(row.community.id);
+												}
+											}}
+											className="text-white/40 hover:text-rose-300 transition-colors"
+											aria-label={row.kind === "community" ? "Remove from custom" : "Delete"}
+											title={row.kind === "community" ? "Remove from custom" : "Delete"}
+										>
+											<svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+												<path
+													d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"
+													stroke="currentColor"
+													strokeWidth="1.5"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												/>
+											</svg>
+										</button>
 									</div>
 								</div>
-								<div className="flex items-center gap-3 shrink-0 ml-4">
-									{isCompleted && <CompletedTick />}
-									<DifficultyBadge difficulty={upload.difficulty} />
-									<button
-										type="button"
-										onClick={(e) => {
-											e.stopPropagation();
-											if (confirm(`Delete "${upload.title}"?`)) onDelete(upload.id);
-										}}
-										className="text-white/40 hover:text-rose-300 transition-colors"
-										aria-label="Delete"
-										title="Delete"
-									>
-										<svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-											<path
-												d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"
-												stroke="currentColor"
-												strokeWidth="1.5"
-												strokeLinecap="round"
-												strokeLinejoin="round"
-											/>
-										</svg>
-									</button>
-								</div>
-							</div>
-						</DynamicLiquidGlass>
-					</div>
-				);
-			})}
+							</DynamicLiquidGlass>
+						</div>
+					);
+				})}
+			</div>
 		</div>
 	);
 }
 
-function formatTitle(upload: UploadedSongMeta): string {
-	if (upload.artist) return `${upload.title} - ${upload.artist}`;
-	return upload.title;
+function formatTitle(row: CustomRow): string {
+	if (row.kind === "upload") {
+		return row.upload.artist ? `${row.upload.title} - ${row.upload.artist}` : row.upload.title;
+	}
+	return row.community.artist
+		? `${row.community.title} - ${row.community.artist}`
+		: row.community.title;
+}
+
+function difficultyOf(row: CustomRow): UploadDifficulty {
+	return row.kind === "upload" ? row.upload.difficulty : row.community.difficulty;
+}
+
+const STATUS_LABEL: Record<CommunityStatus, string> = {
+	pending: "Pending review",
+	approved: "Published",
+	rejected: "Rejected",
+};
+
+const STATUS_COLOR: Record<CommunityStatus, string> = {
+	pending: "text-amber-200/85",
+	approved: "text-emerald-300/85",
+	rejected: "text-rose-300/85",
+};
+
+function SubmissionStatusLine({ submission }: { submission: CommunityMidi }) {
+	const isRejected = submission.status === "rejected";
+	return (
+		<div className="text-[11px] italic truncate text-left">
+			<span className={STATUS_COLOR[submission.status]}>
+				{STATUS_LABEL[submission.status]}
+			</span>
+			{isRejected && submission.reviewNote && (
+				<span className="text-white/40"> · {submission.reviewNote}</span>
+			)}
+		</div>
+	);
 }
 
 const DIFFICULTY_COLORS: Record<UploadDifficulty, string> = {

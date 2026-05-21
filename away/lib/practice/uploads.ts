@@ -15,6 +15,7 @@ export type UploadedSongRow = {
 	is_public: boolean;
 	play_count: number;
 	created_at: string;
+	community_submission_id: string | null;
 };
 
 export type UploadedSongMeta = {
@@ -27,6 +28,7 @@ export type UploadedSongMeta = {
 	bpm: number;
 	storagePath: string;
 	createdAt: string;
+	communitySubmissionId: string | null;
 };
 
 const BUCKET = "midi_uploads";
@@ -58,7 +60,23 @@ function rowToMeta(row: UploadedSongRow): UploadedSongMeta {
 		bpm: row.bpm,
 		storagePath: row.storage_path,
 		createdAt: row.created_at,
+		communitySubmissionId: row.community_submission_id ?? null,
 	};
+}
+
+// Link a private upload to a community submission so the upload list can show a
+// "Pending" / "Published" badge. Cleared when the link goes away (set to null).
+export async function setUploadCommunitySubmission(
+	uploadId: string,
+	communityRowId: string | null,
+): Promise<void> {
+	const supabase = createClient();
+	const rowId = rowIdFromUploadId(uploadId);
+	const { error } = await supabase
+		.from(TABLE)
+		.update({ community_submission_id: communityRowId })
+		.eq("id", rowId);
+	if (error) throw error;
 }
 
 export async function getCurrentUserId(): Promise<string | null> {

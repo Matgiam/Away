@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppRouter } from "@/hooks/useAppRouter";
 import { CategoryList, type CategoryFilter, type CategoryStats } from "./CategoryList";
 import { SearchBar } from "./SearchBar";
@@ -8,7 +8,9 @@ import { SongList } from "./SongList";
 import { StartButton } from "./StartButton";
 import { PracticeTabs, type PracticeTab } from "./PracticeTabs";
 import { UploadModal } from "./UploadModal";
-import { UploadsView } from "./UploadsView";
+import { UploadsView, type CustomRow } from "./UploadsView";
+import { CommunityView } from "./CommunityView";
+import { PublishToCommunityModal } from "./PublishToCommunityModal";
 import type { BuiltInSong } from "@/lib/practice/songs";
 import {
 	deleteUploadedSong,
@@ -16,10 +18,19 @@ import {
 	type UploadedSongMeta,
 } from "@/lib/practice/uploads";
 import {
+	COMMUNITY_PAGE_SIZE,
+	listApprovedCommunityMidis,
+	listMyAddedCommunityMidis,
+	listMyCommunitySubmissions,
+	removeCommunityFromCustom,
+	type CommunityMidi,
+} from "@/lib/practice/community";
+import {
 	ACHIEVEMENT_UNLOCK_EVENT,
 	getCompletedSongs,
 } from "@/lib/achievements";
 import { createClient } from "@/lib/supabase/client";
+import { useAudioEngineContext } from "@/components/providers/AudioEngineProvider";
 
 interface PracticeMenuProps {
 	initialSongs: BuiltInSong[];
@@ -27,8 +38,8 @@ interface PracticeMenuProps {
 
 export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 	const router = useAppRouter();
+	const { unlockAudio } = useAudioEngineContext();
 
-	// Prefetch sibling tab so switching feels instant.
 	useEffect(() => {
 		router.prefetch("/practice/courses");
 	}, [router]);
@@ -39,26 +50,106 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 
 	const [uploads, setUploads] = useState<UploadedSongMeta[]>([]);
+	const [mySubmissions, setMySubmissions] = useState<CommunityMidi[]>([]);
+	const [addedCommunity, setAddedCommunity] = useState<CommunityMidi[]>([]);
+	const [communityMidis, setCommunityMidis] = useState<CommunityMidi[]>([]);
+	const [communityHasMore, setCommunityHasMore] = useState(false);
+	const [communityLoadingMore, setCommunityLoadingMore] = useState(false);
+
+	// Debounced version of `search` — community queries fire against the server,
+	// so we don't want to spam Supabase on every keystroke.
+	const [debouncedSearch, setDebouncedSearch] = useState("");
+
 	const [uploadsLoading, setUploadsLoading] = useState(true);
+	const [communityLoading, setCommunityLoading] = useState(true);
+
+	// Race-protect overlapping fetches. Bumped on each first-page fetch; any
+	// in-flight load-more that finishes after a refetch is discarded.
+	const communityFetchTokenRef = useRef(0);
+
 	const [uploadModalOpen, setUploadModalOpen] = useState(false);
+	const [publishTarget, setPublishTarget] = useState<UploadedSongMeta | null>(null);
+
 	const [userId, setUserId] = useState<string | null>(null);
 	const [authChecked, setAuthChecked] = useState(false);
 	const [completedSongIds, setCompletedSongIds] = useState<string[]>(() => getCompletedSongs());
 
-	const refreshUploads = useCallback(async () => {
+	// Submissions are keyed by community submission id (raw row id); we look them up
+	// by row id stored on the upload.
+	const submissionByRowId = useMemo(() => {
+		const map = new Map<string, CommunityMidi>();
+		for (const sub of mySubmissions) {
+			const rowId = sub.id.startsWith("c:") ? sub.id.slice(2) : sub.id;
+			map.set(rowId, sub);
+		}
+		return map;
+	}, [mySubmissions]);
+
+	const refreshCustomRows = useCallback(async () => {
 		setUploadsLoading(true);
 		try {
-			const rows = await listUploadedSongs();
-			setUploads(rows);
+			const [u, s, a] = await Promise.all([
+				listUploadedSongs(),
+				listMyCommunitySubmissions(),
+				listMyAddedCommunityMidis(),
+			]);
+			setUploads(u);
+			setMySubmissions(s);
+			setAddedCommunity(a);
 		} catch {
 			setUploads([]);
+			setMySubmissions([]);
+			setAddedCommunity([]);
 		} finally {
 			setUploadsLoading(false);
 		}
 	}, []);
 
-	// Refresh completed-song markers when the user returns from finishing a song or when an
-	// achievement event fires while this page is mounted.
+	const fetchCommunityFirstPage = useCallback(async (searchTerm: string) => {
+		const token = ++communityFetchTokenRef.current;
+		setCommunityLoading(true);
+		try {
+			const page = await listApprovedCommunityMidis({
+				offset: 0,
+				limit: COMMUNITY_PAGE_SIZE,
+				search: searchTerm,
+			});
+			if (communityFetchTokenRef.current !== token) return;
+			setCommunityMidis(page.items);
+			setCommunityHasMore(page.hasMore);
+		} catch {
+			if (communityFetchTokenRef.current !== token) return;
+			setCommunityMidis([]);
+			setCommunityHasMore(false);
+		} finally {
+			if (communityFetchTokenRef.current === token) {
+				setCommunityLoading(false);
+			}
+		}
+	}, []);
+
+	const loadMoreCommunity = useCallback(async () => {
+		if (communityLoadingMore || !communityHasMore) return;
+		setCommunityLoadingMore(true);
+		const token = communityFetchTokenRef.current;
+		try {
+			const page = await listApprovedCommunityMidis({
+				offset: communityMidis.length,
+				limit: COMMUNITY_PAGE_SIZE,
+				search: debouncedSearch,
+			});
+			// Drop result if the user refetched (e.g., changed search) while we
+			// were in flight.
+			if (communityFetchTokenRef.current !== token) return;
+			setCommunityMidis((prev) => prev.concat(page.items));
+			setCommunityHasMore(page.hasMore);
+		} catch {
+			// Swallow — the user can keep scrolling and the next loadMore retries.
+		} finally {
+			setCommunityLoadingMore(false);
+		}
+	}, [communityHasMore, communityLoadingMore, communityMidis.length, debouncedSearch]);
+
 	useEffect(() => {
 		if (typeof window === "undefined") return;
 		const refresh = () => setCompletedSongIds(getCompletedSongs());
@@ -81,10 +172,17 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 		supabase.auth.getUser().then(({ data }) => {
 			setUserId(data.user?.id ?? null);
 			setAuthChecked(true);
-			if (data.user) refreshUploads();
-			else {
+			if (data.user) {
+				refreshCustomRows();
+				fetchCommunityFirstPage("");
+			} else {
 				setUploads([]);
+				setMySubmissions([]);
+				setAddedCommunity([]);
 				setUploadsLoading(false);
+				// Don't load the community catalog for signed-out users; the view will
+				// prompt them to sign in.
+				setCommunityLoading(false);
 			}
 		});
 
@@ -92,20 +190,42 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 			const nextId = session?.user?.id ?? null;
 			setUserId(nextId);
 			if (nextId) {
-				refreshUploads();
+				refreshCustomRows();
+				fetchCommunityFirstPage("");
 			} else {
 				setUploads([]);
+				setMySubmissions([]);
+				setAddedCommunity([]);
+				setCommunityMidis([]);
+				setCommunityHasMore(false);
 				setUploadsLoading(false);
+				setCommunityLoading(false);
 			}
 		});
 
 		return () => {
 			sub.subscription.unsubscribe();
 		};
-	}, [refreshUploads]);
+	}, [refreshCustomRows, fetchCommunityFirstPage]);
 
+	// Debounce the search box.
+	useEffect(() => {
+		const timer = setTimeout(() => setDebouncedSearch(search.trim()), 250);
+		return () => clearTimeout(timer);
+	}, [search]);
+
+	// Re-fetch the community first page when the search term settles. Skipped
+	// while the user is on a non-community category, but we still refetch the
+	// first time they switch back (the effect re-runs on category change too).
+	useEffect(() => {
+		if (!userId) return;
+		if (category !== "community") return;
+		fetchCommunityFirstPage(debouncedSearch);
+	}, [userId, category, debouncedSearch, fetchCommunityFirstPage]);
+
+	// Built-in songs filtered by category + search
 	const filteredSongs = useMemo(() => {
-		if (category === "custom") return [];
+		if (category === "custom" || category === "community") return [];
 		const term = search.trim().toLowerCase();
 		return initialSongs.filter((song) => {
 			if (song.category !== category) return false;
@@ -115,17 +235,37 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 		});
 	}, [initialSongs, category, search]);
 
-	const filteredUploads = useMemo(() => {
+	// Custom rows = private uploads + community songs the user added
+	const customRows = useMemo<CustomRow[]>(() => {
 		const term = search.trim().toLowerCase();
-		if (!term) return uploads;
-		return uploads.filter((u) => {
-			const hay = [u.title, u.artist].join(" ").toLowerCase();
-			return hay.includes(term);
+		const rows: CustomRow[] = [];
+		for (const upload of uploads) {
+			const subRowId = upload.communitySubmissionId ?? null;
+			const submission = subRowId ? submissionByRowId.get(subRowId) ?? null : null;
+			rows.push({ kind: "upload", id: upload.id, upload, submission });
+		}
+		for (const community of addedCommunity) {
+			rows.push({ kind: "community", id: community.id, community });
+		}
+		if (!term) return rows;
+		return rows.filter((row) => {
+			const hay =
+				row.kind === "upload"
+					? [row.upload.title, row.upload.artist]
+					: [row.community.title, row.community.artist, row.community.submitterUsername ?? ""];
+			return hay.join(" ").toLowerCase().includes(term);
 		});
-	}, [uploads, search]);
+	}, [uploads, addedCommunity, submissionByRowId, search]);
 
-	// Per-category {completed, total} for the sidebar — built-in song categories use the static
-	// catalog, "custom" reflects the user's own uploads.
+	// Community filtering happens server-side via ilike on title/artist. We use
+	// the loaded list as-is so pagination stays meaningful.
+	const filteredCommunity = communityMidis;
+
+	const addedCommunityIdSet = useMemo(
+		() => new Set(addedCommunity.map((m) => m.id)),
+		[addedCommunity],
+	);
+
 	const categoryStats = useMemo<Partial<Record<CategoryFilter, CategoryStats>>>(() => {
 		const out: Partial<Record<CategoryFilter, CategoryStats>> = {};
 		for (const song of initialSongs) {
@@ -135,35 +275,51 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 			if (completedSet.has(song.id)) stats.completed += 1;
 			out[key] = stats;
 		}
-		const customCompleted = uploads.reduce(
-			(n, u) => n + (completedSet.has(u.id) ? 1 : 0),
-			0,
-		);
-		out["custom"] = { completed: customCompleted, total: uploads.length };
+		// Custom: user's own uploads + added community songs
+		const customTotal = uploads.length + addedCommunity.length;
+		const customCompleted =
+			uploads.reduce((n, u) => n + (completedSet.has(u.id) ? 1 : 0), 0) +
+			addedCommunity.reduce((n, c) => n + (completedSet.has(c.id) ? 1 : 0), 0);
+		out["custom"] = { completed: customCompleted, total: customTotal };
+
+		// Community is paginated — we don't know the true total so we deliberately
+		// don't surface a counter (CategoryList hides the badge for missing entries).
 		return out;
-	}, [initialSongs, uploads, completedSet]);
+	}, [initialSongs, uploads, addedCommunity, completedSet]);
 
 	const totalSongStats = useMemo<CategoryStats>(() => {
-		const total = initialSongs.length + uploads.length;
+		const total = initialSongs.length + uploads.length + addedCommunity.length;
 		const completedBuiltIn = initialSongs.reduce(
 			(n, s) => n + (completedSet.has(s.id) ? 1 : 0),
 			0,
 		);
-		const completedUploads = uploads.reduce(
-			(n, u) => n + (completedSet.has(u.id) ? 1 : 0),
+		const completedUploads = uploads.reduce((n, u) => n + (completedSet.has(u.id) ? 1 : 0), 0);
+		const completedAdded = addedCommunity.reduce(
+			(n, c) => n + (completedSet.has(c.id) ? 1 : 0),
 			0,
 		);
-		return { completed: completedBuiltIn + completedUploads, total };
-	}, [initialSongs, uploads, completedSet]);
+		return { completed: completedBuiltIn + completedUploads + completedAdded, total };
+	}, [initialSongs, uploads, addedCommunity, completedSet]);
 
+	// Keep the selected song valid as the visible list changes.
 	useEffect(() => {
 		if (category === "custom") {
-			if (filteredUploads.length === 0) {
+			if (customRows.length === 0) {
 				setSelectedId(null);
 				return;
 			}
-			if (!filteredUploads.find((u) => u.id === selectedId)) {
-				setSelectedId(filteredUploads[0].id);
+			if (!customRows.find((r) => r.id === selectedId)) {
+				setSelectedId(customRows[0].id);
+			}
+			return;
+		}
+		if (category === "community") {
+			if (filteredCommunity.length === 0) {
+				setSelectedId(null);
+				return;
+			}
+			if (!filteredCommunity.find((c) => c.id === selectedId)) {
+				setSelectedId(filteredCommunity[0].id);
 			}
 			return;
 		}
@@ -174,10 +330,8 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 		if (!filteredSongs.find((s) => s.id === selectedId)) {
 			setSelectedId(filteredSongs[0].id);
 		}
-	}, [filteredSongs, filteredUploads, category, selectedId]);
+	}, [filteredSongs, customRows, filteredCommunity, category, selectedId]);
 
-	// Prefetch the currently-selected song's play page so hitting Start (or double-click) feels
-	// instantaneous — Next will already have the route's RSC payload in cache.
 	useEffect(() => {
 		if (!selectedId) return;
 		router.prefetch(`/practice/play/${encodeURIComponent(selectedId)}`);
@@ -210,33 +364,55 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 	};
 
 	const handleCategoryChange = (next: CategoryFilter) => {
+		// Category click is a real user gesture — use it to unlock the audio context
+		// so that subsequent hover-previews on the Community page can produce sound.
+		unlockAudio();
 		setCategory(next);
-		setTab(next === "custom" ? "songs" : "songs");
+		setTab("songs");
 	};
 
 	const handleUploaded = useCallback(
 		async (id: string) => {
-			await refreshUploads();
+			await refreshCustomRows();
 			setCategory("custom");
 			setSelectedId(id);
 		},
-		[refreshUploads],
+		[refreshCustomRows],
 	);
 
 	const handleDeleteUpload = useCallback(
 		async (id: string) => {
 			await deleteUploadedSong(id);
-			await refreshUploads();
+			await refreshCustomRows();
 		},
-		[refreshUploads],
+		[refreshCustomRows],
 	);
 
+	const handleRemoveCommunity = useCallback(
+		async (communityId: string) => {
+			await removeCommunityFromCustom(communityId);
+			await refreshCustomRows();
+		},
+		[refreshCustomRows],
+	);
+
+	const handleOpenPublish = useCallback((upload: UploadedSongMeta) => {
+		setPublishTarget(upload);
+	}, []);
+
+	const handlePublished = useCallback(async () => {
+		await refreshCustomRows();
+	}, [refreshCustomRows]);
+
 	const isCustom = category === "custom";
+	const isCommunity = category === "community";
 	const signedIn = !!userId;
 
 	const startDisabled = isCustom
-		? !signedIn || !selectedId || filteredUploads.length === 0
-		: !selectedId || filteredSongs.length === 0;
+		? !signedIn || !selectedId || customRows.length === 0
+		: isCommunity
+			? !signedIn || !selectedId || filteredCommunity.length === 0
+			: !selectedId || filteredSongs.length === 0;
 
 	return (
 		<div className="h-full w-full">
@@ -263,7 +439,7 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 					<div className="min-h-0 overflow-hidden">
 						{isCustom ? (
 							<UploadsView
-								uploads={filteredUploads}
+								rows={customRows}
 								loading={!authChecked || uploadsLoading}
 								signedIn={signedIn}
 								selectedId={selectedId}
@@ -272,6 +448,22 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 								onPlay={handlePlayById}
 								onDelete={handleDeleteUpload}
 								onUploadClick={() => setUploadModalOpen(true)}
+								onPublish={handleOpenPublish}
+								onRemoveCommunity={handleRemoveCommunity}
+							/>
+						) : isCommunity ? (
+							<CommunityView
+								midis={filteredCommunity}
+								loading={!authChecked || communityLoading}
+								signedIn={signedIn}
+								selectedId={selectedId}
+								addedIds={addedCommunityIdSet}
+								hasMore={communityHasMore}
+								loadingMore={communityLoadingMore}
+								onSelect={setSelectedId}
+								onPlay={handlePlayById}
+								onAddedChanged={refreshCustomRows}
+								onLoadMore={loadMoreCommunity}
 							/>
 						) : (
 							<SongList
@@ -291,6 +483,13 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 				onClose={() => setUploadModalOpen(false)}
 				onUploaded={handleUploaded}
 				signedIn={signedIn}
+			/>
+
+			<PublishToCommunityModal
+				open={!!publishTarget}
+				upload={publishTarget}
+				onClose={() => setPublishTarget(null)}
+				onSubmitted={handlePublished}
 			/>
 		</div>
 	);

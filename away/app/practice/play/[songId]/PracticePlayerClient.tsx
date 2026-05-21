@@ -18,6 +18,12 @@ import { buildChords, chordIndexForTime, type Chord } from "@/lib/practice/chord
 import { buildHandAssignment, type Hand } from "@/lib/practice/hands";
 import type { BuiltInSong } from "@/lib/practice/songs";
 import { downloadUploadedMidi, getUploadedSongMeta, isUploadId } from "@/lib/practice/uploads";
+import {
+	downloadCommunityMidi,
+	getCommunityMidi,
+	incrementCommunityPlayCount,
+	isCommunityId,
+} from "@/lib/practice/community";
 import { markSongCompleted, checkAndUnlockAchievements } from "@/lib/achievements";
 
 type LoadState = "loading" | "ready" | "error";
@@ -184,6 +190,20 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 					});
 					buffer = await downloadUploadedMidi(meta.storagePath);
 					if (cancelled) return;
+				} else if (isCommunityId(songId)) {
+					const meta = await getCommunityMidi(songId);
+					if (!meta) throw new Error("This community MIDI was not found or has not been approved.");
+					if (cancelled) return;
+					setDescriptor({
+						title: meta.title,
+						artist: meta.artist || null,
+						subcategoryLabel: meta.submitterUsername ? `by ${meta.submitterUsername}` : null,
+					});
+					buffer = await downloadCommunityMidi(meta.storagePath);
+					if (cancelled) return;
+					// Best-effort play_count bump. Fire-and-forget so the user can practice
+					// even if the RPC is unreachable.
+					incrementCommunityPlayCount(songId).catch(() => {});
 				} else {
 					if (!initialBuiltIn) throw new Error("Song unavailable");
 					const res = await fetch(initialBuiltIn.filePath);
