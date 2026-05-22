@@ -279,20 +279,6 @@ export const SettingsPanel = ({
 								<Slider value={masterVolume} min={0} max={100} onChange={onMasterVolumeChange} />
 							</SettingFull>
 
-							<SectionHeader>Practice</SectionHeader>
-							<SettingRow
-								label="Metronome"
-								hint="Show the metronome button in the navigation. Off by default."
-							>
-								<Toggle
-									value={settings.metronomeVisible}
-									onChange={(v) => {
-										updateSetting("metronomeVisible", v);
-										if (!v) updateSetting("metronomeEnabled", false);
-									}}
-								/>
-							</SettingRow>
-
 							<SectionHeader>Accessibility</SectionHeader>
 							<SettingRow
 								label="Reduced motion"

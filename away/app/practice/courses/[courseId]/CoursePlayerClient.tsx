@@ -9,6 +9,7 @@ import { ChordDisplay } from "@/components/layout/ChordDisplay";
 import { useAudioEngineContext } from "@/components/providers/AudioEngineProvider";
 import { useKeyboardInput } from "@/hooks/useKeyboardInput";
 import { useRecording } from "@/hooks/useRecording";
+import { RecordingSignInModal } from "@/components/layout/RecordingSignInModal";
 import { createClient } from "@/lib/supabase/client";
 import { CourseStepCard } from "@/components/courses/CourseStepCard";
 import { CourseSideControls } from "@/components/courses/CourseSideControls";
@@ -140,20 +141,23 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 
 	const [userId, setUserId] = useState<string | null>(null);
 	const [username, setUsername] = useState("");
-	const { state: recordingState, countdown: recordingCountdown, startRecording, stopRecording } =
-		useRecording(userId);
+	const {
+		state: recordingState,
+		countdown: recordingCountdown,
+		startRecording,
+		stopRecording,
+		needsLogin: recordingNeedsLogin,
+		dismissLoginPrompt: dismissRecordingLogin,
+	} = useRecording(userId);
 
-	// Force note labels on and show the metronome button while a course is open — both are
-	// useful learning aids here. The chord recognizer stays at the user's setting (it can be
-	// distracting when learning a course step). Restore previous values on leave.
+	// Force note labels on while a course is open — useful learning aid here. The
+	// chord recognizer stays at the user's setting (it can be distracting when
+	// learning a course step). Restore previous value on leave.
 	useEffect(() => {
 		const prevShowNoteLabels = settings.showNoteLabels;
-		const prevMetronomeVisible = settings.metronomeVisible;
 		updateSetting("showNoteLabels", true);
-		updateSetting("metronomeVisible", true);
 		return () => {
 			updateSetting("showNoteLabels", prevShowNoteLabels);
-			updateSetting("metronomeVisible", prevMetronomeVisible);
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
@@ -773,6 +777,8 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 					onReplay={handleReplayCourse}
 				/>
 			)}
+
+			<RecordingSignInModal open={recordingNeedsLogin} onClose={dismissRecordingLogin} />
 		</div>
 	);
 }

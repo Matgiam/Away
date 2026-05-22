@@ -131,8 +131,7 @@ export const Navigation = ({
 	const metronomeBpm = settings?.metronomeBpm ?? 100;
 	const metronomeBeatsPerBar = settings?.metronomeBeatsPerBar ?? 4;
 	const metronomeVolume = settings?.metronomeVolume ?? 60;
-	const canControlMetronome =
-		!!settings && !!updateSetting && !hideMetronome && settings.metronomeVisible;
+	const canControlMetronome = !!settings && !!updateSetting && !hideMetronome;
 
 	const canRenderSettings =
 		!!settings &&

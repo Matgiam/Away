@@ -29,6 +29,7 @@ import {
 } from "@/lib/achievements";
 import { useRecording } from "@/hooks/useRecording";
 import { ChordDisplay } from "@/components/layout/ChordDisplay";
+import { RecordingSignInModal } from "@/components/layout/RecordingSignInModal";
 
 type PresencePlayer = {
 	displayName: string;
@@ -127,7 +128,14 @@ export default function JamRoom() {
 
 	const [user, setUser] = useState<any>(null);
 	const [isLoggedIn, setIsLoggedIn] = useState(false);
-	const { state: recordingState, countdown: recordingCountdown, startRecording, stopRecording } = useRecording(user?.id ?? null);
+	const {
+		state: recordingState,
+		countdown: recordingCountdown,
+		startRecording,
+		stopRecording,
+		needsLogin: recordingNeedsLogin,
+		dismissLoginPrompt: dismissRecordingLogin,
+	} = useRecording(user?.id ?? null);
 	const [myName, setMyName] = useState(() => {
 		if (typeof window === "undefined") return "";
 		try {
@@ -860,6 +868,8 @@ export default function JamRoom() {
 			/>
 
 			<ChordDisplay heldMidis={localHeldMidis} enabled={settings.chordRecognizerEnabled} />
+
+			<RecordingSignInModal open={recordingNeedsLogin} onClose={dismissRecordingLogin} />
 		</div>
 	);
 }

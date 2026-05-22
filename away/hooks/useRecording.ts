@@ -7,11 +7,16 @@ import { uploadRecording } from "@/lib/recording";
 export function useRecording(userId: string | null) {
   const [state, setState] = useState<RecordingState>("idle");
   const [countdown, setCountdown] = useState(0);
+  // True after a recording was attempted without being signed in. Consumers
+  // render <RecordingSignInModal> when this flips on.
+  const [needsLogin, setNeedsLogin] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
   const startTimeRef = useRef(0);
+
+  const dismissLoginPrompt = useCallback(() => setNeedsLogin(false), []);
 
   const cleanup = useCallback(() => {
     if (streamRef.current) {
@@ -27,6 +32,13 @@ export function useRecording(userId: string | null) {
   }, []);
 
   const startRecording = useCallback(async () => {
+    // Refuse to start without a signed-in user. The upload step at the end of
+    // a recording requires a userId to attach the file to, and starting screen
+    // capture only to discard the result later is the worst possible UX.
+    if (!userId) {
+      setNeedsLogin(true);
+      return;
+    }
     try {
       const displayStream = await navigator.mediaDevices.getDisplayMedia({
         video: { displaySurface: "browser" },
@@ -74,10 +86,9 @@ export function useRecording(userId: string | null) {
       recorder.onstop = async () => {
         const duration = (Date.now() - startTimeRef.current) / 1000;
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
-
-        if (userId) {
-          await uploadRecording(userId, blob, duration);
-        }
+        // userId is guaranteed non-null here — we early-returned at the top of
+        // startRecording if it wasn't set.
+        await uploadRecording(userId, blob, duration);
 
         cleanup();
         setState("idle");
@@ -108,5 +119,5 @@ export function useRecording(userId: string | null) {
     }
   }, []);
 
-  return { state, countdown, startRecording, stopRecording };
+  return { state, countdown, startRecording, stopRecording, needsLogin, dismissLoginPrompt };
 }

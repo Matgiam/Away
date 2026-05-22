@@ -9,6 +9,7 @@ import { ChordDisplay } from "@/components/layout/ChordDisplay";
 import { useAudioEngineContext } from "@/components/providers/AudioEngineProvider";
 import { useKeyboardInput } from "@/hooks/useKeyboardInput";
 import { useRecording } from "@/hooks/useRecording";
+import { RecordingSignInModal } from "@/components/layout/RecordingSignInModal";
 import { createClient } from "@/lib/supabase/client";
 import { FallingNotes } from "@/components/practice/FallingNotes";
 import { PlayerHud } from "@/components/practice/PlayerHud";
@@ -85,19 +86,16 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 
 	const [userId, setUserId] = useState<string | null>(null);
 	const [username, setUsername] = useState("");
-	const { state: recordingState, countdown: recordingCountdown, startRecording, stopRecording } = useRecording(userId);
+	const { state: recordingState, countdown: recordingCountdown, startRecording, stopRecording, needsLogin: recordingNeedsLogin, dismissLoginPrompt: dismissRecordingLogin } = useRecording(userId);
 
-	// Force note labels on and show the metronome button while practicing — both are useful
-	// learning aids here. The chord recognizer stays at the user's setting (it can be
-	// distracting while playing a song). Restore previous values when leaving.
+	// Force note labels on while practicing — useful learning aid here. The chord
+	// recognizer stays at the user's setting (it can be distracting while playing
+	// a song). Restore previous value when leaving.
 	useEffect(() => {
 		const prevShowNoteLabels = settings.showNoteLabels;
-		const prevMetronomeVisible = settings.metronomeVisible;
 		updateSetting("showNoteLabels", true);
-		updateSetting("metronomeVisible", true);
 		return () => {
 			updateSetting("showNoteLabels", prevShowNoteLabels);
-			updateSetting("metronomeVisible", prevMetronomeVisible);
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
@@ -657,6 +655,8 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 			</div>
 
 			<ChordDisplay heldMidis={localHeldMidis} enabled={settings.chordRecognizerEnabled} />
+
+			<RecordingSignInModal open={recordingNeedsLogin} onClose={dismissRecordingLogin} />
 		</div>
 	);
 }

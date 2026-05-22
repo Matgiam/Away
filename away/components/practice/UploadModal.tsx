@@ -512,10 +512,7 @@ function TranscribingStage({
 			{fileName && <p className="text-white/35 text-xs mt-2 truncate max-w-full">{fileName}</p>}
 			<p className="text-white/40 text-xs mt-6 max-w-sm text-center leading-relaxed">
 				{isTranskun ? (
-					<>
-						Running <span className="text-white/70">Transkun</span>, a high-quality transformer + semi-CRF model, on the server. Expect 2-5 minutes
-						per song. Leave this tab open — the result lands here when it finishes.
-					</>
+					<>Expect 2-5 minutes per song. Leave this tab open — the result lands here when it finishes.</>
 				) : (
 					<>
 						Audio-to-MIDI transcription runs in your browser. The first time may take a moment to download the model. Feel free to leave this tab

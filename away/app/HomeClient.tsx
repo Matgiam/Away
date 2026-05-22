@@ -13,6 +13,7 @@ import { useKeyboardInput } from "@/hooks/useKeyboardInput";
 import { incrementTotalNotes, checkAndUnlockAchievements } from "@/lib/achievements";
 import { useRecording } from "@/hooks/useRecording";
 import { ChordDisplay } from "@/components/layout/ChordDisplay";
+import { RecordingSignInModal } from "@/components/layout/RecordingSignInModal";
 
 export default function HomeClient() {
 	const [showKeys, setShowKeys] = useState(true);
@@ -23,7 +24,7 @@ export default function HomeClient() {
 	const [isAdmin, setIsAdmin] = useState(false);
 	const [pendingReviews, setPendingReviews] = useState(0);
 	const notesThisSessionRef = useRef(0);
-	const { state: recordingState, countdown: recordingCountdown, startRecording, stopRecording } = useRecording(userId);
+	const { state: recordingState, countdown: recordingCountdown, startRecording, stopRecording, needsLogin, dismissLoginPrompt } = useRecording(userId);
 
 	const router = useAppRouter();
 
@@ -263,6 +264,7 @@ export default function HomeClient() {
 					<ChordDisplay heldMidis={localHeldMidis} enabled={settings.chordRecognizerEnabled} />
 				</>
 			)}
+			<RecordingSignInModal open={needsLogin} onClose={dismissLoginPrompt} />
 		</div>
 	);
 }

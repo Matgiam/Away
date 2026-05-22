@@ -28,7 +28,6 @@ export interface AppSettings {
 	metronomeBpm: number;
 	metronomeBeatsPerBar: number;
 	metronomeVolume: number;
-	metronomeVisible: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -57,7 +56,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	metronomeBpm: 100,
 	metronomeBeatsPerBar: 4,
 	metronomeVolume: 60,
-	metronomeVisible: false,
 };
 
 const STORAGE_KEY = "away:appSettings";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
 import { useAudioEngineContext } from "@/components/providers/AudioEngineProvider";
 import { useMidiPreview } from "@/hooks/useMidiPreview";
@@ -28,7 +28,6 @@ interface CommunityViewProps {
 	onLoadMore: () => void;
 }
 
-const HOVER_DELAY_MS = 250;
 const PREVIEW_SECONDS = 50;
 const ROW_HEIGHT = 84;
 const ROW_GAP = 12;
@@ -48,38 +47,39 @@ export function CommunityView({
 }: CommunityViewProps) {
 	const preview = useMidiPreview();
 	const { unlockAudio } = useAudioEngineContext();
-	const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const [hoveredId, setHoveredId] = useState<string | null>(null);
 	const [busyId, setBusyId] = useState<string | null>(null);
-
-	const startHoverPreview = useCallback(
-		(midi: CommunityMidi) => {
-			if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-			setHoveredId(midi.id);
-			hoverTimerRef.current = setTimeout(() => {
-				const url = getCommunityMidiPublicUrl(midi.storagePath);
-				preview.play(url, { maxDurationSec: PREVIEW_SECONDS });
-			}, HOVER_DELAY_MS);
-		},
-		[preview],
-	);
-
-	const stopHoverPreview = useCallback(() => {
-		if (hoverTimerRef.current) {
-			clearTimeout(hoverTimerRef.current);
-			hoverTimerRef.current = null;
-		}
-		setHoveredId(null);
-		preview.stop();
-	}, [preview]);
+	// Which row's preview is currently playing or loading. Derived from
+	// preview.activeUrl so it survives the auto-stop at the end of the window.
+	const [previewingId, setPreviewingId] = useState<string | null>(null);
 
 	useEffect(() => {
 		return () => {
-			if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
 			preview.stop();
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
+
+	// Clear the "previewing" highlight as soon as the underlying hook reports idle.
+	useEffect(() => {
+		if (preview.state === "idle") setPreviewingId(null);
+	}, [preview.state]);
+
+	const togglePreview = useCallback(
+		(midi: CommunityMidi) => {
+			// Click is a real user gesture — unlock here so the audio context
+			// resumes on the first try.
+			unlockAudio();
+			if (previewingId === midi.id) {
+				preview.stop();
+				setPreviewingId(null);
+				return;
+			}
+			const url = getCommunityMidiPublicUrl(midi.storagePath);
+			setPreviewingId(midi.id);
+			preview.play(url, { maxDurationSec: PREVIEW_SECONDS });
+		},
+		[preview, previewingId, unlockAudio],
+	);
 
 	const handleAddToCustom = useCallback(
 		async (midi: CommunityMidi) => {
@@ -103,8 +103,6 @@ export function CommunityView({
 		[onPlay],
 	);
 
-	// Reserve one extra "row" at the bottom for the loading-more indicator so the
-	// scroll-end trigger fires before the user runs out of content.
 	const virtualCount = midis.length + (hasMore ? 1 : 0);
 
 	const handleEndReached = useCallback(() => {
@@ -179,7 +177,6 @@ export function CommunityView({
 				{visibleIndices.map((absoluteIndex) => {
 					const top = offsetForIndex(absoluteIndex);
 
-					// Trailing sentinel row: "loading more…" placeholder.
 					if (absoluteIndex >= midis.length) {
 						return (
 							<div
@@ -201,7 +198,13 @@ export function CommunityView({
 					const midi = midis[absoluteIndex];
 					const isSelected = midi.id === selectedId;
 					const isAdded = addedIds.has(midi.id);
-					const isHoverPreviewing = hoveredId === midi.id && preview.state !== "idle";
+					const isThisPreviewing = previewingId === midi.id;
+					const previewState: PreviewButtonState =
+						isThisPreviewing && preview.state === "loading"
+							? "loading"
+							: isThisPreviewing && preview.state === "playing"
+								? "playing"
+								: "idle";
 					return (
 						<div
 							key={midi.id}
@@ -213,8 +216,6 @@ export function CommunityView({
 								height: ROW_HEIGHT,
 							}}
 							className="transition-transform hover:scale-[1.005]"
-							onMouseEnter={() => startHoverPreview(midi)}
-							onMouseLeave={stopHoverPreview}
 						>
 							<DynamicLiquidGlass
 								width={680}
@@ -222,7 +223,7 @@ export function CommunityView({
 								radius={14}
 								refractionLevel={0.7}
 								specularOpacity={0.55}
-								glassBgOpacity={isSelected ? 0.12 : isHoverPreviewing ? 0.06 : 0.02}
+								glassBgOpacity={isSelected ? 0.12 : isThisPreviewing ? 0.07 : 0.02}
 							>
 								<div
 									onClick={() => {
@@ -232,26 +233,37 @@ export function CommunityView({
 									onDoubleClick={() => handlePlay(midi.id)}
 									className="flex h-full w-full items-center justify-between px-7 cursor-pointer"
 								>
-									<div className="flex-1 min-w-0 flex flex-col">
-										<div
-											className={`text-lg italic font-semibold tracking-wide truncate text-left ${
-												isSelected ? "text-white" : "text-white/85"
-											}`}
-										>
-											{formatTitle(midi)}
-										</div>
-										<div className="text-[11px] italic text-white/40 truncate text-left flex items-center gap-2 mt-0.5">
-											<span>by {midi.submitterUsername ?? "anonymous"}</span>
-											<span className="text-white/25">·</span>
-											<span>{formatDuration(midi.durationSeconds)}</span>
-											<span className="text-white/25">·</span>
-											<span>{midi.bpm} BPM</span>
-											{isHoverPreviewing && (
-												<>
-													<span className="text-white/25">·</span>
-													<span className="text-violet-200/80">previewing…</span>
-												</>
-											)}
+									<div className="flex items-center gap-3 flex-1 min-w-0">
+										<PreviewButton
+											state={previewState}
+											onClick={(e) => {
+												e.stopPropagation();
+												togglePreview(midi);
+											}}
+										/>
+										<div className="flex-1 min-w-0 flex flex-col">
+											<div
+												className={`text-lg italic font-semibold tracking-wide truncate text-left ${
+													isSelected ? "text-white" : "text-white/85"
+												}`}
+											>
+												{formatTitle(midi)}
+											</div>
+											<div className="text-[11px] italic text-white/40 truncate text-left flex items-center gap-2 mt-0.5">
+												<span>by {midi.submitterUsername ?? "anonymous"}</span>
+												<span className="text-white/25">·</span>
+												<span>{formatDuration(midi.durationSeconds)}</span>
+												<span className="text-white/25">·</span>
+												<span>{midi.bpm} BPM</span>
+												{isThisPreviewing && preview.state !== "idle" && (
+													<>
+														<span className="text-white/25">·</span>
+														<span className="text-violet-200/80">
+															{preview.state === "loading" ? "loading…" : "previewing"}
+														</span>
+													</>
+												)}
+											</div>
 										</div>
 									</div>
 
@@ -282,6 +294,60 @@ export function CommunityView({
 				})}
 			</div>
 		</div>
+	);
+}
+
+type PreviewButtonState = "idle" | "loading" | "playing";
+
+function PreviewButton({
+	state,
+	onClick,
+}: {
+	state: PreviewButtonState;
+	onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
+}) {
+	const isActive = state !== "idle";
+	const label =
+		state === "loading"
+			? "Loading preview…"
+			: state === "playing"
+				? "Stop preview"
+				: "Play preview";
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			title={label}
+			aria-label={label}
+			className={`shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full border transition-colors ${
+				isActive
+					? "border-violet-300/50 bg-violet-500/25 text-violet-100 hover:bg-violet-500/35"
+					: "border-white/15 bg-white/5 text-white/80 hover:text-white hover:bg-white/10"
+			}`}
+		>
+			{state === "loading" ? (
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="2"
+					strokeLinecap="round"
+					strokeLinejoin="round"
+					className="w-4 h-4 animate-spin"
+				>
+					<path d="M21 12a9 9 0 1 1-6.219-8.56" />
+				</svg>
+			) : state === "playing" ? (
+				<svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+					<rect x="6" y="5" width="4" height="14" rx="1" />
+					<rect x="14" y="5" width="4" height="14" rx="1" />
+				</svg>
+			) : (
+				<svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 translate-x-[1px]">
+					<path d="M8 5v14l11-7z" />
+				</svg>
+			)}
+		</button>
 	);
 }
 
