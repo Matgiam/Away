@@ -140,6 +140,30 @@ const TENSION_NAMES: Record<number, string> = {
 	11: "maj7",
 };
 
+// Intervals we'll consider "omittable" — the chord-defining tones (3rd, 5th, 7th
+// and their altered forms). We never call a missing tension an omit (e.g. a 9
+// chord missing its 9 isn't "9 omit9", it's just the underlying 7th chord).
+const OMIT_ALLOWED = new Set([3, 4, 6, 7, 8, 10, 11]);
+
+function omitNumber(interval: number): string {
+	switch (interval) {
+		case 3:
+		case 4:
+			return "3";
+		case 6:
+			return "b5";
+		case 7:
+			return "5";
+		case 8:
+			return "#5";
+		case 10:
+		case 11:
+			return "7";
+		default:
+			return String(interval);
+	}
+}
+
 export function recognizeChord(midiNotes: Iterable<number>): RecognizedChord | null {
 	const sorted = Array.from(new Set(midiNotes)).sort((a, b) => a - b);
 	if (sorted.length === 0) return null;
@@ -226,19 +250,74 @@ export function recognizeChord(midiNotes: Iterable<number>): RecognizedChord | n
 		}
 	}
 
-	if (!best && !partialBest) {
-		const noteListing = pcs.map((pc) => SHARP_NOTE_NAMES[pc]).join(" ");
+	// Subset / "omit" pass — the played notes fit inside a larger known pattern,
+	// missing one or two chord-defining tones (3rd, 5th, or 7th). Covers shell
+	// voicings (e.g. C7 with no 5, Cmaj7 with no 5) and other common drop-tone
+	// voicings that the superset pass above can't see.
+	let omitBest: {
+		rootPc: number;
+		pattern: ChordPattern;
+		missing: number[];
+		score: number;
+	} | null = null;
+
+	if (!best && pcs.length >= 3) {
+		for (const rootPc of pcs) {
+			const intervals = sortedIntervals(pcs, rootPc);
+			const intervalSet = new Set(intervals);
+			for (const pattern of CHORD_PATTERNS) {
+				if (pattern.intervals.length <= intervals.length) continue;
+				const patternSet = new Set(pattern.intervals);
+				const isSubset = intervals.every((iv) => patternSet.has(iv));
+				if (!isSubset) continue;
+				const missing = pattern.intervals.filter((iv) => !intervalSet.has(iv));
+				if (missing.length === 0 || missing.length > 2) continue;
+				if (!missing.every((iv) => OMIT_ALLOWED.has(iv))) continue;
+				const score = pattern.priority - missing.length * 40 + (rootPc === bassPc ? 50 : 0);
+				if (!omitBest || score > omitBest.score) {
+					omitBest = { rootPc, pattern, missing, score };
+				}
+			}
+		}
+	}
+
+	if (best) {
+		const rootName = SHARP_NOTE_NAMES[best.rootPc];
+		const isInverted = best.rootPc !== bassPc;
+		const bassName = isInverted ? SHARP_NOTE_NAMES[bassPc] : null;
+		const base = `${rootName}${best.pattern.symbol}`;
+		const label = isInverted ? `${base}/${bassName}` : base;
 		return {
-			label: noteListing,
-			rootName: null,
-			quality: null,
-			bassName: null,
-			inversion: false,
+			label,
+			rootName,
+			quality: best.pattern.symbol,
+			bassName,
+			inversion: isInverted,
 			noteCount: pcs.length,
 		};
 	}
 
-	if (!best && partialBest) {
+	const preferOmit = omitBest !== null && (partialBest === null || omitBest.score > partialBest.score);
+
+	if (preferOmit && omitBest) {
+		const rootName = SHARP_NOTE_NAMES[omitBest.rootPc];
+		const isInverted = omitBest.rootPc !== bassPc;
+		const bassName = isInverted ? SHARP_NOTE_NAMES[bassPc] : null;
+		const base = `${rootName}${omitBest.pattern.symbol}`;
+		const omitLabels = omitBest.missing.map(omitNumber);
+		const suffix = ` omit${omitLabels.join(",")}`;
+		const label = isInverted ? `${base}${suffix}/${bassName}` : `${base}${suffix}`;
+		return {
+			label,
+			rootName,
+			quality: `${omitBest.pattern.symbol}${suffix}`,
+			bassName,
+			inversion: isInverted,
+			noteCount: pcs.length,
+		};
+	}
+
+	if (partialBest) {
 		const rootName = SHARP_NOTE_NAMES[partialBest.rootPc];
 		const isInverted = partialBest.rootPc !== bassPc;
 		const bassName = isInverted ? SHARP_NOTE_NAMES[bassPc] : null;
@@ -256,18 +335,13 @@ export function recognizeChord(midiNotes: Iterable<number>): RecognizedChord | n
 		};
 	}
 
-	const rootName = SHARP_NOTE_NAMES[best!.rootPc];
-	const isInverted = best!.rootPc !== bassPc;
-	const bassName = isInverted ? SHARP_NOTE_NAMES[bassPc] : null;
-	const base = `${rootName}${best!.pattern.symbol}`;
-	const label = isInverted ? `${base}/${bassName}` : base;
-
+	const noteListing = pcs.map((pc) => SHARP_NOTE_NAMES[pc]).join(" ");
 	return {
-		label,
-		rootName,
-		quality: best!.pattern.symbol,
-		bassName,
-		inversion: isInverted,
+		label: noteListing,
+		rootName: null,
+		quality: null,
+		bassName: null,
+		inversion: false,
 		noteCount: pcs.length,
 	};
 }

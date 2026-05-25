@@ -73,6 +73,21 @@ async function decrementOrDelete(roomId: string) {
 	}
 }
 
+function decrementViaKeepalive(roomId: string) {
+	const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+	const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+	fetch(`${url}/rest/v1/rpc/decrement_room`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+			apikey: key,
+			Authorization: `Bearer ${key}`,
+		},
+		body: JSON.stringify({ room_id: roomId }),
+		keepalive: true,
+	});
+}
+
 export default function JamRoom() {
 	const params = useParams();
 	const router = useAppRouter();
@@ -214,32 +229,64 @@ export default function JamRoom() {
 	// room (decrement the counter, redirect back to /multiplayer) instead of silently re-joining
 	// the same room with a stale player count.
 	//
-	// We use the Navigation Timing API to detect a reload deterministically (instead of the
-	// old beforeunload + sessionStorage dance, which silently broke when the browser skipped
-	// beforeunload). On any reload of this route, leave the room.
+	// We detect "this jam page was just reloaded" by stamping the active roomId in
+	// sessionStorage on mount and clearing it on clean unmount. If we mount and the stamp is
+	// still set for this room, the previous instance died without running its cleanup — i.e. a
+	// browser reload — so we bounce back to /multiplayer.
+	//
+	// (The previous implementation used performance.getEntriesByType("navigation")[0]?.type,
+	// but that returns the *document-level* navigation type, which doesn't update for
+	// client-side router.push. If a user reloaded /multiplayer and then clicked Create/Join,
+	// that document-level type stayed "reload" and we incorrectly bounced them straight back
+	// out — which also took newly-created rooms from 1 player to 0 and deleted the row.)
 	useEffect(() => {
 		if (typeof window === "undefined") return;
-		const nav = performance.getEntriesByType("navigation")[0] as
-			| PerformanceNavigationTiming
-			| undefined;
-		const isReload = nav?.type === "reload";
-		if (!isReload) return;
-		isRedirectingRef.current = true;
-		(async () => {
-			await safeDecrement();
+		const ACTIVE_KEY = "away:jam:activeRoom";
+		let alreadyActive = false;
+		try {
+			alreadyActive = sessionStorage.getItem(ACTIVE_KEY) === roomId;
+		} catch {}
+		if (alreadyActive) {
+			// We reloaded inside this jam. The previous instance's pagehide handler
+			// already attempted the decrement; calling safeDecrement here too would
+			// take the counter down twice (e.g. a 3-player room would briefly show 1
+			// even though 2 humans are still inside).
+			isRedirectingRef.current = true;
+			hasDecrementedRef.current = true;
+			try {
+				sessionStorage.removeItem(ACTIVE_KEY);
+			} catch {}
 			router.replace("/multiplayer");
-		})();
+			return;
+		}
+		try {
+			sessionStorage.setItem(ACTIVE_KEY, roomId);
+		} catch {}
+		return () => {
+			try {
+				if (sessionStorage.getItem(ACTIVE_KEY) === roomId) {
+					sessionStorage.removeItem(ACTIVE_KEY);
+				}
+			} catch {}
+		};
 	}, [roomId, router, safeDecrement]);
 
-	// Catch the back button / tab close as well — fire a best-effort decrement so the room
-	// counter doesn't get stuck. The channel-cleanup effect handles the React unmount case;
-	// this covers the case where the page is being unloaded entirely.
+	// Catch the back button / tab close — fire a decrement so the room counter doesn't get
+	// stuck when the page is unloaded without React running its cleanup. (React only runs
+	// effect cleanup for client-side unmounts; tab close + browser reload skip it.)
+	//
+	// We use fetch with keepalive:true + a Supabase RPC so the POST request survives browser
+	// tab close. The RPC atomically decrements current_players or deletes the room, needing
+	// only a single round-trip that the browser guarantees will complete.
 	useEffect(() => {
 		if (typeof window === "undefined") return;
-		const handleUnload = () => {
-			// Untrack our presence immediately so other clients see us leave; the row counter
-			// is decremented by the channel cleanup below (or by the next mount on reload).
-			roomChannelRef.current?.untrack();
+		const handleUnload = (event: PageTransitionEvent) => {
+			if (event.persisted) return;
+			hasDecrementedRef.current = true;
+			decrementViaKeepalive(roomId);
+			try {
+				roomChannelRef.current?.untrack();
+			} catch {}
 		};
 		const handlePopState = () => {
 			safeDecrement();
@@ -334,8 +381,17 @@ export default function JamRoom() {
 	}, [noteColor, trackPresence]);
 
 	useEffect(() => {
+		const prev = currentSoundfontRef.current;
+		const changed = prev !== currentSoundfont;
 		currentSoundfontRef.current = currentSoundfont;
 		trackPresence();
+		if (changed) {
+			roomChannelRef.current?.send({
+				type: "broadcast",
+				event: "soundfont-change",
+				payload: { senderId: myTempId.current, soundfont: currentSoundfont },
+			});
+		}
 		setPlayers((prev) =>
 			prev.map((p) => (p.isMe ? { ...p, soundfont: currentSoundfont } : p)),
 		);
@@ -641,6 +697,18 @@ export default function JamRoom() {
 			const sf = (payload.soundfont as string | undefined) ?? peer?.soundfont;
 			if (sf) ensureSoundfontLoadedRef.current(sf);
 			setPeerSustainRef.current(payload.senderId, !!payload.active, sf);
+		});
+
+		room.on("broadcast", { event: "soundfont-change" }, ({ payload }) => {
+			if (payload.senderId === myTempId.current) return;
+			setPlayers((prev) =>
+				prev.map((p) =>
+					p.id === payload.senderId ? { ...p, soundfont: payload.soundfont } : p,
+				),
+			);
+			if (payload.soundfont) {
+				ensureSoundfontLoadedRef.current(payload.soundfont);
+			}
 		});
 
 		// Rebuild the local players list from the current presence state. Re-runs on every
