@@ -21,7 +21,7 @@ export const createMasterVolume = (db: number): Tone.Volume => {
 };
 
 export const createReverb = (wet: number, output?: Tone.ToneAudioNode): Tone.Reverb => {
-	const reverb = new Tone.Reverb({ decay: 2, wet });
+	const reverb = new Tone.Reverb({ decay: 3.5, wet });
 	if (output) {
 		reverb.connect(output);
 	} else {

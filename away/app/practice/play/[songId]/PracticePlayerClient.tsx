@@ -41,6 +41,9 @@ interface PracticePlayerClientProps {
 }
 
 const LOOK_AHEAD_SECONDS = 3;
+// Notes spawn at the top of the canvas and fall for this long before the song's first
+// note hits t=0. Matching LOOK_AHEAD means a note at startSeconds=0 enters at the very top.
+const LEAD_IN_SECONDS = 3;
 const SPEED_PRESETS = [0.5, 0.75, 1.0, 1.25, 1.5];
 
 const HAND_COLORS: Record<Hand, string> = {
@@ -138,7 +141,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 	const [speed, setSpeed] = useState(1.0);
 	const [autoPause, setAutoPause] = useState(false);
 	const [practiceHand, setPracticeHand] = useState<"both" | "left" | "right">("both");
-	const [currentTime, setCurrentTime] = useState(0);
+	const [currentTime, setCurrentTime] = useState(-LEAD_IN_SECONDS);
 
 	const [waitingChord, setWaitingChord] = useState<Chord | null>(null);
 	const [hitMidis, setHitMidis] = useState<ReadonlySet<number>>(EMPTY_SET);
@@ -147,7 +150,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 	const speedRef = useRef(speed);
 	const autoPauseRef = useRef(autoPause);
 	const practiceHandRef = useRef(practiceHand);
-	const playheadRef = useRef(0);
+	const playheadRef = useRef(-LEAD_IN_SECONDS);
 	const lastFrameRef = useRef(0);
 	const nextNoteIndexRef = useRef(0);
 	const chordIndexRef = useRef(0);
@@ -253,7 +256,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 
 	const resetToTime = useCallback(
 		(toSeconds: number) => {
-			const clamped = Math.max(0, Math.min(totalDuration || 0, toSeconds));
+			const clamped = Math.max(-LEAD_IN_SECONDS, Math.min(totalDuration || 0, toSeconds));
 			playheadRef.current = clamped;
 			setCurrentTime(clamped);
 			if (midi) {
@@ -275,7 +278,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 
 	useEffect(() => {
 		if (!midi) return;
-		resetToTime(0);
+		resetToTime(-LEAD_IN_SECONDS);
 	}, [midi, resetToTime]);
 
 	useEffect(() => {
@@ -487,7 +490,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 
 	const handleRestart = useCallback(() => {
 		setPlaying(false);
-		resetToTime(0);
+		resetToTime(-LEAD_IN_SECONDS);
 	}, [resetToTime]);
 
 	const handleSeek = useCallback(
@@ -557,6 +560,27 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 			waitingChord.notes.filter((n) => handForNote(n) === practiceHand).map((n) => n.midi),
 		);
 	}, [waitingChord, practiceHand, handForNote]);
+
+	// MIDI notes currently sounding in the song (auto-played by the backing track).
+	// Recomputed every frame off currentTime — the intermediate `key` keeps the array
+	// reference stable across frames where the set of sounding notes is unchanged, so
+	// ChordDisplay doesn't re-recognize / re-render on every tick.
+	const songActiveMidisKey = useMemo<string>(() => {
+		if (!midi || currentTime < 0) return "";
+		let result = "";
+		for (const n of midi.notes) {
+			if (n.startSeconds > currentTime) break;
+			if (n.startSeconds + n.durationSeconds > currentTime) {
+				result += (result ? "," : "") + n.midi;
+			}
+		}
+		return result;
+	}, [midi, currentTime]);
+
+	const songActiveMidis = useMemo<number[]>(() => {
+		if (!songActiveMidisKey) return [];
+		return songActiveMidisKey.split(",").map(Number);
+	}, [songActiveMidisKey]);
 
 	const title = descriptor.artist
 		? `${descriptor.title} - ${descriptor.artist}`
@@ -655,6 +679,12 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 			</div>
 
 			<ChordDisplay heldMidis={localHeldMidis} enabled={settings.chordRecognizerEnabled} />
+			<ChordDisplay
+				heldMidis={songActiveMidis}
+				enabled={settings.chordRecognizerEnabled}
+				placement={1}
+				label="song"
+			/>
 
 			<RecordingSignInModal open={recordingNeedsLogin} onClose={dismissRecordingLogin} />
 		</div>

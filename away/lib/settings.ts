@@ -28,10 +28,11 @@ export interface AppSettings {
 	metronomeBpm: number;
 	metronomeBeatsPerBar: number;
 	metronomeVolume: number;
+	metronomeVisible: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
-	reverbWet: 20,
+	reverbWet: 35,
 	velocityMode: "dynamic",
 	fixedVelocity: 100,
 	sustainMode: "midi",
@@ -56,6 +57,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	metronomeBpm: 100,
 	metronomeBeatsPerBar: 4,
 	metronomeVolume: 60,
+	// Default ON: the metronome is a standard practice tool, and the user can
+	// hide it from the Settings panel if it gets in the way.
+	metronomeVisible: true,
 };
 
 const STORAGE_KEY = "away:appSettings";
