@@ -1,13 +1,12 @@
 import type { Instrument, SoundfontCategory } from "./types";
 import { SOUNDFONT_CATEGORIES } from "./types";
 
-type ApiSoundfont = {
+type ApiInstrument = {
 	key: string;
 	name: string;
-	baseUrl: string;
-	urls: Record<string, string>;
-	release: number;
+	url: string;
 	category?: string;
+	format: "sf2" | "sf3";
 };
 
 function normalizeCategory(raw?: string): SoundfontCategory {
@@ -18,17 +17,16 @@ function normalizeCategory(raw?: string): SoundfontCategory {
 
 export async function fetchDynamicSoundfonts(): Promise<Record<string, Instrument>> {
 	try {
-		const res = await fetch("/api/soundfonts");
+		const res = await fetch("/api/instruments");
 		if (!res.ok) return {};
-		const list = (await res.json()) as ApiSoundfont[];
+		const list = (await res.json()) as ApiInstrument[];
 		const map: Record<string, Instrument> = {};
 		for (const f of list) {
 			map[f.key] = {
 				name: f.name,
-				baseUrl: f.baseUrl,
-				urls: f.urls,
-				release: f.release,
+				url: f.url,
 				category: normalizeCategory(f.category),
+				format: f.format,
 			};
 		}
 		return map;

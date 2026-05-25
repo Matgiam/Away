@@ -24,13 +24,9 @@ export const SoundfontPanel = ({
 	onSelectSoundfont,
 }: SoundfontPanelProps) => {
 	const grouped = useMemo(() => {
-		const map: Record<SoundfontCategory, SoundfontOption[]> = {
-			Piano: [],
-			Guitar: [],
-			Strings: [],
-			Glockenspiel: [],
-			Other: [],
-		};
+		const map = Object.fromEntries(
+			SOUNDFONT_CATEGORIES.map((c) => [c, [] as SoundfontOption[]]),
+		) as Record<SoundfontCategory, SoundfontOption[]>;
 		for (const sf of soundfonts) {
 			const cat: SoundfontCategory = SOUNDFONT_CATEGORIES.includes(sf.category) ? sf.category : "Other";
 			map[cat].push(sf);

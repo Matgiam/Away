@@ -2,9 +2,10 @@
 
 import { useRef, useCallback, useEffect, useMemo, useState } from "react";
 import * as Tone from "tone";
-import { initAudioContext, createSampler, createReverb, createMasterVolume } from "../lib/audio";
+import { initAudioContext, createReverb, createMasterVolume } from "../lib/audio";
 import { VisNote, PianoKey, Instrument, SoundfontCategory, instruments as BUILT_IN_INSTRUMENTS, DEFAULT_SOUNDFONT } from "../lib/types";
 import { fetchDynamicSoundfonts } from "../lib/soundfonts";
+import { SpessaSynthEngine, SELF_CHANNEL } from "../lib/spessaSynthEngine";
 import { getVisualizerColor, getKeySolidColor, PLAYER_COLORS_SOLID } from "@/lib/playerColors";
 import { darkenHex, normalizeHex } from "@/lib/color";
 
@@ -67,9 +68,7 @@ function loadPersistedNoteColor(): string {
 
 export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispatch<React.SetStateAction<VisNote[]>>) => {
 	const audioStartedRef = useRef(false);
-	const samplersRef = useRef<Map<string, Tone.Sampler>>(new Map());
-	const samplerGainsRef = useRef<Map<string, Tone.Gain>>(new Map());
-	const samplerRef = useRef<Tone.Sampler | null>(null);
+	const engineRef = useRef<SpessaSynthEngine | null>(null);
 	const reverbRef = useRef<Tone.Reverb | null>(null);
 	const masterVolumeNodeRef = useRef<Tone.Volume | null>(null);
 
@@ -80,7 +79,7 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 	const initializedRef = useRef(false);
 
 	const peerSustainRef = useRef<Map<string, boolean>>(new Map());
-	const peerSustainedNotesRef = useRef<Map<string, Map<number, string>>>(new Map());
+	const peerSustainedNotesRef = useRef<Map<string, Set<number>>>(new Map());
 	const currentSoundfontRef = useRef<string>(DEFAULT_SOUNDFONT);
 	const loadSoundfontRef = useRef<((key: string) => Promise<void>) | null>(null);
 
@@ -107,12 +106,12 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		sustainModeRef.current = mode;
 		if (mode === "always") {
 			isSustainOnRef.current = true;
+			engineRef.current?.setSustain(SELF_CHANNEL, true);
 		} else if (mode === "off") {
 			isSustainOnRef.current = false;
-			sustainedNotesRef.current.forEach((sustainedMidi) => {
-				samplerRef.current?.triggerRelease(Tone.Frequency(sustainedMidi, "midi").toNote(), Tone.immediate());
-			});
+			engineRef.current?.setSustain(SELF_CHANNEL, false);
 			sustainedNotesRef.current.clear();
+			setLocalSustainedMidis([]);
 		}
 	}, []);
 
@@ -120,7 +119,6 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 	const setCurrentSoundfont = useCallback((key: string) => {
 		currentSoundfontRef.current = key;
 		setCurrentSoundfontState(key);
-		// Persist so the user's choice survives a reload / browser restart.
 		if (typeof window !== "undefined") {
 			try {
 				window.localStorage.setItem(SOUNDFONT_STORAGE_KEY, key);
@@ -136,12 +134,8 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		instrumentsRef.current = instruments;
 	}, [instruments]);
 
-	useEffect(() => {
-		fetchDynamicSoundfonts().then((dynamic) => {
-			if (Object.keys(dynamic).length === 0) return;
-			setInstruments((prev) => ({ ...prev, ...dynamic }));
-		});
-	}, []);
+	// The catalog is fetched once during the init effect below, which also needs
+	// it to pick the default font's URL. No second fetch here.
 
 	const [masterVolume, setMasterVolumeState] = useState<number>(loadPersistedVolume);
 
@@ -208,34 +202,31 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 			}
 			if (holders.has(playerId)) return;
 
-			let sampler: Tone.Sampler | null;
-			let effectiveSamplerKey: string;
-			if (playerId === SELF) {
-				sampler = samplerRef.current;
-				effectiveSamplerKey = currentSoundfontRef.current;
+			const isSelf = playerId === SELF;
+			const engine = engineRef.current;
+
+			let effectiveFontKey: string;
+			if (isSelf) {
+				effectiveFontKey = currentSoundfontRef.current;
 			} else {
 				const requestedKey = soundfontKey ?? currentSoundfontRef.current;
-				const requestedSampler = samplersRef.current.get(requestedKey);
-				if (requestedSampler && requestedSampler.loaded) {
-					sampler = requestedSampler;
-					effectiveSamplerKey = requestedKey;
+				if (engine?.hasFont(requestedKey)) {
+					effectiveFontKey = requestedKey;
 				} else {
-					if (requestedKey && !samplersRef.current.has(requestedKey)) {
+					if (requestedKey && !engine?.hasFont(requestedKey)) {
 						loadSoundfontRef.current?.(requestedKey)?.catch(() => {});
 					}
-					sampler = samplerRef.current;
-					effectiveSamplerKey = currentSoundfontRef.current;
+					effectiveFontKey = currentSoundfontRef.current;
 				}
 			}
-			holders.set(playerId, effectiveSamplerKey);
+			holders.set(playerId, effectiveFontKey);
 
-			if (playerId === SELF) {
+			if (isSelf) {
 				sustainedNotesRef.current.delete(midi);
 				setLocalPressedMidis((prev) => (prev.includes(midi) ? prev : [...prev, midi].sort((a, b) => a - b)));
 				setLocalSustainedMidis((prev) => (prev.includes(midi) ? prev.filter((n) => n !== midi) : prev));
 			} else {
-				const peerSustainedMap = peerSustainedNotesRef.current.get(playerId);
-				peerSustainedMap?.delete(midi);
+				peerSustainedNotesRef.current.get(playerId)?.delete(midi);
 			}
 
 			const keyInfo = pianoKeys.find((k) => k.midi === midi);
@@ -261,10 +252,13 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 				keyEl.classList.add("active");
 			}
 
-			const normalizedVel = vel > 1 ? vel / 127 : vel;
+			// spessasynth expects MIDI-spec velocity 0-127.
+			const midiVel = vel > 1 ? Math.round(vel) : Math.max(1, Math.round(vel * 127));
 
-			if (audioStartedRef.current && sampler && sampler.loaded) {
-				sampler.triggerAttack(Tone.Frequency(midi, "midi").toNote(), Tone.immediate(), normalizedVel);
+			if (audioStartedRef.current && engine?.ready && engine.hasFont(effectiveFontKey)) {
+				const channel = engine.channelForPlayer(playerId, isSelf);
+				engine.selectFontOnChannel(channel, effectiveFontKey);
+				engine.noteOn(channel, midi, midiVel);
 			}
 
 			if (keyInfo) {
@@ -298,27 +292,22 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		[pianoKeys, setNoteLines],
 	);
 
-	const stopNote = useCallback((midi: number, playerId: string = SELF, soundfontKey?: string) => {
+	const stopNote = useCallback((midi: number, playerId: string = SELF, _soundfontKey?: string) => {
 		const holders = noteHoldersRef.current.get(midi);
 		if (!holders || !holders.has(playerId)) return;
-		const samplerKeyOfNote = holders.get(playerId) ?? soundfontKey ?? currentSoundfontRef.current;
 		holders.delete(playerId);
-		if (playerId === SELF) {
+		const isSelf = playerId === SELF;
+		if (isSelf) {
 			setLocalPressedMidis((prev) => prev.filter((n) => n !== midi));
 		}
 
 		const pendingNote = visNotesRef.current.findLast((n) => n.midi === midi && n.endTime === null && n.playerId === playerId);
 		if (pendingNote) pendingNote.endTime = performance.now();
 
-		let othersOnSameSampler = false;
-		holders.forEach((sk) => {
-			if (sk === samplerKeyOfNote) othersOnSameSampler = true;
-		});
-
-		const sampler = samplersRef.current.get(samplerKeyOfNote) ?? samplerRef.current;
+		const engine = engineRef.current;
 
 		let sustainActive: boolean;
-		if (playerId === SELF) {
+		if (isSelf) {
 			sustainActive =
 				sustainModeRef.current === "off"
 					? false
@@ -329,20 +318,26 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 			sustainActive = peerSustainRef.current.get(playerId) ?? false;
 		}
 
+		// The synth tracks CC64 internally per channel, so a noteOff while sustain
+		// is on will leave the note ringing automatically — we just track the midi
+		// for our own UI state.
+		if (engine?.ready) {
+			const channel = engine.channelForPlayer(playerId, isSelf);
+			engine.noteOff(channel, midi);
+		}
+
 		if (sustainActive) {
-			if (playerId === SELF) {
+			if (isSelf) {
 				sustainedNotesRef.current.add(midi);
 				setLocalSustainedMidis((prev) => (prev.includes(midi) ? prev : [...prev, midi].sort((a, b) => a - b)));
 			} else {
-				let peerSustainedMap = peerSustainedNotesRef.current.get(playerId);
-				if (!peerSustainedMap) {
-					peerSustainedMap = new Map();
-					peerSustainedNotesRef.current.set(playerId, peerSustainedMap);
+				let peerSustainedSet = peerSustainedNotesRef.current.get(playerId);
+				if (!peerSustainedSet) {
+					peerSustainedSet = new Set();
+					peerSustainedNotesRef.current.set(playerId, peerSustainedSet);
 				}
-				peerSustainedMap.set(midi, samplerKeyOfNote);
+				peerSustainedSet.add(midi);
 			}
-		} else if (sampler && !othersOnSameSampler) {
-			sampler.triggerRelease(Tone.Frequency(midi, "midi").toNote(), Tone.immediate());
 		}
 
 		if (holders.size === 0) {
@@ -354,22 +349,15 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 
 	const releaseAllForPlayer = useCallback(
 		(playerId: string) => {
-			const entries: Array<{ midi: number; samplerKey: string }> = [];
+			const midis: number[] = [];
 			noteHoldersRef.current.forEach((holders, midi) => {
-				const sk = holders.get(playerId);
-				if (sk !== undefined) entries.push({ midi, samplerKey: sk });
+				if (holders.has(playerId)) midis.push(midi);
 			});
-			entries.forEach(({ midi, samplerKey }) => stopNote(midi, playerId, samplerKey));
+			midis.forEach((midi) => stopNote(midi, playerId));
 
 			if (playerId !== SELF) {
-				const sustainedMap = peerSustainedNotesRef.current.get(playerId);
-				if (sustainedMap && sustainedMap.size > 0) {
-					sustainedMap.forEach((samplerKey, sustainedMidi) => {
-						const sampler = samplersRef.current.get(samplerKey) ?? samplerRef.current;
-						sampler?.triggerRelease(Tone.Frequency(sustainedMidi, "midi").toNote(), Tone.immediate());
-					});
-					sustainedMap.clear();
-				}
+				const engine = engineRef.current;
+				if (engine?.ready) engine.freePlayer(playerId);
 				peerSustainRef.current.delete(playerId);
 				peerSustainedNotesRef.current.delete(playerId);
 			}
@@ -379,24 +367,20 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 
 	const setPeerSustain = useCallback((peerId: string, active: boolean, _soundfontKey?: string) => {
 		peerSustainRef.current.set(peerId, active);
+		const engine = engineRef.current;
+		if (engine?.ready) {
+			const channel = engine.channelForPlayer(peerId, false);
+			engine.setSustain(channel, active);
+		}
 		if (!active) {
-			const sustainedMap = peerSustainedNotesRef.current.get(peerId);
-			if (sustainedMap && sustainedMap.size > 0) {
-				sustainedMap.forEach((samplerKey, sustainedMidi) => {
-					const sampler = samplersRef.current.get(samplerKey) ?? samplerRef.current;
-					sampler?.triggerRelease(Tone.Frequency(sustainedMidi, "midi").toNote(), Tone.immediate());
-				});
-				sustainedMap.clear();
-			}
+			peerSustainedNotesRef.current.get(peerId)?.clear();
 		}
 	}, []);
 
 	const setSustain = useCallback((active: boolean) => {
 		isSustainOnRef.current = active;
+		engineRef.current?.setSustain(SELF_CHANNEL, active);
 		if (!active) {
-			sustainedNotesRef.current.forEach((sustainedMidi) => {
-				samplerRef.current?.triggerRelease(Tone.Frequency(sustainedMidi, "midi").toNote(), Tone.immediate());
-			});
 			sustainedNotesRef.current.clear();
 			setLocalSustainedMidis([]);
 		}
@@ -411,25 +395,20 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		}
 	}, []);
 
-	const loadSoundfont = useCallback((key: string): Promise<void> => {
-		return new Promise((resolve, reject) => {
-			const inst = instrumentsRef.current[key];
-			if (!inst) return reject(new Error("Unknown soundfont"));
-			if (samplersRef.current.has(key)) return resolve();
-			if (!reverbRef.current) return reject(new Error("Audio not initialized"));
+	const loadSoundfont = useCallback(async (key: string): Promise<void> => {
+		const inst = instrumentsRef.current[key];
+		if (!inst) throw new Error("Unknown soundfont");
+		const engine = engineRef.current;
+		if (!engine) throw new Error("Audio not initialized");
+		if (engine.hasFont(key)) return;
 
-			setLoadingSoundfont(key);
-			const gain = new Tone.Gain(1);
-			gain.connect(reverbRef.current);
-			const sampler = createSampler(inst, () => {
-				setLoadedSoundfonts((prev) => (prev.includes(key) ? prev : [...prev, key]));
-				setLoadingSoundfont((prev) => (prev === key ? null : prev));
-				resolve();
-			});
-			sampler.connect(gain);
-			samplersRef.current.set(key, sampler);
-			samplerGainsRef.current.set(key, gain);
-		});
+		setLoadingSoundfont(key);
+		try {
+			await engine.loadFont(key, inst.url);
+			setLoadedSoundfonts((prev) => (prev.includes(key) ? prev : [...prev, key]));
+		} finally {
+			setLoadingSoundfont((prev) => (prev === key ? null : prev));
+		}
 	}, []);
 
 	useEffect(() => {
@@ -453,43 +432,28 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 	const selectSoundfont = useCallback(
 		async (key: string) => {
 			if (!instrumentsRef.current[key]) return;
-			if (!samplersRef.current.has(key)) {
+			const engine = engineRef.current;
+			if (!engine) return;
+			if (!engine.hasFont(key)) {
 				try {
 					await loadSoundfont(key);
 				} catch {
 					return;
 				}
 			}
-			const next = samplersRef.current.get(key);
-			if (!next || !reverbRef.current) return;
-			if (samplerRef.current === next) return;
+			if (currentSoundfontRef.current === key) return;
 
-			const old = samplerRef.current;
-			if (old && old !== next) {
-				try {
-					old.releaseAll();
-				} catch {}
-			}
-
-			const newGain = samplerGainsRef.current.get(key);
-			if (newGain) {
-				try {
-					newGain.gain.cancelScheduledValues(Tone.now());
-					newGain.gain.rampTo(1, 0.05);
-				} catch {}
-			}
-
+			// Stop any notes the previous font was playing on our channel.
+			engine.releaseAllOnChannel(SELF_CHANNEL);
+			engine.selectFontOnChannel(SELF_CHANNEL, key);
 			clearLocalHeldKeys();
-
-			samplerRef.current = next;
 			setCurrentSoundfont(key);
 		},
 		[loadSoundfont, setCurrentSoundfont],
 	);
 
 	// Restore the soundfont the user had selected before they left the site. Runs once when
-	// the saved key becomes available (built-ins are immediate; dynamic ones arrive after
-	// fetchDynamicSoundfonts resolves, hence the dep on `instruments`).
+	// the saved key becomes available (the dynamic catalog populates after the API responds).
 	const soundfontRestoredRef = useRef(false);
 	useEffect(() => {
 		if (soundfontRestoredRef.current) return;
@@ -511,7 +475,7 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		(key: string) => {
 			if (!key) return;
 			if (!instrumentsRef.current[key]) return;
-			if (samplersRef.current.has(key)) return;
+			if (engineRef.current?.hasFont(key)) return;
 			loadSoundfont(key).catch(() => {});
 		},
 		[loadSoundfont],
@@ -575,30 +539,59 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		initializedRef.current = true;
 
 		const init = async () => {
-			await initAudioContext();
+			// Native AudioContext — Tone wraps it, but spessasynth needs the
+			// genuine BaseAudioContext for its AudioWorkletNode constructor.
+			const nativeCtx = await initAudioContext();
 
 			const initialVolume = loadPersistedVolume();
 			masterVolumeNodeRef.current = createMasterVolume(percentToDb(initialVolume));
 			if (initialVolume === 0) masterVolumeNodeRef.current.mute = true;
 			reverbRef.current = createReverb(0.2, masterVolumeNodeRef.current);
 
-			setLoadingSoundfont(DEFAULT_SOUNDFONT);
-			const defaultInst = instrumentsRef.current[DEFAULT_SOUNDFONT];
-			const defaultGain = new Tone.Gain(1);
-			defaultGain.connect(reverbRef.current);
-			const sampler = createSampler(defaultInst, () => {
-				setLoadedSoundfonts([DEFAULT_SOUNDFONT]);
-				setLoadingSoundfont(null);
+			// Fetch the catalog in parallel with engine setup — the picker should
+			// populate even if synth init fails for some reason.
+			const catalogPromise = fetchDynamicSoundfonts().then((dynamic) => {
+				if (Object.keys(dynamic).length > 0) {
+					setInstruments((prev) => ({ ...prev, ...dynamic }));
+				}
+				return dynamic;
 			});
-			sampler.connect(defaultGain);
-			samplersRef.current.set(DEFAULT_SOUNDFONT, sampler);
-			samplerGainsRef.current.set(DEFAULT_SOUNDFONT, defaultGain);
-			samplerRef.current = sampler;
+
+			const engine = new SpessaSynthEngine();
+			engineRef.current = engine;
+			try {
+				await engine.init(nativeCtx);
+				if (engine.output && reverbRef.current) {
+					Tone.connect(engine.output, reverbRef.current);
+				}
+			} catch (err) {
+				console.error("spessasynth init failed:", err);
+				connectMIDI();
+				return;
+			}
+
+			const dynamic = await catalogPromise;
+			const persisted = loadPersistedSoundfont();
+			const startKey = persisted && dynamic[persisted] ? persisted : DEFAULT_SOUNDFONT;
+			const startInst = dynamic[startKey] ?? BUILT_IN_INSTRUMENTS[startKey];
+			if (startInst) {
+				setLoadingSoundfont(startKey);
+				try {
+					await engine.loadFont(startKey, startInst.url);
+					engine.selectFontOnChannel(SELF_CHANNEL, startKey);
+					setLoadedSoundfonts([startKey]);
+					setCurrentSoundfont(startKey);
+				} catch (err) {
+					console.error("Failed to load default soundfont:", err);
+				} finally {
+					setLoadingSoundfont(null);
+				}
+			}
 
 			connectMIDI();
 		};
 		init();
-	}, [connectMIDI]);
+	}, [connectMIDI, setCurrentSoundfont]);
 
 	return {
 		playNote,

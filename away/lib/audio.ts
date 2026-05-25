@@ -1,19 +1,15 @@
 import * as Tone from "tone";
-import type { Instrument } from "./types";
 
-export const initAudioContext = async () => {
-	const context = new Tone.Context({ latencyHint: "interactive" });
+// Returns the *native* AudioContext that Tone is wrapping. spessasynth_lib's
+// AudioWorkletNode constructor fails the `instanceof BaseAudioContext` check
+// against Tone's default standardized-audio-context wrapper, so we create the
+// native context ourselves and hand it to both Tone and the spessasynth engine.
+export const initAudioContext = async (): Promise<AudioContext> => {
+	const native = new AudioContext({ latencyHint: "interactive" });
+	const context = new Tone.Context({ context: native, latencyHint: "interactive" });
 	Tone.setContext(context);
 	Tone.context.lookAhead = 0;
-};
-
-export const createSampler = (instrument: Instrument, onload: () => void): Tone.Sampler => {
-	return new Tone.Sampler({
-		urls: instrument.urls,
-		baseUrl: instrument.baseUrl,
-		release: instrument.release ?? 1.5,
-		onload,
-	});
+	return native;
 };
 
 export const createMasterVolume = (db: number): Tone.Volume => {
