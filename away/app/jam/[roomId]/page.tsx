@@ -134,11 +134,10 @@ export default function JamRoom() {
 		resetSettings,
 	} = useAudioEngineContext();
 
-	// Multiplayer doesn't have a metronome — make sure it isn't ticking if the user
-	// arrived with it enabled from another page.
+	
 	useEffect(() => {
 		if (settings.metronomeEnabled) updateSetting("metronomeEnabled", false);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+		
 	}, []);
 
 	const [user, setUser] = useState<any>(null);
@@ -171,10 +170,7 @@ export default function JamRoom() {
 
 	const [pendingFriendIds, setPendingFriendIds] = useState<Set<string>>(new Set());
 
-	// We only store the id of the player whose profile is open. The rest (userId, displayName,
-	// friend status, etc.) is derived from the live `players` state, so if the target user's
-	// presence updates after the modal opens — e.g. their auth resolves and adds their userId —
-	// the modal picks up the change immediately instead of holding a stale snapshot.
+	
 	const [profileTargetId, setProfileTargetId] = useState<string | null>(null);
 	const profileTarget = useMemo(
 		() => (profileTargetId ? players.find((p) => p.id === profileTargetId) ?? null : null),
@@ -338,13 +334,27 @@ export default function JamRoom() {
 	const trackPresence = useCallback(() => {
 		const channel = roomChannelRef.current;
 		if (!channel || !myNameRef.current) return;
-		channel.track({
+		const data = {
 			displayName: myNameRef.current,
 			joinedAt: joinedAtRef.current,
 			userId: myUserIdRef.current ?? undefined,
 			noteColorHex: noteColorRef.current,
 			soundfont: currentSoundfontRef.current,
 			equippedBadge: equippedBadgeRef.current,
+		};
+		channel.track(data);
+		// Belt-and-suspenders: @supabase/realtime-js doesn't reliably emit a
+		// presence event when an existing key re-tracks with new metadata, so
+		// peers' player lists go stale on soundfont/color/badge changes (the
+		// audio still works because piano-note broadcasts carry the soundfont
+		// in every payload, but the hover tooltip reads `players[].soundfont`,
+		// which only updates on presence events). Mirror the track payload as
+		// a broadcast — broadcasts always fire — so the receiving side gets
+		// the change immediately regardless of presence behaviour.
+		channel.send({
+			type: "broadcast",
+			event: "player-meta",
+			payload: { senderId: myTempId.current, ...data },
 		});
 	}, []);
 
@@ -709,6 +719,45 @@ export default function JamRoom() {
 			if (payload.soundfont) {
 				ensureSoundfontLoadedRef.current(payload.soundfont);
 			}
+		});
+
+		// `trackPresence` mirrors the presence payload as a "player-meta" broadcast so
+		// metadata changes (soundfont, note color, badge, displayName) reach peers even
+		// when the realtime-js version we're on doesn't emit a presence event for a
+		// re-track of an existing key. Without this, the hover-popover soundfont name
+		// could stay stale until the next presence sync.
+		room.on("broadcast", { event: "player-meta" }, ({ payload }) => {
+			if (payload.senderId === myTempId.current) return;
+			if (payload.soundfont) ensureSoundfontLoadedRef.current(payload.soundfont);
+			const friendIds = friendUserIdsRef.current;
+			setPlayers((prev) => {
+				let changed = false;
+				const next = prev.map((p) => {
+					if (p.id !== payload.senderId) return p;
+					const updated: PlayerEntry = {
+						...p,
+						displayName: payload.displayName || p.displayName,
+						userId: payload.userId,
+						noteColorHex: payload.noteColorHex,
+						soundfont: payload.soundfont,
+						equippedBadge: payload.equippedBadge ?? null,
+						isFriend: !!payload.userId && friendIds.has(payload.userId),
+					};
+					if (
+						updated.displayName === p.displayName &&
+						updated.userId === p.userId &&
+						updated.noteColorHex === p.noteColorHex &&
+						updated.soundfont === p.soundfont &&
+						updated.equippedBadge === p.equippedBadge &&
+						updated.isFriend === p.isFriend
+					) {
+						return p;
+					}
+					changed = true;
+					return updated;
+				});
+				return changed ? next : prev;
+			});
 		});
 
 		// Rebuild the local players list from the current presence state. Re-runs on every

@@ -78,7 +78,7 @@ export default function CreateRoomModal({
 										<span className="text-[10px] text-white/40 uppercase tracking-widest">Password</span>
 									</div>
 									<input
-										type="text"
+										type="password"
 										value={password}
 										onChange={(e) => setPassword(e.target.value)}
 										placeholder="Enter password..."

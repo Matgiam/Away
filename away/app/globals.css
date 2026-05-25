@@ -7,11 +7,12 @@
 
 .white-keys-container {
 	display: flex;
-	gap: 1px;
+
+	gap: 2.2px;
 	width: 100%;
 	height: 100%;
 	position: relative;
-	background: #2a2a2a;
+	background: #0c0c0c;
 }
 
 .piano-key {
@@ -130,7 +131,7 @@
 	font-weight: 700;
 }
 
-/* Always show labels in course mode regardless of the global setting */
+
 .myPiano.show-labels .piano-key.course-highlight .piano-label,
 .myPiano.show-labels .piano-key.course-accent .piano-label {
 	color: inherit;
@@ -163,7 +164,7 @@ html.reduced-motion *::after {
 	background: rgba(255, 255, 255, 0.308);
 }
 
-/* Global navigation indicator (fires instantly on every in-app navigation) */
+
 @keyframes navigation-indicator-slide {
 	0% {
 		transform: translateX(-100%);

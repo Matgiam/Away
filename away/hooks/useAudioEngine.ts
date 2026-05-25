@@ -416,6 +416,16 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 	}, [loadSoundfont]);
 
 	const clearLocalHeldKeys = () => {
+		// Close out any visualizer trails still flagged as held. Without this, a
+		// soundfont switch releases the audio (via engine.releaseAllOnChannel)
+		// but never runs the per-key stopNote that would set endTime — so the
+		// canvas keeps extending those notes downward forever.
+		const now = performance.now();
+		for (const n of visNotesRef.current) {
+			if (n.playerId === SELF && n.endTime === null) {
+				n.endTime = now;
+			}
+		}
 		noteHoldersRef.current.forEach((holders, midi) => {
 			holders.delete(SELF);
 			if (holders.size === 0) {
