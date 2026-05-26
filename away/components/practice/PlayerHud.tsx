@@ -12,6 +12,9 @@ interface PlayerHudProps {
 	onPlayPause: () => void;
 	loadState: "loading" | "ready" | "error";
 	error: string | null;
+	/** Optional handler — when present, an Export MIDI button is shown under the title. */
+	onExport?: () => void;
+	canExport?: boolean;
 }
 
 const TIMELINE_WIDTH = 880;
@@ -28,6 +31,8 @@ export function PlayerHud({
 	onPlayPause,
 	loadState,
 	error,
+	onExport,
+	canExport,
 }: PlayerHudProps) {
 	const progress = totalDuration > 0 ? currentTime / totalDuration : 0;
 
@@ -52,6 +57,34 @@ export function PlayerHud({
 				<h1 className="text-white text-lg font-bold italic tracking-wide drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)] text-center">
 					{title}
 				</h1>
+
+				{onExport && (
+					<button
+						type="button"
+						onClick={onExport}
+						disabled={!canExport}
+						className={`inline-flex items-center gap-1.5 text-[11px] uppercase tracking-widest italic px-3 py-1 rounded-full border transition-colors ${
+							canExport
+								? "border-white/20 bg-white/5 text-white/80 hover:text-white hover:bg-white/10"
+								: "border-white/10 bg-white/[0.02] text-white/30 cursor-not-allowed"
+						}`}
+						title={canExport ? "Export MIDI" : "MIDI is still loading…"}
+					>
+						<svg
+							width="13"
+							height="13"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="1.8"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+						>
+							<path d="M12 4v12m0 0-4-4m4 4 4-4M4 20h16" />
+						</svg>
+						<span>Export MIDI</span>
+					</button>
+				)}
 
 				{loadState === "loading" && (
 					<p className="text-white/50 italic text-xs">Loading MIDI…</p>

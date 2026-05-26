@@ -127,6 +127,10 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 	const [loadState, setLoadState] = useState<LoadState>("loading");
 	const [error, setError] = useState<string | null>(null);
 	const [midi, setMidi] = useState<ParsedMidi | null>(null);
+	// We keep the raw MIDI bytes around so the "Export MIDI" button in the HUD
+	// can save the original file without re-downloading. Small (a few hundred KB
+	// at worst) and only one is held at a time.
+	const [midiBuffer, setMidiBuffer] = useState<ArrayBuffer | null>(null);
 	const [descriptor, setDescriptor] = useState<SongDescriptor>(() =>
 		initialBuiltIn
 			? {
@@ -215,6 +219,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 				const parsed = parseMidi(buffer);
 				if (cancelled) return;
 				setMidi(parsed);
+				setMidiBuffer(buffer);
 				setLoadState("ready");
 			} catch (err) {
 				if (cancelled) return;
@@ -650,6 +655,21 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 				onPlayPause={handlePlayPause}
 				loadState={loadState}
 				error={error}
+				canExport={!!midiBuffer}
+				onExport={() => {
+					if (!midiBuffer) return;
+					const blob = new Blob([midiBuffer], { type: "audio/midi" });
+					const url = URL.createObjectURL(blob);
+					const a = document.createElement("a");
+					a.href = url;
+					// Build a safe-ish filename from the visible title.
+					const stem = title.replace(/[\\/:*?"<>|]+/g, "").replace(/\s+/g, " ").trim() || "song";
+					a.download = `${stem}.mid`;
+					document.body.appendChild(a);
+					a.click();
+					a.remove();
+					setTimeout(() => URL.revokeObjectURL(url), 1000);
+				}}
 			/>
 
 			<div className="absolute inset-0 z-10 flex flex-col pb-[150px] pt-44">

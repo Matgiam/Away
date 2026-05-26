@@ -30,6 +30,12 @@ export type BuiltInSong = {
 	subcategoryLabel: string | null;
 	filePath: string;
 	fileName: string;
+	// Metadata derived from the MIDI file on the server (catalog.server.ts).
+	// Optional because parsing can fail on a malformed file — we still want the
+	// song to appear in the list, just without the badge / timestamp.
+	durationSeconds?: number;
+	bpm?: number;
+	difficulty?: "easy" | "medium" | "hard";
 };
 
 const SUBCATEGORY_LABELS: Record<string, string> = {
