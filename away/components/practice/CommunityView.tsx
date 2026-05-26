@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
+import { PreviewButton, type PreviewButtonState } from "@/components/practice/PreviewButton";
 import { useAudioEngineContext } from "@/components/providers/AudioEngineProvider";
 import { useMidiPreview } from "@/hooks/useMidiPreview";
 import { useVirtualList } from "@/hooks/useVirtualList";
@@ -294,60 +295,6 @@ export function CommunityView({
 				})}
 			</div>
 		</div>
-	);
-}
-
-type PreviewButtonState = "idle" | "loading" | "playing";
-
-function PreviewButton({
-	state,
-	onClick,
-}: {
-	state: PreviewButtonState;
-	onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
-}) {
-	const isActive = state !== "idle";
-	const label =
-		state === "loading"
-			? "Loading preview…"
-			: state === "playing"
-				? "Stop preview"
-				: "Play preview";
-	return (
-		<button
-			type="button"
-			onClick={onClick}
-			title={label}
-			aria-label={label}
-			className={`shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full border transition-colors ${
-				isActive
-					? "border-violet-300/50 bg-violet-500/25 text-violet-100 hover:bg-violet-500/35"
-					: "border-white/15 bg-white/5 text-white/80 hover:text-white hover:bg-white/10"
-			}`}
-		>
-			{state === "loading" ? (
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					strokeWidth="2"
-					strokeLinecap="round"
-					strokeLinejoin="round"
-					className="w-4 h-4 animate-spin"
-				>
-					<path d="M21 12a9 9 0 1 1-6.219-8.56" />
-				</svg>
-			) : state === "playing" ? (
-				<svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
-					<rect x="6" y="5" width="4" height="14" rx="1" />
-					<rect x="14" y="5" width="4" height="14" rx="1" />
-				</svg>
-			) : (
-				<svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 translate-x-[1px]">
-					<path d="M8 5v14l11-7z" />
-				</svg>
-			)}
-		</button>
 	);
 }
 

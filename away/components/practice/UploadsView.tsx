@@ -1,10 +1,25 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
+import { PreviewButton, type PreviewButtonState } from "@/components/practice/PreviewButton";
+import { useAudioEngineContext } from "@/components/providers/AudioEngineProvider";
+import { useMidiPreview } from "@/hooks/useMidiPreview";
 import { useVirtualList } from "@/hooks/useVirtualList";
-import type { CommunityMidi, CommunityStatus } from "@/lib/practice/community";
-import type { UploadDifficulty, UploadedSongMeta } from "@/lib/practice/uploads";
+import {
+	downloadCommunityMidi,
+	getCommunityMidiPublicUrl,
+	type CommunityMidi,
+	type CommunityStatus,
+} from "@/lib/practice/community";
+import {
+	downloadUploadedMidi,
+	getUploadedSongSignedUrl,
+	type UploadDifficulty,
+	type UploadedSongMeta,
+} from "@/lib/practice/uploads";
+
+const PREVIEW_SECONDS = 50;
 
 // A row in the Custom category can come from the user's own private uploads OR
 // from a community MIDI they added via "Add to Custom". The wrapper type lets
@@ -75,6 +90,77 @@ export function UploadsView({
 	onPublish,
 	onRemoveCommunity,
 }: UploadsViewProps) {
+	const preview = useMidiPreview();
+	const { unlockAudio } = useAudioEngineContext();
+	const [previewingId, setPreviewingId] = useState<string | null>(null);
+	const [exportingId, setExportingId] = useState<string | null>(null);
+
+	// Stop any in-flight preview if the user navigates away from this tab.
+	useEffect(() => {
+		return () => {
+			preview.stop();
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	useEffect(() => {
+		if (preview.state === "idle") setPreviewingId(null);
+	}, [preview.state]);
+
+	const togglePreview = useCallback(
+		async (row: CustomRow) => {
+			// The click is a user gesture — unlock here so the audio context resumes
+			// on the first try regardless of which row triggers playback first.
+			unlockAudio();
+			if (previewingId === row.id) {
+				preview.stop();
+				setPreviewingId(null);
+				return;
+			}
+			setPreviewingId(row.id);
+			try {
+				const url =
+					row.kind === "community"
+						? getCommunityMidiPublicUrl(row.community.storagePath)
+						: await getUploadedSongSignedUrl(row.upload.storagePath);
+				// If the user clicked something else while we were minting the URL,
+				// don't kick off a preview for the original row.
+				if (previewingId !== row.id && previewingId !== null) return;
+				preview.play(url, { maxDurationSec: PREVIEW_SECONDS });
+			} catch (err) {
+				console.error("Preview failed", err);
+				setPreviewingId(null);
+			}
+		},
+		[preview, previewingId, unlockAudio],
+	);
+
+	const handleExport = useCallback(async (row: CustomRow) => {
+		setExportingId(row.id);
+		try {
+			const bytes =
+				row.kind === "community"
+					? await downloadCommunityMidi(row.community.storagePath)
+					: await downloadUploadedMidi(row.upload.storagePath);
+			const blob = new Blob([bytes], { type: "audio/midi" });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = exportFileName(row);
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			// Let the click dispatch finish before reclaiming the blob URL — Firefox
+			// occasionally cancels the download if you revoke synchronously.
+			setTimeout(() => URL.revokeObjectURL(url), 1000);
+		} catch (err) {
+			console.error("MIDI export failed", err);
+			alert("Couldn't export this MIDI. Check your connection and try again.");
+		} finally {
+			setExportingId((current) => (current === row.id ? null : current));
+		}
+	}, []);
+
 	const { containerRef, onScroll, totalHeight, startIndex, endIndex, offsetForIndex } =
 		useVirtualList({
 			itemCount: rows.length,
@@ -189,6 +275,14 @@ export function UploadsView({
 					const top = offsetForIndex(absoluteIndex);
 					const isSelected = row.id === selectedId;
 					const isCompleted = !!completedIds?.has(row.id);
+					const isThisPreviewing = previewingId === row.id;
+					const previewState: PreviewButtonState =
+						isThisPreviewing && preview.state === "loading"
+							? "loading"
+							: isThisPreviewing && preview.state === "playing"
+								? "playing"
+								: "idle";
+					const isExporting = exportingId === row.id;
 					return (
 						<div
 							key={row.id}
@@ -207,29 +301,38 @@ export function UploadsView({
 								radius={14}
 								refractionLevel={0.7}
 								specularOpacity={0.55}
-								glassBgOpacity={isSelected ? 0.12 : 0.02}
+								glassBgOpacity={isSelected ? 0.12 : isThisPreviewing ? 0.07 : 0.02}
 							>
 								<div
 									onClick={() => onSelect(row.id)}
 									onDoubleClick={() => onPlay(row.id)}
 									className="flex h-full w-full items-center justify-between px-7 cursor-pointer"
 								>
-									<div className="flex-1 min-w-0 flex flex-col">
-										<div
-											className={`text-lg italic font-semibold tracking-wide truncate text-left ${
-												isSelected ? "text-white" : "text-white/80"
-											}`}
-										>
-											{formatTitle(row)}
-										</div>
-										{row.kind === "community" && (
-											<div className="text-[11px] italic text-white/40 truncate text-left">
-												From community · added from {row.community.submitterUsername ?? "another player"}
+									<div className="flex items-center gap-3 flex-1 min-w-0">
+										<PreviewButton
+											state={previewState}
+											onClick={(e) => {
+												e.stopPropagation();
+												void togglePreview(row);
+											}}
+										/>
+										<div className="flex-1 min-w-0 flex flex-col">
+											<div
+												className={`text-lg italic font-semibold tracking-wide truncate text-left ${
+													isSelected ? "text-white" : "text-white/80"
+												}`}
+											>
+												{formatTitle(row)}
 											</div>
-										)}
-										{row.kind === "upload" && row.submission && (
-											<SubmissionStatusLine submission={row.submission} />
-										)}
+											{row.kind === "community" && (
+												<div className="text-[11px] italic text-white/40 truncate text-left">
+													From community · added from {row.community.submitterUsername ?? "another player"}
+												</div>
+											)}
+											{row.kind === "upload" && row.submission && (
+												<SubmissionStatusLine submission={row.submission} />
+											)}
+										</div>
 									</div>
 									<div className="flex items-center gap-3 shrink-0 ml-4">
 										{isCompleted && <CompletedTick />}
@@ -248,6 +351,44 @@ export function UploadsView({
 												Publish
 											</button>
 										)}
+
+										<button
+											type="button"
+											onClick={(e) => {
+												e.stopPropagation();
+												void handleExport(row);
+											}}
+											disabled={isExporting}
+											className="text-white/40 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-wait"
+											aria-label="Export MIDI"
+											title="Export MIDI"
+										>
+											{isExporting ? (
+												<svg
+													width="18"
+													height="18"
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													strokeWidth="1.8"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+													className="animate-spin"
+												>
+													<path d="M21 12a9 9 0 1 1-6.219-8.56" />
+												</svg>
+											) : (
+												<svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+													<path
+														d="M12 4v12m0 0-4-4m4 4 4-4M4 20h16"
+														stroke="currentColor"
+														strokeWidth="1.6"
+														strokeLinecap="round"
+														strokeLinejoin="round"
+													/>
+												</svg>
+											)}
+										</button>
 
 										<button
 											type="button"
@@ -292,6 +433,18 @@ function formatTitle(row: CustomRow): string {
 	return row.community.artist
 		? `${row.community.title} - ${row.community.artist}`
 		: row.community.title;
+}
+
+function exportFileName(row: CustomRow): string {
+	// Build a safe-ish filename from the song's display title. Falls back to
+	// the upload's original file name if the title sanitises to nothing.
+	const base = formatTitle(row);
+	const safe = base
+		.replace(/[\\/:*?"<>|]+/g, "")
+		.replace(/\s+/g, " ")
+		.trim();
+	const stem = safe || (row.kind === "upload" ? row.upload.fileName.replace(/\.midi?$/i, "") : "song");
+	return `${stem}.mid`;
 }
 
 function difficultyOf(row: CustomRow): UploadDifficulty {

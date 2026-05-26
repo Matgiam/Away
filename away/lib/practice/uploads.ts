@@ -121,6 +121,23 @@ export async function downloadUploadedMidi(storagePath: string): Promise<ArrayBu
 	return await data.arrayBuffer();
 }
 
+// midi_uploads is a private bucket, so we can't hand the storage path to a
+// raw fetch the way the community library does with its public bucket. Mint a
+// short-lived signed URL instead — useMidiPreview's internal cache keys by URL,
+// so each row keeps its own cache entry while previews are open.
+export async function getUploadedSongSignedUrl(
+	storagePath: string,
+	expiresInSeconds = 120,
+): Promise<string> {
+	const supabase = createClient();
+	const { data, error } = await supabase.storage
+		.from(BUCKET)
+		.createSignedUrl(storagePath, expiresInSeconds);
+	if (error) throw error;
+	if (!data?.signedUrl) throw new Error("Failed to sign upload URL");
+	return data.signedUrl;
+}
+
 export type SaveUploadParams = {
 	file: File;
 	title: string;
