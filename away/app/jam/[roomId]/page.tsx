@@ -168,6 +168,16 @@ export default function JamRoom() {
 		playersRef.current = players;
 	}, [players]);
 
+	// Per-session mute list. Audio (notes + sustain) from these peers is ignored
+	// while they're in the set. UI presence (name, color, badge) keeps updating
+	// normally so the muted player is still visible — they just play silently.
+	// Not persisted: opening the room with a fresh state clears all mutes.
+	const [mutedIds, setMutedIds] = useState<Set<string>>(new Set());
+	const mutedIdsRef = useRef<Set<string>>(mutedIds);
+	useEffect(() => {
+		mutedIdsRef.current = mutedIds;
+	}, [mutedIds]);
+
 	const [pendingFriendIds, setPendingFriendIds] = useState<Set<string>>(new Set());
 
 	
@@ -180,6 +190,21 @@ export default function JamRoom() {
 		setProfileTargetId(playerId);
 	}, []);
 	const handleCloseProfile = useCallback(() => setProfileTargetId(null), []);
+
+	const handleToggleMute = useCallback((playerId: string) => {
+		setMutedIds((prev) => {
+			const next = new Set(prev);
+			if (next.has(playerId)) {
+				next.delete(playerId);
+			} else {
+				next.add(playerId);
+				// Cut off any notes the peer is currently holding so muting feels
+				// instant instead of waiting for sustained voices to ring out.
+				releaseAllForPlayerRef.current?.(playerId);
+			}
+			return next;
+		});
+	}, []);
 
 	const roomChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 	const isRedirectingRef = useRef(false);
@@ -481,6 +506,11 @@ export default function JamRoom() {
 
 	const onReceivePeerNote = useCallback(
 		(peerId: string, note: number, velocity: number, isNoteOn: boolean, soundfontFromPayload?: string) => {
+			// Muted peers play silently. We still want to suppress trailing
+			// noteOff events so the playNote bookkeeping stays consistent if
+			// the user un-mutes later — passing through stopNote is harmless
+			// since there's no held note to release anyway.
+			if (mutedIdsRef.current.has(peerId)) return;
 			const player = playersRef.current.find((p) => p.id === peerId);
 			const colorIndex = player?.colorIndex ?? 0;
 			const noteColorHex = showPlayerColorsRef.current ? player?.noteColorHex : noteColorRef.current;
@@ -722,6 +752,11 @@ export default function JamRoom() {
 
 		room.on("broadcast", { event: "piano-sustain" }, ({ payload }) => {
 			if (payload.senderId === myTempId.current) return;
+			// Mirror the mute filter from onReceivePeerNote — without this, a
+			// muted peer holding sustain would keep their channel pedaling
+			// indefinitely (audio is muted but the engine state would still
+			// be on).
+			if (mutedIdsRef.current.has(payload.senderId)) return;
 			const peer = playersRef.current.find((p) => p.id === payload.senderId);
 			const sf = (payload.soundfont as string | undefined) ?? peer?.soundfont;
 			if (sf) ensureSoundfontLoadedRef.current(sf);
@@ -942,6 +977,8 @@ export default function JamRoom() {
 						soundfonts={soundfonts}
 						currentSoundfont={currentSoundfont}
 						onCopySoundfont={selectSoundfont}
+						mutedIds={mutedIds}
+						onToggleMute={handleToggleMute}
 					/>
 				</div>
 				<Visualizer

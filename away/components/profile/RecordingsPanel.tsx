@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { getUserRecordings, deleteRecording } from "@/lib/recording";
 
 type Recording = {
@@ -77,9 +77,21 @@ function RecordingViewer({ recording, onClose, onDelete }: { recording: Recordin
   );
 }
 
+function formatDuration(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  if (m === 0) return `${s}s`;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 function RecordingThumbnail({ recording, onClick, onDelete }: { recording: Recording; onClick: (r: Recording) => void; onDelete: (r: Recording) => void }) {
   return (
-    <div className="relative w-30 h-30 rounded-2xl border border-white/8 bg-[#0a0118]/70 backdrop-blur-xl overflow-hidden group cursor-pointer flex-shrink-0" onClick={() => onClick(recording)}>
+    <div
+      className="relative rounded-xl border border-white/10 bg-[#0a0118]/70 overflow-hidden group cursor-pointer shrink-0 transition-transform hover:scale-[1.03] hover:border-white/25"
+      style={{ width: "180px", height: "108px" }}
+      onClick={() => onClick(recording)}
+    >
       {recording.url ? (
         <video
           src={recording.url}
@@ -88,30 +100,42 @@ function RecordingThumbnail({ recording, onClick, onDelete }: { recording: Recor
           muted
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-8 h-8 text-white/20">
+        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-900/30 to-[#0a0118]/80">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-9 h-9 text-white/30">
             <circle cx="12" cy="12" r="10" />
             <polygon points="10,8 16,12 10,16" fill="currentColor" stroke="none" />
           </svg>
         </div>
       )}
 
-      <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-10 h-10 text-white/80">
-          <polygon points="8,5 19,12 8,19" fill="currentColor" stroke="none" />
-        </svg>
+      {/* Hover play overlay */}
+      <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="w-11 h-11 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center border border-white/30">
+          <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5" style={{ transform: "translateX(1px)" }}>
+            <polygon points="8,5 19,12 8,19" />
+          </svg>
+        </div>
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 px-2 py-1.5 bg-gradient-to-t from-black/70 to-transparent pointer-events-none">
-        <p className="text-[10px] text-white/70 font-medium">{new Date(recording.created_at).toLocaleDateString()}</p>
-        <p className="text-[9px] text-white/40">{Math.round(recording.duration)}s</p>
+      {/* Bottom info bar — date + duration */}
+      <div className="absolute bottom-0 left-0 right-0 px-2.5 py-1.5 bg-gradient-to-t from-black/85 via-black/60 to-transparent pointer-events-none flex items-end justify-between gap-2">
+        <p className="text-[11px] text-white/90 font-medium tabular-nums truncate">
+          {new Date(recording.created_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+        </p>
+        <p className="text-[10px] text-white/70 tabular-nums shrink-0">{formatDuration(recording.duration)}</p>
       </div>
 
+      {/* Delete button — top right, shown on hover */}
       <button
         onClick={(e) => { e.stopPropagation(); onDelete(recording); }}
-        className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full bg-black/40 text-white/40 hover:text-rose-400 hover:bg-black/60 transition-colors opacity-0 group-hover:opacity-100 text-[10px]"
+        className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center rounded-full bg-black/55 text-white/70 hover:text-rose-300 hover:bg-rose-500/40 transition-colors opacity-0 group-hover:opacity-100 backdrop-blur-sm"
+        aria-label="Delete recording"
+        title="Delete"
       >
-        ✕
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
       </button>
     </div>
   );

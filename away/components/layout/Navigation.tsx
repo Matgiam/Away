@@ -246,7 +246,7 @@ export const Navigation = ({
 								specularOpacity={0.7}
 								glassBgOpacity={showSettings ? 0.15 : 0.001}
 							>
-								<img src="/icons/Wrench.svg" alt="Settings" style={{ width: "35px", height: "35px", objectFit: "contain" }} />
+								<GearIcon size={Math.round(navSize.button * 0.52)} />
 							</DynamicLiquidGlass>
 						</div>
 					);
@@ -434,6 +434,33 @@ function MetronomeIcon({ active }: { active: boolean }) {
 				strokeLinecap="round"
 			/>
 			<circle cx="12" cy="18" r="1.3" fill={stroke} />
+		</svg>
+	);
+}
+
+// Gear / cog icon for the Settings button. 6 rounded teeth around a central
+// hole — Tabler-style silhouette that reads as "settings" at any size. The
+// `size` prop scales it proportionally to the responsive nav button.
+function GearIcon({ size }: { size: number }) {
+	return (
+		<svg
+			width={size}
+			height={size}
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="white"
+			strokeWidth="1.6"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-label="Settings"
+			role="img"
+		>
+			{/* Toothed outer body — 6 teeth at 60° intervals. Each tooth peak
+			    is offset radially from the gear's body. Drawn as a single
+			    closed path centered on (12, 12). */}
+			<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+			{/* Central hole */}
+			<circle cx="12" cy="12" r="3" />
 		</svg>
 	);
 }

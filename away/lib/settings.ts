@@ -1,12 +1,20 @@
 export type VelocityMode = "dynamic" | "fixed";
 export type SustainMode = "midi" | "always" | "off";
 export type VisualizerStyle = "bars" | "lines";
+// Maps to the AudioContext `latencyHint`:
+//   "low"      → "interactive" (smallest buffer, lowest latency, most fragile)
+//   "balanced" → "balanced"    (moderate buffer)
+//   "stable"   → "playback"    (largest buffer, highest latency, crack-resistant)
+// Changing this requires reloading the page — the AudioContext can't change
+// hint after creation.
+export type AudioLatency = "low" | "balanced" | "stable";
 
 export interface AppSettings {
 	reverbWet: number;
 	velocityMode: VelocityMode;
 	fixedVelocity: number;
 	sustainMode: SustainMode;
+	audioLatency: AudioLatency;
 	globalTranspose: number;
 	showNoteLabels: boolean;
 	keyAnimations: boolean;
@@ -32,10 +40,11 @@ export interface AppSettings {
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
-	reverbWet: 35,
+	reverbWet: 0,
 	velocityMode: "dynamic",
 	fixedVelocity: 100,
 	sustainMode: "midi",
+	audioLatency: "low",
 	globalTranspose: 0,
 	showNoteLabels: false,
 	keyAnimations: true,
@@ -57,9 +66,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	metronomeBpm: 100,
 	metronomeBeatsPerBar: 4,
 	metronomeVolume: 60,
-	// Default ON: the metronome is a standard practice tool, and the user can
-	// hide it from the Settings panel if it gets in the way.
-	metronomeVisible: true,
+	metronomeVisible: false,
 };
 
 const STORAGE_KEY = "away:appSettings";

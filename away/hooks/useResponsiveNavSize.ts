@@ -2,25 +2,39 @@
 
 import { useEffect, useState } from "react";
 
-// Computes nav button + pill dimensions from the current viewport. The
-// DynamicLiquidGlass component needs numeric width/height (it paints a canvas
-// at that exact pixel resolution) so CSS clamp() isn't an option — this hook
-// fills the gap by recomputing on every resize.
+// Computes nav sizes from the viewport width. The key idea: there's a
+// **reference** screen width (REFERENCE_VW = 1920px) where the design was
+// dialed in. Below it we scale proportionally so 1366×768 laptops still look
+// right. Above it we **freeze** at the reference values — bigger monitors
+// don't blow up icons / pills to absurd sizes, they just show the same nav
+// the user sees on their 1080p screen with more empty space around it.
 //
-// Defaults match the "looks good on 1080p" baseline that was hardcoded
-// throughout the nav before. SSR returns these defaults, then the post-mount
-// effect kicks in with the real viewport size — no hydration mismatch.
+// Reference math (all anchored at 1920px width):
+//   button     67 / 1920 = 0.0349
+//   pillWidth 250 / 1920 = 0.130
+//   pillHeight 60 / 1920 = 0.0312
+//   gap        20 / 1920 = 0.0104
 
 export type NavSize = {
-	/** Square icon button (record, settings, etc.) side length. */
 	button: number;
-	/** Soundfont pill width (the "Bright Grand" label). */
 	pillWidth: number;
-	/** Soundfont pill height. */
 	pillHeight: number;
-	/** Gap between buttons in the right-side grid. */
 	gap: number;
 };
+
+const REFERENCE_VW = 1920;
+
+const RATIO = {
+	button: 0.0349,
+	pillWidth: 0.13,
+	pillHeight: 0.0312,
+	gap: 0.0104,
+} as const;
+
+// Keeps the nav usable on extremely narrow screens (mobile portrait, narrow
+// browser dev tools, etc.). Anything between ~1030px and 1920px uses pure vw
+// scaling; anything ≥1920 px clamps to the reference values.
+const MIN_BUTTON = 36;
 
 const DEFAULT_SIZE: NavSize = {
 	button: 67,
@@ -29,18 +43,17 @@ const DEFAULT_SIZE: NavSize = {
 	gap: 20,
 };
 
-function compute(vw: number, vh: number): NavSize {
-	// Anchor button size to viewport height so it stays proportional on
-	// short laptops (768px) AND big monitors (1440p+). Clamp so it never
-	// becomes unreadably small or absurdly large.
-	const button = Math.round(Math.max(48, Math.min(67, vh * 0.075)));
-	// Pill width anchors to viewport width since it's a wide horizontal
-	// element. Keep it below 22% of width so it doesn't dominate the corner.
-	const pillWidth = Math.round(Math.max(170, Math.min(250, vw * 0.18)));
-	const pillHeight = Math.round(Math.max(46, Math.min(60, vh * 0.067)));
-	// Smaller gap on tighter screens so the 3-column grid still fits.
-	const gap = Math.round(Math.max(12, Math.min(20, vh * 0.022)));
-	return { button, pillWidth, pillHeight, gap };
+function compute(vw: number): NavSize {
+	// Cap at REFERENCE_VW so the nav never grows beyond what it looks like
+	// on a 1920px screen. This is the "same look everywhere" guarantee.
+	const effective = Math.min(vw, REFERENCE_VW);
+	const button = Math.max(MIN_BUTTON, Math.round(effective * RATIO.button));
+	return {
+		button,
+		pillWidth: Math.round(effective * RATIO.pillWidth),
+		pillHeight: Math.round(effective * RATIO.pillHeight),
+		gap: Math.round(effective * RATIO.gap),
+	};
 }
 
 export function useResponsiveNavSize(): NavSize {
@@ -48,7 +61,7 @@ export function useResponsiveNavSize(): NavSize {
 
 	useEffect(() => {
 		function update() {
-			setSize(compute(window.innerWidth, window.innerHeight));
+			setSize(compute(window.innerWidth));
 		}
 		update();
 		window.addEventListener("resize", update);

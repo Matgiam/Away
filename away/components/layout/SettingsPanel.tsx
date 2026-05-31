@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ColorPicker } from "@/components/ui/ColorPicker";
 import { KeybindConfig } from "@/components/layout/KeybindConfig";
 import { BadgedUsername } from "@/components/achievements/BadgedUsername";
-import type { AppSettings } from "@/lib/settings";
+import type { AppSettings, AudioLatency } from "@/lib/settings";
 import type { Keybinds, LayoutPreset } from "@/lib/keybinds";
 
 type TabKey = "General" | "Audio" | "MIDI" | "Keyboard" | "Visualisation" | "Multiplayer" ;
@@ -176,6 +176,56 @@ const SegmentedControl = <T extends string>({
 		))}
 	</div>
 );
+
+// Special row for the audio latency setting. The AudioContext was constructed
+// at boot with whatever value was in localStorage then — changing the setting
+// later only takes effect on the next page reload. We snapshot the boot value
+// the first time this component mounts and show a "Reload to apply" chip
+// whenever the live setting differs from it.
+const AudioLatencyRow = ({
+	value,
+	onChange,
+}: {
+	value: AudioLatency;
+	onChange: (v: AudioLatency) => void;
+}) => {
+	const bootValueRef = useRef<AudioLatency>(value);
+	useEffect(() => {
+		bootValueRef.current = value;
+		// Only fire once on mount; subsequent renders compare against the snapshot.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+	const needsReload = value !== bootValueRef.current;
+
+	return (
+		<SettingRow
+			label="Audio latency"
+			hint="Lower = more responsive but higher chance of cracks/clicks on slow CPUs. Stable adds a small delay to keep playback smooth. Try Balanced or Stable if you hear crackling."
+		>
+			<div className="flex items-center gap-3">
+				<SegmentedControl
+					value={value}
+					options={[
+						{ value: "low", label: "Low" },
+						{ value: "balanced", label: "Balanced" },
+						{ value: "stable", label: "Stable" },
+					]}
+					onChange={onChange}
+				/>
+				{needsReload && (
+					<button
+						type="button"
+						onClick={() => window.location.reload()}
+						className="text-[10px] uppercase tracking-widest text-amber-300/90 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-400/30 rounded-md px-2.5 py-1 transition-colors"
+						title="Reload the page to apply the new audio latency"
+					>
+						Reload to apply
+					</button>
+				)}
+			</div>
+		</SettingRow>
+	);
+};
 
 export const SettingsPanel = ({
 	open,
@@ -392,6 +442,12 @@ export const SettingsPanel = ({
 									onChange={(v) => updateSetting("sustainMode", v)}
 								/>
 							</SettingRow>
+
+							<SectionHeader>Performance</SectionHeader>
+							<AudioLatencyRow
+								value={settings.audioLatency}
+								onChange={(v) => updateSetting("audioLatency", v)}
+							/>
 
 							<SectionHeader>Recording</SectionHeader>
 							<SettingRow

@@ -163,7 +163,17 @@ export function CoursesMenu({ courses }: CoursesMenuProps) {
 
 	return (
 		<div className="h-full w-full">
-			<div className="mx-auto max-w-[1200px] h-full flex flex-col gap-6 md:gap-12 px-3 md:px-1 pt-6 md:pt-12 pb-6 md:pb-12">
+			<div
+				className="mx-auto h-full flex flex-col"
+				style={{
+					maxWidth: "min(62.5vw, 1200px)",
+					gap: "min(2.5vw, 48px)",
+					paddingLeft: "min(0.1vw, 2px)",
+					paddingRight: "min(0.1vw, 2px)",
+					paddingTop: "min(2.5vw, 48px)",
+					paddingBottom: "min(2.5vw, 48px)",
+				}}
+			>
 				<header className="flex items-start justify-between gap-12">
 					<h1 className="text-white text-5xl font-bold italic tracking-wide drop-shadow-[0_2px_12px_rgba(0,0,0,0.4)]">
 						Select your course
@@ -171,7 +181,13 @@ export function CoursesMenu({ courses }: CoursesMenuProps) {
 					<PracticeTabs active="courses" onChange={handleTabChange} />
 				</header>
 
-				<div className="flex flex-col gap-6 md:grid md:grid-cols-[300px_1fr] md:gap-12 xl:gap-20 flex-1 min-h-0">
+				<div
+					className="grid flex-1 min-h-0"
+					style={{
+						gridTemplateColumns: "min(15.6vw, 300px) 1fr",
+						columnGap: "min(5vw, 96px)",
+					}}
+				>
 					<div className="flex flex-col items-start gap-7">
 						<SearchBar value={search} onChange={setSearch} placeholder="Search your course" />
 						<CourseCategoryList

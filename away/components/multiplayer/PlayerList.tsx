@@ -30,6 +30,10 @@ interface PlayerListProps {
 	soundfonts?: SoundfontOption[];
 	currentSoundfont?: string;
 	onCopySoundfont?: (key: string) => void;
+	// Player IDs whose audio is muted locally. Each entry produces a "Muted"
+	// chip in the popover and the toggle switches to "Unmute".
+	mutedIds?: ReadonlySet<string>;
+	onToggleMute?: (playerId: string) => void;
 }
 
 export const PlayerList: React.FC<PlayerListProps> = ({
@@ -44,6 +48,8 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 	soundfonts,
 	currentSoundfont,
 	onCopySoundfont,
+	mutedIds,
+	onToggleMute,
 }) => {
 	const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
 	const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -115,6 +121,8 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 				const canCopySoundfont = !player.isMe && !!player.soundfont && !!onCopySoundfont;
 				const showSoundfontTooltip = (isHovered || isPopoverOpen) && !!peerSoundfontName;
 				const isCopied = copiedPlayerId === player.id;
+				const isMuted = !!mutedIds?.has(player.id);
+				const canToggleMute = !player.isMe && !!onToggleMute;
 
 				return (
 					<div
@@ -155,6 +163,28 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 
 							{!player.isMe && player.isFriend && (
 								<img src="/icons/friends.svg" alt="" className="w-7 h-5 opacity-80" aria-label="Friend" />
+							)}
+
+							{canToggleMute && (
+								<button
+									type="button"
+									onClick={(e) => {
+										// Stop the click from bubbling up to the username
+										// button which would otherwise toggle the popover open.
+										e.stopPropagation();
+										onToggleMute!(player.id);
+									}}
+									className={`inline-flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
+										isMuted
+											? "text-rose-300/85 hover:text-rose-200 hover:bg-rose-500/10"
+											: "text-white/45 hover:text-white hover:bg-white/10"
+									}`}
+									title={isMuted ? "Unmute player" : "Mute player"}
+									aria-label={isMuted ? "Unmute player" : "Mute player"}
+									aria-pressed={isMuted}
+								>
+									{isMuted ? <SpeakerOffIcon /> : <SpeakerOnIcon />}
+								</button>
 							)}
 
 							{!player.isMe && !player.isFriend && incomingFriendshipId && (
@@ -272,7 +302,7 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 							style={{
 								width: "160px",
 								backgroundColor: player.noteColorHex || PLAYER_COLORS_SOLID[player.colorIndex % PLAYER_COLORS_SOLID.length],
-								opacity: 0.8,
+								opacity: isMuted ? 0.3 : 0.8,
 							}}
 						/>
 					</div>
@@ -281,3 +311,41 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 		</div>
 	);
 };
+
+function SpeakerOnIcon() {
+	return (
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.8"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			className="w-4 h-4"
+			aria-hidden
+		>
+			<path d="M11 5 6 9H2v6h4l5 4z" />
+			<path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+			<path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+		</svg>
+	);
+}
+
+function SpeakerOffIcon() {
+	return (
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.8"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			className="w-4 h-4"
+			aria-hidden
+		>
+			<path d="M11 5 6 9H2v6h4l5 4z" />
+			<line x1="23" y1="9" x2="17" y2="15" />
+			<line x1="17" y1="9" x2="23" y2="15" />
+		</svg>
+	);
+}

@@ -178,6 +178,13 @@ export class SpessaSynthEngine {
 		if (!this.synth) return false;
 		const entry = this.fonts.get(key);
 		if (!entry) return false;
+		// Cache hit — channel is already on this font. Skipping the
+		// bank/program MIDI messages avoids a tiny audible click at every
+		// note attack (especially on soundfonts with envelope-sensitive
+		// presets). The multiplayer addSoundBank issue that prompted us to
+		// briefly remove this check is now fully handled inside doLoadFont
+		// by re-applying every tracked channel's font right after the bank
+		// is added — see the loop at the end of that function.
 		if (this.channelFont.get(channel) === key) return true;
 		const { bankMSB, bankLSB, program } = entry.defaultPreset;
 		// CC0 = Bank Select MSB, CC32 = Bank Select LSB, then ProgramChange finalizes.

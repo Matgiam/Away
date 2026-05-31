@@ -21,6 +21,11 @@ interface CommunityViewProps {
 	signedIn: boolean;
 	selectedId: string | null;
 	addedIds: ReadonlySet<string>;
+	// Auth uid of the viewer. When a community song's submitterId matches this,
+	// the row is the user's own publication — the song is already in their
+	// Custom uploads via user_song_uploads, so we surface that state instead of
+	// letting them double-add via community_midi_additions.
+	currentUserId?: string | null;
 	hasMore: boolean;
 	loadingMore: boolean;
 	onSelect: (id: string) => void;
@@ -39,6 +44,7 @@ export function CommunityView({
 	signedIn,
 	selectedId,
 	addedIds,
+	currentUserId,
 	hasMore,
 	loadingMore,
 	onSelect,
@@ -84,6 +90,10 @@ export function CommunityView({
 
 	const handleAddToCustom = useCallback(
 		async (midi: CommunityMidi) => {
+			// Songs the viewer themself published already live in their Custom
+			// uploads via user_song_uploads. Adding the community alias on top
+			// would create a duplicate row in customs — silently no-op instead.
+			if (currentUserId && midi.submitterId === currentUserId) return;
 			setBusyId(midi.id);
 			try {
 				if (addedIds.has(midi.id)) await removeCommunityFromCustom(midi.id);
@@ -93,7 +103,7 @@ export function CommunityView({
 				setBusyId(null);
 			}
 		},
-		[addedIds, onAddedChanged],
+		[addedIds, onAddedChanged, currentUserId],
 	);
 
 	const handlePlay = useCallback(
@@ -199,6 +209,10 @@ export function CommunityView({
 					const midi = midis[absoluteIndex];
 					const isSelected = midi.id === selectedId;
 					const isAdded = addedIds.has(midi.id);
+					// The viewer's own publications live in their Custom uploads
+					// already (as user_song_uploads). Surface that state so they
+					// can't accidentally double-add via the community alias.
+					const isOwnSong = !!currentUserId && midi.submitterId === currentUserId;
 					const isThisPreviewing = previewingId === midi.id;
 					const previewState: PreviewButtonState =
 						isThisPreviewing && preview.state === "loading"
@@ -275,17 +289,26 @@ export function CommunityView({
 											type="button"
 											onClick={(e) => {
 												e.stopPropagation();
+												if (isOwnSong) return;
 												handleAddToCustom(midi);
 											}}
-											disabled={busyId === midi.id}
-											title={isAdded ? "Remove from your Custom songs" : "Add to your Custom songs"}
-											className={`text-xs italic uppercase tracking-widest px-3 py-1.5 rounded-full border transition-colors disabled:opacity-50 ${
-												isAdded
-													? "border-emerald-300/40 bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/25"
-													: "border-white/15 bg-white/5 text-white/80 hover:text-white hover:bg-white/10"
+											disabled={busyId === midi.id || isOwnSong}
+											title={
+												isOwnSong
+													? "You published this song — it's already in your Custom uploads"
+													: isAdded
+														? "Remove from your Custom songs"
+														: "Add to your Custom songs"
+											}
+											className={`text-xs italic uppercase tracking-widest px-3 py-1.5 rounded-full border transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
+												isOwnSong
+													? "border-violet-300/40 bg-violet-500/15 text-violet-200"
+													: isAdded
+														? "border-emerald-300/40 bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/25"
+														: "border-white/15 bg-white/5 text-white/80 hover:text-white hover:bg-white/10"
 											}`}
 										>
-											{isAdded ? "Added to Custom" : "+ Add to Custom"}
+											{isOwnSong ? "Your song" : isAdded ? "Added to Custom" : "+ Add to Custom"}
 										</button>
 									</div>
 								</div>
