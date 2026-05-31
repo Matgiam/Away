@@ -85,7 +85,12 @@ function SquareButton({
 	indicatorOn?: boolean;
 }) {
 	return (
-		<div onClick={onClick} className="cursor-pointer relative" style={{ pointerEvents: "auto" }} title={title}>
+		<div
+			onClick={onClick}
+			className="cursor-pointer relative transition-transform duration-150 ease-out hover:scale-105"
+			style={{ pointerEvents: "auto" }}
+			title={title}
+		>
 			<DynamicLiquidGlass width={67} height={67} radius={15} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={active ? 0.15 : 0.001}>
 				{children}
 			</DynamicLiquidGlass>

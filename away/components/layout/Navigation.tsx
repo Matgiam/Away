@@ -157,14 +157,32 @@ export const Navigation = ({
 	return (
 		<>
 			<div style={{ position: "absolute", top: "2%", right: "1%", zIndex: 50 }}>
-				<div className="flex flex-col items-center cursor-pointer" onClick={openSoundfontPanel} title="Choose soundfont">
+				<div
+					className="flex flex-col items-center cursor-pointer transition-transform duration-150 ease-out hover:scale-105"
+					onClick={openSoundfontPanel}
+					title="Choose soundfont"
+				>
 					<DynamicLiquidGlass width={250} height={60} radius={15} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={0.001}>
-						<h1
-							className="text-white font-semibold tracking-wide text-lg pointer-events-none truncate block px-3 text-center"
-							style={{ maxWidth: "230px" }}
-						>
-							{loadingSoundfont === currentSoundfont ? "Loading…" : currentName}
-						</h1>
+						<div className="flex items-center justify-center gap-2 pointer-events-none px-3" style={{ maxWidth: "230px" }}>
+							<h1 className="text-white font-semibold tracking-wide text-lg truncate">
+								{loadingSoundfont === currentSoundfont ? "Loading…" : currentName}
+							</h1>
+							{/* Down chevron — universal "this opens a panel" hint */}
+							<svg
+								width="16"
+								height="16"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="white"
+								strokeWidth="2.5"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								className="shrink-0 opacity-70"
+								aria-hidden
+							>
+								<polyline points="6 9 12 15 18 9" />
+							</svg>
+						</div>
 					</DynamicLiquidGlass>
 				</div>
 			</div>
@@ -177,7 +195,11 @@ export const Navigation = ({
 					const belowMetronome = extras.slice(2);
 					const showMetronomeRow = canControlMetronome || inMetronomeRow.length > 0;
 					const recordCell = (
-						<div onClick={onToggleRecord} className="cursor-pointer relative" style={{ pointerEvents: "auto" }}>
+						<div
+							onClick={onToggleRecord}
+							className="cursor-pointer relative transition-transform duration-150 ease-out hover:scale-105"
+							style={{ pointerEvents: "auto" }}
+						>
 							<DynamicLiquidGlass
 								width={67}
 								height={67}
@@ -206,7 +228,11 @@ export const Navigation = ({
 						</div>
 					);
 					const wrenchCell = (
-						<div onClick={openSettings} className="cursor-pointer" style={{ pointerEvents: "auto" }}>
+						<div
+							onClick={openSettings}
+							className="cursor-pointer transition-transform duration-150 ease-out hover:scale-105"
+							style={{ pointerEvents: "auto" }}
+						>
 							<DynamicLiquidGlass
 								width={67}
 								height={67}
@@ -220,7 +246,11 @@ export const Navigation = ({
 						</div>
 					);
 					const exitCell = (
-						<div onClick={onLogout} className="cursor-pointer" style={{ pointerEvents: "auto" }}>
+						<div
+							onClick={onLogout}
+							className="cursor-pointer transition-transform duration-150 ease-out hover:scale-105"
+							style={{ pointerEvents: "auto" }}
+						>
 							<DynamicLiquidGlass width={67} height={67} radius={15} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={0.001}>
 								<img src="/icons/Logout.svg" alt="Logout" style={{ width: "35px", height: "35px", objectFit: "contain" }} />
 							</DynamicLiquidGlass>
@@ -231,7 +261,7 @@ export const Navigation = ({
 							ref={metronomeAnchorRef}
 							onClick={handleMetronomeClick}
 							onContextMenu={handleMetronomeContextMenu}
-							className="cursor-pointer relative"
+							className="cursor-pointer relative transition-transform duration-150 ease-out hover:scale-105"
 							style={{ pointerEvents: "auto" }}
 							title={`Metronome — click to ${metronomeEnabled ? "mute" : "play"} · right-click for BPM`}
 						>
@@ -283,7 +313,10 @@ export const Navigation = ({
 				})()}
 
 				{onToggleChat && !isChatOpen && (
-					<div onClick={onToggleChat} className="cursor-pointer relative mt-5 inline-block">
+					<div
+						onClick={onToggleChat}
+						className="cursor-pointer relative mt-5 inline-block transition-transform duration-150 ease-out hover:scale-105"
+					>
 						<DynamicLiquidGlass
 							width={67}
 							height={67}
