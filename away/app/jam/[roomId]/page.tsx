@@ -698,6 +698,25 @@ export default function JamRoom() {
 
 		room.on("broadcast", { event: "piano-note" }, ({ payload }) => {
 			if (payload.senderId === myTempId.current) return;
+			// Every piano-note payload carries the sender's current soundfont,
+			// so use it as a reliable fallback to keep the player-list popover
+			// in sync with what's actually playing. The dedicated
+			// "soundfont-change" / "player-meta" events can race with the
+			// presence channel on first connect or after reconnects — this
+			// ensures we never display a stale soundfont while audio is
+			// already playing the new one.
+			if (payload.soundfont) {
+				setPlayers((prev) => {
+					let changed = false;
+					const next = prev.map((p) => {
+						if (p.id !== payload.senderId) return p;
+						if (p.soundfont === payload.soundfont) return p;
+						changed = true;
+						return { ...p, soundfont: payload.soundfont };
+					});
+					return changed ? next : prev;
+				});
+			}
 			onReceivePeerNote(payload.senderId, payload.note, payload.velocity, payload.isNoteOn, payload.soundfont);
 		});
 

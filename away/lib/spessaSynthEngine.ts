@@ -117,6 +117,20 @@ export class SpessaSynthEngine {
 				? { bankMSB: chosen.bankMSB, bankLSB: chosen.bankLSB, program: chosen.program, isDrum: chosen.isDrum }
 				: { bankMSB: bankOffset, bankLSB: 0, program: 0, isDrum: false },
 		});
+
+		// addSoundBank can shift the bank/program lookup on channels that are
+		// already programmed — the worklet rebuilds its preset table and any
+		// channel sitting on the now-overridden program ends up playing the
+		// new bank's instrument. That's exactly the multiplayer bug where one
+		// user changes their soundfont and everyone else's piano starts
+		// sounding the same. Fix: invalidate the channel-font cache and
+		// re-apply each tracked channel's assigned font so the underlying
+		// synth state matches our intent again.
+		const prevFontByChannel = new Map(this.channelFont);
+		this.channelFont.clear();
+		for (const [channel, fontKey] of prevFontByChannel) {
+			this.selectFontOnChannel(channel, fontKey);
+		}
 	}
 
 	hasFont(key: string): boolean {

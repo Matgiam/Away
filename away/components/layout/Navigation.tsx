@@ -3,6 +3,7 @@
 import React, { useRef, useState } from "react";
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
 import type { SoundfontOption } from "@/hooks/useAudioEngine";
+import { useResponsiveNavSize } from "@/hooks/useResponsiveNavSize";
 import { SoundfontPanel } from "@/components/layout/SoundfontPanel";
 import { SettingsPanel } from "@/components/layout/SettingsPanel";
 import { MetronomePopover } from "@/components/layout/MetronomePopover";
@@ -97,6 +98,10 @@ export const Navigation = ({
 	const [metronomeRect, setMetronomeRect] = useState<DOMRect | null>(null);
 	const metronomeAnchorRef = useRef<HTMLDivElement | null>(null);
 
+	// All hardcoded sizes (67×67 buttons, 250×60 pill, 20px gap) now flow from
+	// this hook so the nav scales with viewport instead of staying fixed.
+	const navSize = useResponsiveNavSize();
+
 	const currentName = soundfonts.find((s) => s.key === currentSoundfont)?.name || "Salamander Grand Piano";
 
 	const openSettings = () => {
@@ -162,8 +167,8 @@ export const Navigation = ({
 					onClick={openSoundfontPanel}
 					title="Choose soundfont"
 				>
-					<DynamicLiquidGlass width={250} height={60} radius={15} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={0.001}>
-						<div className="flex items-center justify-center gap-2 pointer-events-none px-3" style={{ maxWidth: "230px" }}>
+					<DynamicLiquidGlass width={navSize.pillWidth} height={navSize.pillHeight} radius={15} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={0.001}>
+						<div className="flex items-center justify-center gap-2 pointer-events-none px-3" style={{ maxWidth: navSize.pillWidth - 20 }}>
 							<h1 className="text-white font-semibold tracking-wide text-lg truncate">
 								{loadingSoundfont === currentSoundfont ? "Loading…" : currentName}
 							</h1>
@@ -201,8 +206,8 @@ export const Navigation = ({
 							style={{ pointerEvents: "auto" }}
 						>
 							<DynamicLiquidGlass
-								width={67}
-								height={67}
+								width={navSize.button}
+								height={navSize.button}
 								radius={15}
 								refractionLevel={0.8}
 								specularOpacity={0.7}
@@ -234,8 +239,8 @@ export const Navigation = ({
 							style={{ pointerEvents: "auto" }}
 						>
 							<DynamicLiquidGlass
-								width={67}
-								height={67}
+								width={navSize.button}
+								height={navSize.button}
 								radius={15}
 								refractionLevel={0.8}
 								specularOpacity={0.7}
@@ -251,7 +256,7 @@ export const Navigation = ({
 							className="cursor-pointer transition-transform duration-150 ease-out hover:scale-105"
 							style={{ pointerEvents: "auto" }}
 						>
-							<DynamicLiquidGlass width={67} height={67} radius={15} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={0.001}>
+							<DynamicLiquidGlass width={navSize.button} height={navSize.button} radius={15} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={0.001}>
 								<img src="/icons/Logout.svg" alt="Logout" style={{ width: "35px", height: "35px", objectFit: "contain" }} />
 							</DynamicLiquidGlass>
 						</div>
@@ -266,8 +271,8 @@ export const Navigation = ({
 							title={`Metronome — click to ${metronomeEnabled ? "mute" : "play"} · right-click for BPM`}
 						>
 							<DynamicLiquidGlass
-								width={67}
-								height={67}
+								width={navSize.button}
+								height={navSize.button}
 								radius={15}
 								refractionLevel={0.8}
 								specularOpacity={0.7}
@@ -286,19 +291,19 @@ export const Navigation = ({
 						// Empty grid cell so the metronome column stays visually aligned
 						// when the metronome itself is hidden but the parent provided
 						// extras to slot into the same row.
-						<div style={{ width: 67, height: 67 }} aria-hidden />
+						<div style={{ width: navSize.button, height: navSize.button }} aria-hidden />
 					);
 
 					return (
-						<div className="grid grid-cols-3 gap-5 justify-items-end">
+						<div className="grid grid-cols-3 justify-items-end" style={{ gap: navSize.gap }}>
 							{recordCell}
 							{wrenchCell}
 							{exitCell}
 
 							{showMetronomeRow && (
 								<>
-									{inMetronomeRow[0] ?? <div style={{ width: 67, height: 67 }} aria-hidden />}
-									{inMetronomeRow[1] ?? <div style={{ width: 67, height: 67 }} aria-hidden />}
+									{inMetronomeRow[0] ?? <div style={{ width: navSize.button, height: navSize.button }} aria-hidden />}
+									{inMetronomeRow[1] ?? <div style={{ width: navSize.button, height: navSize.button }} aria-hidden />}
 									{metronomeCell}
 								</>
 							)}
@@ -315,11 +320,12 @@ export const Navigation = ({
 				{onToggleChat && !isChatOpen && (
 					<div
 						onClick={onToggleChat}
-						className="cursor-pointer relative mt-5 inline-block transition-transform duration-150 ease-out hover:scale-105"
+						className="cursor-pointer relative inline-block transition-transform duration-150 ease-out hover:scale-105"
+						style={{ marginTop: navSize.gap }}
 					>
 						<DynamicLiquidGlass
-							width={67}
-							height={67}
+							width={navSize.button}
+							height={navSize.button}
 							radius={15}
 							refractionLevel={0.8}
 							specularOpacity={0.7}

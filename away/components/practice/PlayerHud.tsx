@@ -35,6 +35,10 @@ export function PlayerHud({
 	canExport,
 }: PlayerHudProps) {
 	const progress = totalDuration > 0 ? currentTime / totalDuration : 0;
+	// "Finished" = song reached the end and isn't playing. Triggers the replay
+	// icon variant of the play button. Tolerance covers float rounding from
+	// the playhead snap.
+	const finished = !playing && totalDuration > 0 && currentTime >= totalDuration - 0.01;
 
 	return (
 		<div className="pointer-events-none absolute top-7 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-3 select-none">
@@ -48,6 +52,7 @@ export function PlayerHud({
 				<div className="flex items-center gap-3">
 					<PlayPauseButton
 						playing={playing}
+						finished={finished}
 						onClick={onPlayPause}
 						disabled={loadState !== "ready"}
 					/>
@@ -101,13 +106,17 @@ export function PlayerHud({
 
 function PlayPauseButton({
 	playing,
+	finished,
 	onClick,
 	disabled,
 }: {
 	playing: boolean;
+	finished: boolean;
 	onClick: () => void;
 	disabled: boolean;
 }) {
+	const label = finished ? "Replay" : playing ? "Pause" : "Play";
+	const tooltip = finished ? "Replay (Space)" : playing ? "Pause (Space)" : "Play (Space)";
 	return (
 		<button
 			type="button"
@@ -116,8 +125,8 @@ function PlayPauseButton({
 			className={`transition-transform ${
 				disabled ? "opacity-40 cursor-not-allowed" : "hover:scale-110 cursor-pointer"
 			}`}
-			aria-label={playing ? "Pause" : "Play"}
-			title={playing ? "Pause (Space)" : "Play (Space)"}
+			aria-label={label}
+			title={tooltip}
 		>
 			<DynamicLiquidGlass
 				width={PLAY_BUTTON_SIZE}
@@ -127,7 +136,15 @@ function PlayPauseButton({
 				specularOpacity={0.8}
 				glassBgOpacity={0.08}
 			>
-				{playing ? (
+				{finished ? (
+					// Circular-arrow replay glyph — semantically "go back to start
+					// and play again". Stroke-based so it scales cleanly with the
+					// button.
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+						<polyline points="1 4 1 10 7 10" />
+						<path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+					</svg>
+				) : playing ? (
 					<svg width="12" height="12" viewBox="0 0 24 24" fill="white">
 						<rect x="6" y="5" width="4" height="14" rx="1" />
 						<rect x="14" y="5" width="4" height="14" rx="1" />

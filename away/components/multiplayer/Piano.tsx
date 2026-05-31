@@ -17,6 +17,12 @@ interface PianoProps {
 
 const EMPTY_NUMBER_SET: ReadonlySet<number> = new Set<number>();
 
+// Comfortable mezzo-piano for non-velocity-sensitive input (mouse, touch).
+// Mouse clicks have no pressure, so the velocity is fully synthetic — 127
+// clips, 90 was still too loud per user feedback. 65 sits in the mezzo-piano
+// range that matches how a casual finger-tap feels on a real keyboard.
+const MOUSE_DEFAULT_VELOCITY = 65;
+
 function toSet(input: ReadonlySet<number> | number[] | undefined): ReadonlySet<number> {
 	if (!input) return EMPTY_NUMBER_SET;
 	if (input instanceof Set) return input;
@@ -45,7 +51,11 @@ export const Piano: React.FC<PianoProps> = ({
 		(midi: number) => {
 			if (activeKeyRef.current === midi) return;
 			if (activeKeyRef.current !== null) onStopNote(activeKeyRef.current);
-			onPlayNote(midi, 127);
+			// Mouse input has no real velocity (no pressure sensitivity). 127
+			// (max) hits hard and clips on most soundfonts; 90 feels like a
+			// natural mezzo-forte on piano. The audio engine still respects the
+			// user's velocity mode (fixed/dynamic) further downstream.
+			onPlayNote(midi, MOUSE_DEFAULT_VELOCITY);
 			activeKeyRef.current = midi;
 		},
 		[onPlayNote, onStopNote],

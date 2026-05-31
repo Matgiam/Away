@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
+import { useResponsiveNavSize } from "@/hooks/useResponsiveNavSize";
 
 export type PracticeHand = "both" | "left" | "right";
 
@@ -84,6 +85,11 @@ function SquareButton({
 	children: ReactNode;
 	indicatorOn?: boolean;
 }) {
+	// SquareButton is a real React component so the hook is legal here. The
+	// builder buildPracticeControls() is a plain function (not a component)
+	// and intentionally doesn't call hooks itself — each SquareButton picks
+	// up the current viewport size on its own.
+	const navSize = useResponsiveNavSize();
 	return (
 		<div
 			onClick={onClick}
@@ -91,7 +97,7 @@ function SquareButton({
 			style={{ pointerEvents: "auto" }}
 			title={title}
 		>
-			<DynamicLiquidGlass width={67} height={67} radius={15} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={active ? 0.15 : 0.001}>
+			<DynamicLiquidGlass width={navSize.button} height={navSize.button} radius={15} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={active ? 0.15 : 0.001}>
 				{children}
 			</DynamicLiquidGlass>
 			{indicatorOn && (

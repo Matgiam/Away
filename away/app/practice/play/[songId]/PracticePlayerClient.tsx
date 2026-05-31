@@ -366,6 +366,12 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 			if (t >= totalDuration) {
 				playingRef.current = false;
 				setPlaying(false);
+				// Snap to the exact end so the UI can derive "finished" cleanly
+				// (and the play button can swap to the replay icon). The early
+				// return below would otherwise skip the setCurrentTime call at
+				// the end of tick and leave currentTime one frame short.
+				playheadRef.current = totalDuration;
+				setCurrentTime(totalDuration);
 				releaseAllAuto();
 				markSongCompleted(songId);
 				checkAndUnlockAchievements();
@@ -542,12 +548,26 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 
 	const handlePlayPause = useCallback(async () => {
 		await unlockAudio();
+		// Replay branch: the song has finished. Rewind to the lead-in so the
+		// notes fall in from the top again, then start playing. We check the
+		// ref (not state) because handlePlayPause may be fired from a
+		// keyboard handler whose closure captured stale `playing`.
+		if (
+			!playingRef.current &&
+			totalDuration > 0 &&
+			playheadRef.current >= totalDuration - 0.01
+		) {
+			resetToTime(-LEAD_IN_SECONDS);
+			playingRef.current = true;
+			setPlaying(true);
+			return;
+		}
 		setPlaying((p) => {
 			const next = !p;
 			if (!next) releaseAllAuto();
 			return next;
 		});
-	}, [unlockAudio, releaseAllAuto]);
+	}, [unlockAudio, releaseAllAuto, resetToTime, totalDuration]);
 
 	const handleRestart = useCallback(() => {
 		setPlaying(false);
