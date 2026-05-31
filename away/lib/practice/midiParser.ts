@@ -7,8 +7,15 @@ export type ParsedNote = {
 	channel: number;
 };
 
+export type ParsedPedalEvent = {
+	timeSeconds: number;
+	channel: number;
+	on: boolean;
+};
+
 export type ParsedMidi = {
 	notes: ParsedNote[];
+	pedalEvents: ParsedPedalEvent[];
 	durationSeconds: number;
 	ppq: number;
 	initialTempoBpm: number;
@@ -59,6 +66,12 @@ type RawEvent = {
 	track: number;
 };
 
+type RawPedal = {
+	tick: number;
+	channel: number;
+	on: boolean;
+};
+
 export function parseMidi(buffer: ArrayBuffer): ParsedMidi {
 	const view = new DataView(buffer);
 	const r: Reader = { view, pos: 0 };
@@ -82,6 +95,7 @@ export function parseMidi(buffer: ArrayBuffer): ParsedMidi {
 
 	const tempoChanges: TempoChange[] = [];
 	const events: RawEvent[] = [];
+	const rawPedals: RawPedal[] = [];
 
 	for (let t = 0; t < tracks; t++) {
 		while (r.pos < view.byteLength - 8) {
@@ -135,7 +149,14 @@ export function parseMidi(buffer: ArrayBuffer): ParsedMidi {
 				const midi = read8(r);
 				read8(r); // release velocity
 				closeNote(openNotes, events, t, channel, midi, tick);
-			} else if (high === 0xa0 || high === 0xb0 || high === 0xe0) {
+			} else if (high === 0xb0) {
+				const controller = read8(r);
+				const value = read8(r);
+				// CC64 = sustain pedal. MIDI spec: 0–63 = off, 64–127 = on.
+				if (controller === 64) {
+					rawPedals.push({ tick, channel, on: value >= 64 });
+				}
+			} else if (high === 0xa0 || high === 0xe0) {
 				r.pos += 2;
 			} else if (high === 0xc0 || high === 0xd0) {
 				r.pos += 1;
@@ -209,10 +230,26 @@ export function parseMidi(buffer: ArrayBuffer): ParsedMidi {
 		0,
 	);
 
+	rawPedals.sort((a, b) => a.tick - b.tick);
+	const pedalEvents: ParsedPedalEvent[] = [];
+	const lastPedalState = new Map<number, boolean>();
+	for (const p of rawPedals) {
+		// Skip redundant toggles — many MIDI files send CC64=0 repeatedly between
+		// presses, which would cause unnecessary engine calls during playback.
+		if (lastPedalState.get(p.channel) === p.on) continue;
+		lastPedalState.set(p.channel, p.on);
+		pedalEvents.push({
+			timeSeconds: ticksToSeconds(p.tick),
+			channel: p.channel,
+			on: p.on,
+		});
+	}
+
 	const initialTempoBpm = Math.round(60000000 / tempoChanges[0].microsPerQuarter);
 
 	return {
 		notes,
+		pedalEvents,
 		durationSeconds,
 		ppq,
 		initialTempoBpm,

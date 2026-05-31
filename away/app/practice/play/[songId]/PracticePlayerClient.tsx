@@ -73,6 +73,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 		noteColor,
 		setNoteColor,
 		setSustain,
+		setPeerSustain,
 		keyboardInputEnabled,
 		setKeyboardInputEnabled,
 		keybinds,
@@ -157,6 +158,12 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 	const playheadRef = useRef(-LEAD_IN_SECONDS);
 	const lastFrameRef = useRef(0);
 	const nextNoteIndexRef = useRef(0);
+	const nextPedalIndexRef = useRef(0);
+	// MIDI channels currently holding their pedal down. The auto-play synth's
+	// pedal is on iff this set is non-empty, so multi-track files where left
+	// and right hands have independent pedal events behave correctly.
+	const heldPedalChannelsRef = useRef<Set<number>>(new Set());
+	const autoSustainOnRef = useRef(false);
 	const chordIndexRef = useRef(0);
 	const waitingChordRef = useRef<Chord | null>(null);
 	const gateMidisRef = useRef<number[]>([]);
@@ -244,12 +251,21 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 
 	const totalDuration = midi?.durationSeconds ?? 0;
 
+	const releaseAutoPedal = useCallback(() => {
+		heldPedalChannelsRef.current.clear();
+		if (autoSustainOnRef.current) {
+			autoSustainOnRef.current = false;
+			setPeerSustain("practice-auto", false);
+		}
+	}, [setPeerSustain]);
+
 	const releaseAllAuto = useCallback(() => {
 		activeAutoNotesRef.current.forEach((_releaseTime, midiNote) => {
 			stopNote(midiNote, "practice-auto");
 		});
 		activeAutoNotesRef.current.clear();
-	}, [stopNote]);
+		releaseAutoPedal();
+	}, [stopNote, releaseAutoPedal]);
 
 	const clearGate = useCallback(() => {
 		waitingChordRef.current = null;
@@ -264,6 +280,11 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 			const clamped = Math.max(-LEAD_IN_SECONDS, Math.min(totalDuration || 0, toSeconds));
 			playheadRef.current = clamped;
 			setCurrentTime(clamped);
+			// releaseAllAuto also wipes pedal state, so do it before we replay
+			// pedal history below — otherwise we'd clear the very state we're
+			// reconstructing.
+			clearGate();
+			releaseAllAuto();
 			if (midi) {
 				let lo = 0;
 				let hi = midi.notes.length;
@@ -273,10 +294,22 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 					else hi = mid;
 				}
 				nextNoteIndexRef.current = lo;
+
+				// Replay pedal history so seeking into the middle of a held pedal
+				// section restores the correct pedal state. The auto-play channel
+				// may not exist yet — the tick loop will push the resolved state
+				// to the engine on its first iteration.
+				let pedalIdx = 0;
+				while (pedalIdx < midi.pedalEvents.length) {
+					const ev = midi.pedalEvents[pedalIdx];
+					if (ev.timeSeconds > clamped) break;
+					if (ev.on) heldPedalChannelsRef.current.add(ev.channel);
+					else heldPedalChannelsRef.current.delete(ev.channel);
+					pedalIdx++;
+				}
+				nextPedalIndexRef.current = pedalIdx;
 			}
 			chordIndexRef.current = chordIndexForTime(chords, clamped);
-			clearGate();
-			releaseAllAuto();
 		},
 		[chords, clearGate, midi, releaseAllAuto, totalDuration],
 	);
@@ -291,10 +324,10 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 		clearGate();
 		releaseAllAuto();
 		chordIndexRef.current = chordIndexForTime(chords, playheadRef.current);
+		const t = playheadRef.current;
 		nextNoteIndexRef.current = (() => {
 			let lo = 0;
 			let hi = midi.notes.length;
-			const t = playheadRef.current;
 			while (lo < hi) {
 				const mid = (lo + hi) >>> 1;
 				if (midi.notes[mid].startSeconds < t) lo = mid + 1;
@@ -302,6 +335,15 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 			}
 			return lo;
 		})();
+		let pedalIdx = 0;
+		while (pedalIdx < midi.pedalEvents.length) {
+			const ev = midi.pedalEvents[pedalIdx];
+			if (ev.timeSeconds > t) break;
+			if (ev.on) heldPedalChannelsRef.current.add(ev.channel);
+			else heldPedalChannelsRef.current.delete(ev.channel);
+			pedalIdx++;
+		}
+		nextPedalIndexRef.current = pedalIdx;
 	}, [autoPause, practiceHand, chords, clearGate, midi, releaseAllAuto]);
 
 	useEffect(() => {
@@ -415,6 +457,20 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 				});
 			}
 
+			const pedals = midi.pedalEvents;
+			while (nextPedalIndexRef.current < pedals.length) {
+				const ev = pedals[nextPedalIndexRef.current];
+				if (ev.timeSeconds > t) break;
+				nextPedalIndexRef.current++;
+				if (ev.on) heldPedalChannelsRef.current.add(ev.channel);
+				else heldPedalChannelsRef.current.delete(ev.channel);
+			}
+			const wantSustain = heldPedalChannelsRef.current.size > 0;
+			if (wantSustain !== autoSustainOnRef.current) {
+				autoSustainOnRef.current = wantSustain;
+				setPeerSustain("practice-auto", wantSustain);
+			}
+
 			setCurrentTime(t);
 		};
 
@@ -427,7 +483,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 			cancelAnimationFrame(frameId);
 			lastFrameRef.current = 0;
 		};
-	}, [midi, chords, handForNote, playNote, stopNote, releaseAllAuto, totalDuration, songId]);
+	}, [midi, chords, handForNote, playNote, stopNote, releaseAllAuto, totalDuration, songId, setPeerSustain]);
 
 	const handleUserNote = useCallback((m: number) => {
 		if (!autoPauseRef.current) return;
