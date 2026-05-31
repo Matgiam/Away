@@ -31,11 +31,14 @@ export function SignUpForm({ className, ...props }: React.ComponentPropsWithoutR
 				email,
 				password,
 				options: {
+					// emailRedirectTo is still set so any legacy magic-link path
+					// (e.g. an old email already in someone's inbox) lands somewhere
+					// sensible. The new flow is code-based — see /auth/verify-email.
 					emailRedirectTo: `${getSiteURL()}/protected`,
 				},
 			});
 			if (error) throw error;
-			router.push("/auth/sign-up-success");
+			router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
 		} catch (error: unknown) {
 			setError(error instanceof Error ? error.message : "An error occurred");
 		} finally {
