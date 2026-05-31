@@ -5,13 +5,13 @@ import { useAppRouter } from "@/hooks/useAppRouter";
 import { PracticeTabs, type PracticeTab } from "@/components/practice/PracticeTabs";
 import { SearchBar } from "@/components/practice/SearchBar";
 import { StartButton } from "@/components/practice/StartButton";
-import { CourseCategoryList, type CategoryStats } from "./CourseCategoryList";
+import { CourseCategoryList, type CategoryStats, type CourseCategoryFilter } from "./CourseCategoryList";
 import { CourseList } from "./CourseList";
 import {
 	ACHIEVEMENT_UNLOCK_EVENT,
 	getCompletedCourses,
 } from "@/lib/achievements";
-import type { Course, CourseCategoryKey } from "@/lib/courses/types";
+import type { Course } from "@/lib/courses/types";
 
 interface CoursesMenuProps {
 	courses: Course[];
@@ -25,7 +25,7 @@ export function CoursesMenu({ courses }: CoursesMenuProps) {
 		router.prefetch("/practice");
 	}, [router]);
 	const [search, setSearch] = useState("");
-	const [category, setCategory] = useState<CourseCategoryKey>("intro");
+	const [category, setCategory] = useState<CourseCategoryFilter>("all");
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [completedIds, setCompletedIds] = useState<string[]>(() => getCompletedCourses());
 
@@ -50,7 +50,7 @@ export function CoursesMenu({ courses }: CoursesMenuProps) {
 	const filtered = useMemo(() => {
 		const term = search.trim().toLowerCase();
 		return courses.filter((course) => {
-			if (course.category !== category) return false;
+			if (category !== "all" && course.category !== category) return false;
 			if (!term) return true;
 			const hay = [course.title, course.description].join(" ").toLowerCase();
 			return hay.includes(term);
@@ -58,14 +58,19 @@ export function CoursesMenu({ courses }: CoursesMenuProps) {
 	}, [courses, category, search]);
 
 	// Per-category {completed, total} stats for the sidebar.
-	const categoryStats = useMemo<Partial<Record<CourseCategoryKey, CategoryStats>>>(() => {
-		const out: Partial<Record<CourseCategoryKey, CategoryStats>> = {};
+	const categoryStats = useMemo<Partial<Record<CourseCategoryFilter, CategoryStats>>>(() => {
+		const out: Partial<Record<CourseCategoryFilter, CategoryStats>> = {};
 		for (const c of courses) {
 			const stats = out[c.category] ?? { completed: 0, total: 0 };
 			stats.total += 1;
 			if (completedSet.has(c.id)) stats.completed += 1;
 			out[c.category] = stats;
 		}
+		// "All" sums everything — matches filtered's scope when category === "all".
+		out["all"] = {
+			total: courses.length,
+			completed: courses.reduce((n, c) => n + (completedSet.has(c.id) ? 1 : 0), 0),
+		};
 		return out;
 	}, [courses, completedSet]);
 

@@ -4,6 +4,12 @@ import { useMemo, useState } from "react";
 import type { SoundfontOption } from "@/hooks/useAudioEngine";
 import { SOUNDFONT_CATEGORIES, type SoundfontCategory } from "@/lib/types";
 
+// UI-only filter: extends SoundfontCategory (data type) with an "All" pseudo
+// category that lists every soundfont regardless of its category field.
+type SoundfontFilter = SoundfontCategory | "All";
+
+const NAV_ITEMS: readonly SoundfontFilter[] = ["All", ...SOUNDFONT_CATEGORIES] as const;
+
 interface SoundfontPanelProps {
 	open: boolean;
 	onClose: () => void;
@@ -34,16 +40,19 @@ export const SoundfontPanel = ({
 		return map;
 	}, [soundfonts]);
 
-	const firstNonEmpty = useMemo<SoundfontCategory>(() => {
-		const cats = SOUNDFONT_CATEGORIES as readonly SoundfontCategory[];
-		return cats.find((c) => grouped[c].length > 0) ?? "Piano";
-	}, [grouped]);
+	// Counts per nav item including "All" (= total soundfont count).
+	const counts = useMemo<Record<SoundfontFilter, number>>(() => {
+		const out = { All: soundfonts.length } as Record<SoundfontFilter, number>;
+		for (const c of SOUNDFONT_CATEGORIES) out[c] = grouped[c].length;
+		return out;
+	}, [grouped, soundfonts.length]);
 
-	const [activeCategory, setActiveCategory] = useState<SoundfontCategory>(firstNonEmpty);
+	// Default to "All" so the user sees every available soundfont at first open.
+	const [activeCategory, setActiveCategory] = useState<SoundfontFilter>("All");
 
 	if (!open) return null;
 
-	const list = grouped[activeCategory] ?? [];
+	const list: SoundfontOption[] = activeCategory === "All" ? soundfonts : grouped[activeCategory] ?? [];
 
 	return (
 		<div
@@ -58,8 +67,8 @@ export const SoundfontPanel = ({
 				<aside className="w-64 shrink-0 border-r border-white/10 px-8 py-10 flex flex-col">
 					<h2 className="text-white text-4xl font-light italic mb-14">Soundfont</h2>
 					<nav className="flex flex-col gap-5">
-						{SOUNDFONT_CATEGORIES.map((cat) => {
-							const count = grouped[cat].length;
+						{NAV_ITEMS.map((cat) => {
+							const count = counts[cat];
 							return (
 								<button
 									key={cat}

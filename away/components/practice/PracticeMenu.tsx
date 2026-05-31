@@ -46,7 +46,7 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 
 	const [tab, setTab] = useState<PracticeTab>("songs");
 	const [search, setSearch] = useState("");
-	const [category, setCategory] = useState<CategoryFilter>("popular");
+	const [category, setCategory] = useState<CategoryFilter>("all");
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 
 	const [uploads, setUploads] = useState<UploadedSongMeta[]>([]);
@@ -223,12 +223,13 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 		fetchCommunityFirstPage(debouncedSearch);
 	}, [userId, category, debouncedSearch, fetchCommunityFirstPage]);
 
-	// Built-in songs filtered by category + search
+	// Built-in songs filtered by category + search. "all" skips the category
+	// filter so every built-in song is included regardless of its category.
 	const filteredSongs = useMemo(() => {
 		if (category === "custom" || category === "community") return [];
 		const term = search.trim().toLowerCase();
 		return initialSongs.filter((song) => {
-			if (song.category !== category) return false;
+			if (category !== "all" && song.category !== category) return false;
 			if (!term) return true;
 			const hay = [song.title, song.artist ?? "", song.subcategoryLabel ?? ""].join(" ").toLowerCase();
 			return hay.includes(term);
@@ -275,6 +276,12 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 			if (completedSet.has(song.id)) stats.completed += 1;
 			out[key] = stats;
 		}
+		// "All" mirrors filteredSongs scope: every built-in song across categories.
+		// Custom and Community get their own tabs and are not folded in here.
+		out["all"] = {
+			total: initialSongs.length,
+			completed: initialSongs.reduce((n, s) => n + (completedSet.has(s.id) ? 1 : 0), 0),
+		};
 		// Custom: user's own uploads + added community songs
 		const customTotal = uploads.length + addedCommunity.length;
 		const customCompleted =

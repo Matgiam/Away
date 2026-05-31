@@ -3,16 +3,25 @@
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
 import { COURSE_CATEGORIES, type CourseCategoryKey } from "@/lib/courses/types";
 
+// UI-only filter type: extends the data CourseCategoryKey with an "all" pseudo
+// category that shows every course regardless of its category field.
+export type CourseCategoryFilter = CourseCategoryKey | "all";
+
 export type CategoryStats = { completed: number; total: number };
 
 interface CourseCategoryListProps {
-	active: CourseCategoryKey;
-	onChange: (key: CourseCategoryKey) => void;
+	active: CourseCategoryFilter;
+	onChange: (key: CourseCategoryFilter) => void;
 	// Per-category completion counts. Categories not in the map render without a counter.
-	stats?: Partial<Record<CourseCategoryKey, CategoryStats>>;
+	stats?: Partial<Record<CourseCategoryFilter, CategoryStats>>;
 	// Overall completion shown at the bottom-right of the panel.
 	totalStats?: CategoryStats;
 }
+
+const ITEMS: { key: CourseCategoryFilter; label: string }[] = [
+	{ key: "all", label: "All" },
+	...COURSE_CATEGORIES.map((c) => ({ key: c.key as CourseCategoryFilter, label: c.label })),
+];
 
 export function CourseCategoryList({ active, onChange, stats, totalStats }: CourseCategoryListProps) {
 	return (
@@ -26,7 +35,7 @@ export function CourseCategoryList({ active, onChange, stats, totalStats }: Cour
 		>
 			<div className="relative flex h-full w-full flex-col px-8 py-6">
 				<div className="flex flex-1 flex-col justify-center gap-4">
-					{COURSE_CATEGORIES.map((item) => {
+					{ITEMS.map((item) => {
 						const isActive = item.key === active;
 						const s = stats?.[item.key];
 						const allDone = s && s.total > 0 && s.completed >= s.total;

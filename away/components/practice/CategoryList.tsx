@@ -3,7 +3,7 @@
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
 import type { SongCategoryKey } from "@/lib/practice/songs";
 
-export type CategoryFilter = SongCategoryKey | "custom" | "community";
+export type CategoryFilter = SongCategoryKey | "custom" | "community" | "all";
 
 export type CategoryStats = { completed: number; total: number };
 
@@ -17,6 +17,7 @@ interface CategoryListProps {
 }
 
 const CATEGORY_ITEMS: { key: CategoryFilter; label: string }[] = [
+	{ key: "all", label: "All" },
 	{ key: "video_games", label: "Video Game" },
 	{ key: "anime", label: "Anime" },
 	{ key: "popular", label: "Pop" },
