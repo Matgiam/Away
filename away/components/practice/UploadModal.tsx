@@ -11,24 +11,44 @@ import {
 	getDefaultTranscribeEngine,
 	isAudioFileName,
 	isTranskunAvailable,
-	transcribeAudioToMidi,
 	type TranscribeEngine,
 } from "@/lib/practice/transcribe";
+
+export type PrefilledMidi = {
+	file: File;
+	fileName: string;
+	buffer: ArrayBuffer;
+};
 
 interface UploadModalProps {
 	open: boolean;
 	onClose: () => void;
 	onUploaded: (id: string) => void;
 	signedIn: boolean;
+	// When the user drops an audio file we don't transcribe inline anymore —
+	// the parent kicks off a background task and shows a toast. The modal
+	// closes immediately afterward.
+	onStartTranscription: (file: File, engine: TranscribeEngine) => void;
+	// If set when the modal opens, jump straight to the form stage using this
+	// MIDI as if it had been parsed locally. The modal consumes it once per
+	// open cycle; reopening with a new buffer triggers a fresh fill.
+	prefilledMidi?: PrefilledMidi | null;
 }
 
-type Stage = "drop" | "transcribing" | "form" | "saving";
+type Stage = "drop" | "form" | "saving";
 type Source = "midi" | "audio";
 
 const MAX_MIDI_BYTES = 10 * 1024 * 1024;
 const AUDIO_ACCEPT = AUDIO_EXTENSIONS.join(",") + ",audio/*";
 
-export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModalProps) {
+export function UploadModal({
+	open,
+	onClose,
+	onUploaded,
+	signedIn,
+	onStartTranscription,
+	prefilledMidi,
+}: UploadModalProps) {
 	const inputRef = useRef<HTMLInputElement>(null);
 
 	const [source, setSource] = useState<Source>("midi");
@@ -46,15 +66,11 @@ export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModal
 	const [artist, setArtist] = useState("");
 	const [difficulty, setDifficulty] = useState<UploadDifficulty | "auto">("auto");
 
-	const [transcribeProgress, setTranscribeProgress] = useState(0);
-	const [transcribeMessage, setTranscribeMessage] = useState("Loading model…");
-	const [audioFileName, setAudioFileName] = useState("");
 	// Picked by the user before they drop a file. Defaults to the higher-quality
-	// engine when it's available, otherwise the fast browser one. The actual
-	// engine that runs is locked in at the moment they drop the file (in
-	// activeEngineRef) so flipping the toggle mid-upload doesn't get weird.
+	// engine when it's available, otherwise the fast browser one. The transcribe
+	// itself runs as a background task owned by the parent — flipping this after
+	// the file is handed off has no effect.
 	const [selectedEngine, setSelectedEngine] = useState<TranscribeEngine>(getDefaultTranscribeEngine);
-	const activeEngineRef = useRef<TranscribeEngine>(selectedEngine);
 
 	const reset = useCallback(() => {
 		setStage("drop");
@@ -68,9 +84,6 @@ export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModal
 		setTitle("");
 		setArtist("");
 		setDifficulty("auto");
-		setTranscribeProgress(0);
-		setTranscribeMessage("Loading model…");
-		setAudioFileName("");
 		setSelectedEngine(getDefaultTranscribeEngine());
 		if (inputRef.current) inputRef.current.value = "";
 	}, []);
@@ -95,6 +108,16 @@ export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModal
 		setStage("form");
 	}, []);
 
+	// When the parent hands us a freshly transcribed MIDI, jump straight to the
+	// form stage. We only do this once per open cycle — `reset()` in the
+	// open-change effect clears state when the modal closes, so reopening with
+	// a different `prefilledMidi` re-fires this effect.
+	useEffect(() => {
+		if (!open || !prefilledMidi) return;
+		if (pendingFile) return;
+		consumeMidiBuffer(prefilledMidi.file, prefilledMidi.fileName, prefilledMidi.buffer);
+	}, [open, prefilledMidi, pendingFile, consumeMidiBuffer]);
+
 	const handleMidiFile = useCallback(
 		async (file: File) => {
 			setError(null);
@@ -117,7 +140,7 @@ export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModal
 	);
 
 	const handleAudioFile = useCallback(
-		async (file: File) => {
+		(file: File) => {
 			setError(null);
 			if (!isAudioFileName(file.name)) {
 				setError("Unsupported audio format. Try .mp3, .wav, .flac, .ogg, .m4a.");
@@ -127,31 +150,13 @@ export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModal
 				setError(`File too large (max ${Math.floor(MAX_AUDIO_BYTES / 1024 / 1024)} MB).`);
 				return;
 			}
-			setAudioFileName(file.name);
-			setStage("transcribing");
-			setTranscribeProgress(0);
-			setTranscribeMessage("Loading model…");
-			activeEngineRef.current = selectedEngine;
-
-			try {
-				const midiBuffer = await transcribeAudioToMidi(
-					file,
-					(event) => {
-						setTranscribeProgress(event.progress);
-						setTranscribeMessage(event.message);
-					},
-					undefined,
-					selectedEngine,
-				);
-				const midiName = file.name.replace(/\.[^.]+$/, "") + ".mid";
-				const midiFile = new File([midiBuffer], midiName, { type: "audio/midi" });
-				consumeMidiBuffer(midiFile, midiName, midiBuffer);
-			} catch (e) {
-				setError(e instanceof Error ? e.message : "Transcription failed.");
-				setStage("drop");
-			}
+			// Hand off to the parent's background task and close the modal — the
+			// user can keep using the app while the transcription runs. The toast
+			// notifies them when it's done.
+			onStartTranscription(file, selectedEngine);
+			onClose();
 		},
-		[consumeMidiBuffer, selectedEngine],
+		[onStartTranscription, onClose, selectedEngine],
 	);
 
 	const handleFile = useCallback(
@@ -227,8 +232,6 @@ export function UploadModal({ open, onClose, onUploaded, signedIn }: UploadModal
 							/>
 							{error && <p className="mt-4 text-rose-300/80 italic text-sm text-center">{error}</p>}
 						</>
-					) : stage === "transcribing" ? (
-						<TranscribingStage progress={transcribeProgress} message={transcribeMessage} fileName={audioFileName} engine={activeEngineRef.current} />
 					) : (
 						<form
 							onSubmit={(e) => {
@@ -485,41 +488,6 @@ function DropZone({
 			>
 				Browse files
 			</button>
-		</div>
-	);
-}
-
-function TranscribingStage({
-	progress,
-	message,
-	fileName,
-	engine,
-}: {
-	progress: number;
-	message: string;
-	fileName: string;
-	engine: TranscribeEngine;
-}) {
-	const clamped = Math.max(0, Math.min(100, Math.round(progress)));
-	const isTranskun = engine === "transkun";
-	return (
-		<div className="py-10 flex flex-col items-center">
-			<div className="text-6xl font-bold tabular-nums text-white mb-6 drop-shadow-[0_2px_10px_rgba(255,255,255,0.15)]">{clamped}%</div>
-			<div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-6">
-				<div className="h-full bg-white/80 transition-[width] duration-300 ease-out" style={{ width: `${clamped}%` }} />
-			</div>
-			<p className="text-white/75 italic text-sm text-center px-2">{message}</p>
-			{fileName && <p className="text-white/35 text-xs mt-2 truncate max-w-full">{fileName}</p>}
-			<p className="text-white/40 text-xs mt-6 max-w-sm text-center leading-relaxed">
-				{isTranskun ? (
-					<>Expect 2-5 minutes per song. Leave this tab open — the result lands here when it finishes.</>
-				) : (
-					<>
-						Audio-to-MIDI transcription runs in your browser. The first time may take a moment to download the model. Feel free to leave this tab
-						open.
-					</>
-				)}
-			</p>
 		</div>
 	);
 }

@@ -7,6 +7,7 @@
 //   3. GET  /jobs/{id}/midi    once status == "done"     → MIDI bytes
 
 import type { TranscribeProgressCallback } from "./transcribe";
+import { markProcessing, releaseSlot, waitForTranscribeSlot } from "./transcribeQueue";
 
 const POLL_INTERVAL_MS = 2000;
 // Rough wall-clock estimate for the progress bar — actual time depends on song
@@ -63,99 +64,136 @@ export async function transcribeAudioToMidiServer(
 ): Promise<ArrayBuffer> {
 	const baseUrl = apiUrl.replace(/\/+$/, "");
 
-	// 1. Upload --------------------------------------------------------------
-	onProgress({ phase: "model", progress: 2, message: "Uploading audio…" });
-	const form = new FormData();
-	// The older server expects "audio", the newer one "file". Send both —
-	// FastAPI ignores the unexpected key, and we don't have to care which is
-	// deployed.
-	form.append("audio", file, file.name);
-	form.append("file", file, file.name);
-
-	const submitResp = await fetch(`${baseUrl}/transcribe`, {
-		method: "POST",
-		body: form,
-		headers: authHeaders(apiKey),
+	// 0. Client-side queue ---------------------------------------------------
+	// Block until fewer than MAX_CONCURRENT app users are uploading/processing.
+	// Surfaces the user's position to the progress UI while they wait.
+	onProgress({ phase: "model", progress: 1, message: "Joining queue…" });
+	const queueRowId = await waitForTranscribeSlot(
+		file.name,
+		({ positionInQueue, activeCount }) => {
+			if (positionInQueue <= 1) {
+				onProgress({
+					phase: "model",
+					progress: 2,
+					message: "Your turn — preparing upload…",
+				});
+				return;
+			}
+			const ahead = positionInQueue - 1;
+			const peopleWord = ahead === 1 ? "person" : "people";
+			onProgress({
+				phase: "model",
+				progress: 1,
+				message: `Queued — ${ahead} ${peopleWord} ahead of you (${activeCount} transcribing now)`,
+			});
+		},
 		signal,
-	});
-	if (!submitResp.ok) {
-		const text = await submitResp.text().catch(() => "");
-		throw new Error(
-			`Server rejected the upload (${submitResp.status}): ${text || submitResp.statusText}`,
-		);
-	}
-	const { jobId } = (await submitResp.json()) as { jobId: string };
+	);
 
-	// 2. Poll until done -----------------------------------------------------
-	onProgress({ phase: "transcribe", progress: 8, message: "Queued for transcription…" });
+	try {
+		// 1. Upload ----------------------------------------------------------
+		onProgress({ phase: "model", progress: 2, message: "Uploading audio…" });
+		const form = new FormData();
+		// The older server expects "audio", the newer one "file". Send both —
+		// FastAPI ignores the unexpected key, and we don't have to care which is
+		// deployed.
+		form.append("audio", file, file.name);
+		form.append("file", file, file.name);
 
-	while (true) {
-		if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-		await sleep(POLL_INTERVAL_MS, signal);
-
-		const statusResp = await fetch(`${baseUrl}/jobs/${jobId}`, {
+		const submitResp = await fetch(`${baseUrl}/transcribe`, {
+			method: "POST",
+			body: form,
 			headers: authHeaders(apiKey),
 			signal,
 		});
-		if (!statusResp.ok) {
-			throw new Error(`Status check failed (${statusResp.status})`);
+		if (!submitResp.ok) {
+			const text = await submitResp.text().catch(() => "");
+			throw new Error(
+				`Server rejected the upload (${submitResp.status}): ${text || submitResp.statusText}`,
+			);
 		}
-		const status = (await statusResp.json()) as JobStatus;
+		const { jobId } = (await submitResp.json()) as { jobId: string };
 
-		if (status.status === "error") {
-			throw new Error(status.error || status.message || "Transcription failed");
-		}
+		// Mark the queue row as 'processing' so it counts toward the concurrency
+		// cap even after the upload phase finishes. Done before polling so other
+		// waiters see an accurate active count.
+		await markProcessing(queueRowId, jobId).catch(() => {});
 
-		const elapsed = status.elapsedSeconds ?? 0;
-		const elapsedLabel = elapsed > 0 ? formatElapsed(elapsed) : "";
+		// 2. Poll until done -------------------------------------------------
+		onProgress({ phase: "transcribe", progress: 8, message: "Queued for transcription…" });
 
-		if (status.status === "done") {
-			onProgress({
-				phase: "midi",
-				progress: 95,
-				message: elapsedLabel
-					? `Downloading MIDI… (${elapsedLabel} total)`
-					: "Downloading MIDI…",
+		while (true) {
+			if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+			await sleep(POLL_INTERVAL_MS, signal);
+
+			const statusResp = await fetch(`${baseUrl}/jobs/${jobId}`, {
+				headers: authHeaders(apiKey),
+				signal,
 			});
-			break;
+			if (!statusResp.ok) {
+				throw new Error(`Status check failed (${statusResp.status})`);
+			}
+			const status = (await statusResp.json()) as JobStatus;
+
+			if (status.status === "error") {
+				throw new Error(status.error || status.message || "Transcription failed");
+			}
+
+			const elapsed = status.elapsedSeconds ?? 0;
+			const elapsedLabel = elapsed > 0 ? formatElapsed(elapsed) : "";
+
+			if (status.status === "done") {
+				onProgress({
+					phase: "midi",
+					progress: 95,
+					message: elapsedLabel
+						? `Downloading MIDI… (${elapsedLabel} total)`
+						: "Downloading MIDI…",
+				});
+				break;
+			}
+
+			// Prefer the server's own progress field if it sends one (old server);
+			// otherwise estimate from elapsed time (new server).
+			let pct: number;
+			if (typeof status.progress === "number") {
+				pct = 10 + Math.min(0.9, status.progress / 100) * 80;
+			} else {
+				const estimatedFraction = Math.min(0.9, elapsed / ESTIMATED_TOTAL_SECONDS);
+				pct = 10 + estimatedFraction * 80;
+			}
+			const phase = status.status === "queued" ? "decode" : "transcribe";
+			const message =
+				status.status === "queued"
+					? "Queued — waiting for a slot…"
+					: elapsedLabel
+						? `Transkun is transcribing… (${elapsedLabel} · this takes a few minutes)`
+						: "Transkun is transcribing… (this takes a few minutes)";
+			onProgress({ phase, progress: pct, message });
 		}
 
-		// Prefer the server's own progress field if it sends one (old server);
-		// otherwise estimate from elapsed time (new server).
-		let pct: number;
-		if (typeof status.progress === "number") {
-			pct = 10 + Math.min(0.9, status.progress / 100) * 80;
-		} else {
-			const estimatedFraction = Math.min(0.9, elapsed / ESTIMATED_TOTAL_SECONDS);
-			pct = 10 + estimatedFraction * 80;
+		// 3. Download MIDI ---------------------------------------------------
+		const midiResp = await fetch(`${baseUrl}/jobs/${jobId}/midi`, {
+			headers: authHeaders(apiKey),
+			signal,
+		});
+		if (!midiResp.ok) {
+			const text = await midiResp.text().catch(() => "");
+			throw new Error(`Failed to download MIDI (${midiResp.status}): ${text || ""}`);
 		}
-		const phase = status.status === "queued" ? "decode" : "transcribe";
-		const message =
-			status.status === "queued"
-				? "Queued — waiting for a slot…"
-				: elapsedLabel
-					? `Transkun is transcribing… (${elapsedLabel} · this takes a few minutes)`
-					: "Transkun is transcribing… (this takes a few minutes)";
-		onProgress({ phase, progress: pct, message });
+		const buffer = await midiResp.arrayBuffer();
+
+		// Best-effort cleanup; server also TTL-deletes.
+		fetch(`${baseUrl}/jobs/${jobId}`, {
+			method: "DELETE",
+			headers: authHeaders(apiKey),
+		}).catch(() => {});
+
+		onProgress({ phase: "done", progress: 100, message: "Done" });
+		return buffer;
+	} finally {
+		// Free our queue slot on success, error, or cancel — otherwise the
+		// position count would stay inflated until the row goes stale.
+		await releaseSlot(queueRowId).catch(() => {});
 	}
-
-	// 3. Download MIDI -------------------------------------------------------
-	const midiResp = await fetch(`${baseUrl}/jobs/${jobId}/midi`, {
-		headers: authHeaders(apiKey),
-		signal,
-	});
-	if (!midiResp.ok) {
-		const text = await midiResp.text().catch(() => "");
-		throw new Error(`Failed to download MIDI (${midiResp.status}): ${text || ""}`);
-	}
-	const buffer = await midiResp.arrayBuffer();
-
-	// Best-effort cleanup; server also TTL-deletes.
-	fetch(`${baseUrl}/jobs/${jobId}`, {
-		method: "DELETE",
-		headers: authHeaders(apiKey),
-	}).catch(() => {});
-
-	onProgress({ phase: "done", progress: 100, message: "Done" });
-	return buffer;
 }

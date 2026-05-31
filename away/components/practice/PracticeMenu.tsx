@@ -7,10 +7,11 @@ import { SearchBar } from "./SearchBar";
 import { SongList } from "./SongList";
 import { StartButton } from "./StartButton";
 import { PracticeTabs, type PracticeTab } from "./PracticeTabs";
-import { UploadModal } from "./UploadModal";
+import { UploadModal, type PrefilledMidi } from "./UploadModal";
 import { UploadsView, type CustomRow } from "./UploadsView";
 import { CommunityView } from "./CommunityView";
 import { PublishToCommunityModal } from "./PublishToCommunityModal";
+import { useTranscriptionContext } from "@/components/providers/TranscriptionProvider";
 import type { BuiltInSong } from "@/lib/practice/songs";
 import {
 	deleteUploadedSong,
@@ -36,6 +37,23 @@ interface PracticeMenuProps {
 	initialSongs: BuiltInSong[];
 }
 
+const PRACTICE_CATEGORY_KEY = "away:practice-category";
+const PRACTICE_SELECTED_KEY = "away:practice-selected-id";
+
+// Guard against stale or invalid values being restored from localStorage.
+// Anything outside this set falls back to the default ("all").
+const PERSISTABLE_CATEGORIES: ReadonlySet<string> = new Set<CategoryFilter>([
+	"all",
+	"video_games",
+	"anime",
+	"popular",
+	"classical",
+	"films",
+	"tv_shows",
+	"custom",
+	"community",
+]);
+
 export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 	const router = useAppRouter();
 	const { unlockAudio } = useAudioEngineContext();
@@ -48,6 +66,43 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 	const [search, setSearch] = useState("");
 	const [category, setCategory] = useState<CategoryFilter>("all");
 	const [selectedId, setSelectedId] = useState<string | null>(null);
+
+	// Two-phase localStorage restore for category + selectedId so we land back
+	// on whatever the user was on last time. The hydrated flag is needed
+	// because (a) initialising state from localStorage in useState would cause
+	// an SSR/client mismatch, and (b) the existing "keep selection valid"
+	// effect below would otherwise pre-empt our restore by snapping selectedId
+	// to filteredSongs[0].id on initial mount.
+	const [hydrated, setHydrated] = useState(false);
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		try {
+			const savedCat = window.localStorage.getItem(PRACTICE_CATEGORY_KEY);
+			const savedId = window.localStorage.getItem(PRACTICE_SELECTED_KEY);
+			if (savedCat && PERSISTABLE_CATEGORIES.has(savedCat)) {
+				setCategory(savedCat as CategoryFilter);
+			}
+			if (savedId) setSelectedId(savedId);
+		} catch {
+			// localStorage can throw in private mode / quota issues — ignore.
+		}
+		setHydrated(true);
+	}, []);
+
+	useEffect(() => {
+		if (!hydrated || typeof window === "undefined") return;
+		try {
+			window.localStorage.setItem(PRACTICE_CATEGORY_KEY, category);
+		} catch {}
+	}, [hydrated, category]);
+
+	useEffect(() => {
+		if (!hydrated || typeof window === "undefined") return;
+		try {
+			if (selectedId) window.localStorage.setItem(PRACTICE_SELECTED_KEY, selectedId);
+			else window.localStorage.removeItem(PRACTICE_SELECTED_KEY);
+		} catch {}
+	}, [hydrated, selectedId]);
 
 	const [uploads, setUploads] = useState<UploadedSongMeta[]>([]);
 	const [mySubmissions, setMySubmissions] = useState<CommunityMidi[]>([]);
@@ -68,7 +123,34 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 	const communityFetchTokenRef = useRef(0);
 
 	const [uploadModalOpen, setUploadModalOpen] = useState(false);
+	// When the toast is clicked after a transcription finishes, we open the
+	// upload modal with this set so it lands straight on the form stage.
+	// Cleared when the modal closes so a new transcription doesn't accidentally
+	// reopen it with stale data.
+	const [prefilledMidi, setPrefilledMidi] = useState<PrefilledMidi | null>(null);
 	const [publishTarget, setPublishTarget] = useState<UploadedSongMeta | null>(null);
+
+	const transcription = useTranscriptionContext();
+
+	// When the toast is clicked from elsewhere in the app (or right here), the
+	// provider flips pendingFinalize on. We pick it up, open the modal with the
+	// completed MIDI prefilled, and consume the flag so the effect doesn't fire
+	// again next render.
+	useEffect(() => {
+		if (!transcription.pendingFinalize) return;
+		if (transcription.state.phase !== "done") {
+			// State changed under us (cancel/dismiss); just clear the flag.
+			transcription.consumePendingFinalize();
+			return;
+		}
+		setPrefilledMidi({
+			file: transcription.state.midiFile,
+			fileName: transcription.state.midiFile.name,
+			buffer: transcription.state.midiBuffer,
+		});
+		setUploadModalOpen(true);
+		transcription.consumePendingFinalize();
+	}, [transcription]);
 
 	const [userId, setUserId] = useState<string | null>(null);
 	const [authChecked, setAuthChecked] = useState(false);
@@ -308,8 +390,11 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 		return { completed: completedBuiltIn + completedUploads + completedAdded, total };
 	}, [initialSongs, uploads, addedCommunity, completedSet]);
 
-	// Keep the selected song valid as the visible list changes.
+	// Keep the selected song valid as the visible list changes. Skipped until
+	// localStorage restore has completed so we don't snap to "first item" and
+	// override the user's last selection on mount.
 	useEffect(() => {
+		if (!hydrated) return;
 		if (category === "custom") {
 			if (customRows.length === 0) {
 				setSelectedId(null);
@@ -337,7 +422,7 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 		if (!filteredSongs.find((s) => s.id === selectedId)) {
 			setSelectedId(filteredSongs[0].id);
 		}
-	}, [filteredSongs, customRows, filteredCommunity, category, selectedId]);
+	}, [hydrated, filteredSongs, customRows, filteredCommunity, category, selectedId]);
 
 	useEffect(() => {
 		if (!selectedId) return;
@@ -487,9 +572,30 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 
 			<UploadModal
 				open={uploadModalOpen}
-				onClose={() => setUploadModalOpen(false)}
-				onUploaded={handleUploaded}
+				onClose={() => {
+					setUploadModalOpen(false);
+					// Clear the prefill so the next open without a fresh transcription
+					// shows the drop stage again.
+					setPrefilledMidi(null);
+					// If we just closed the form view of a completed transcription,
+					// the toast still says "Ready" — clear it so it doesn't reappear
+					// after the modal is dismissed without saving.
+					if (transcription.state.phase === "done") {
+						transcription.dismiss();
+					}
+				}}
+				onUploaded={(id) => {
+					handleUploaded(id);
+					setPrefilledMidi(null);
+					// On successful save, drop the completed transcription so the
+					// toast doesn't linger.
+					if (transcription.state.phase === "done") {
+						transcription.dismiss();
+					}
+				}}
 				signedIn={signedIn}
+				onStartTranscription={(file, engine) => transcription.start(file, engine)}
+				prefilledMidi={prefilledMidi}
 			/>
 
 			<PublishToCommunityModal

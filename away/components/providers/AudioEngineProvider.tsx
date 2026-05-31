@@ -67,7 +67,18 @@ export function AudioEngineProvider({ children }: { children: ReactNode }) {
 	const [keybinds, setKeybindsState] = useState<Keybinds>(loadKeybinds);
 	const [keybindBaseMidi, setKeybindBaseMidiState] = useState<number>(loadBaseMidi);
 	const [keybindPreset, setKeybindPresetState] = useState<LayoutPreset | null>(loadActivePreset);
-	const [settings, setSettingsState] = useState<AppSettings>(loadSettings);
+	// Initialise with DEFAULT_SETTINGS so SSR and the client's very first render
+	// match exactly. localStorage gets read after mount, then state updates with
+	// the user's actual prefs. Without this, settings that affect rendered
+	// markup (showNoteLabels → <span class="piano-label">, keyAnimations →
+	// className) cause a React hydration error on every page that renders the
+	// Piano. The brief flash of defaults on first paint is invisible in
+	// practice — the post-mount effect runs synchronously before the browser
+	// paints the next frame.
+	const [settings, setSettingsState] = useState<AppSettings>(() => ({ ...DEFAULT_SETTINGS }));
+	useEffect(() => {
+		setSettingsState(loadSettings());
+	}, []);
 	// Transient (not persisted) — a counter so multiple owners can suppress without trampling
 	// each other. Metronome ticks only when this is 0.
 	const [metronomeSuppressionCount, setMetronomeSuppressionCount] = useState(0);

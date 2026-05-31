@@ -13,7 +13,7 @@ import { RecordingSignInModal } from "@/components/layout/RecordingSignInModal";
 import { createClient } from "@/lib/supabase/client";
 import { FallingNotes } from "@/components/practice/FallingNotes";
 import { PlayerHud } from "@/components/practice/PlayerHud";
-import { PracticeSideControls } from "@/components/practice/PracticeSideControls";
+import { buildPracticeControls } from "@/components/practice/PracticeSideControls";
 import { parseMidi, type ParsedMidi, type ParsedNote } from "@/lib/practice/midiParser";
 import { buildChords, chordIndexForTime, type Chord } from "@/lib/practice/chords";
 import { buildHandAssignment, type Hand } from "@/lib/practice/hands";
@@ -690,16 +690,15 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 				settings={settings}
 				updateSetting={updateSetting}
 				onResetSettings={resetSettings}
-			/>
-
-			<PracticeSideControls
-				onSelectSong={() => router.push("/practice")}
-				autoPause={autoPause}
-				onToggleAutoPause={() => setAutoPause((v) => !v)}
-				speed={speed}
-				onCycleSpeed={handleCycleSpeed}
-				practiceHand={practiceHand}
-				onPracticeHandChange={setPracticeHand}
+				extraControls={buildPracticeControls({
+					onSelectSong: () => router.push("/practice"),
+					autoPause,
+					onToggleAutoPause: () => setAutoPause((v) => !v),
+					speed,
+					onCycleSpeed: handleCycleSpeed,
+					practiceHand,
+					onPracticeHandChange: setPracticeHand,
+				})}
 			/>
 
 			<PlayerHud

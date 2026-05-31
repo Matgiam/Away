@@ -46,6 +46,11 @@ interface NavigationProps {
 	onResetSettings?: () => void;
 	// Hide the metronome button (used on the multiplayer page where it doesn't make sense)
 	hideMetronome?: boolean;
+	// Optional 67×67 buttons to slot into the right-side grid. The first two
+	// items land on the metronome row (to the left of the metronome). Anything
+	// beyond that flows into additional rows of 3. Each entry must be a single
+	// element so the grid can place it as one cell.
+	extraControls?: React.ReactNode[];
 }
 
 export const Navigation = ({
@@ -84,6 +89,7 @@ export const Navigation = ({
 	updateSetting,
 	onResetSettings,
 	hideMetronome = false,
+	extraControls,
 }: NavigationProps) => {
 	const [showSettings, setShowSettings] = useState(false);
 	const [showSoundfontPanel, setShowSoundfontPanel] = useState(false);
@@ -164,57 +170,63 @@ export const Navigation = ({
 			</div>
 
 			<div style={{ position: "absolute", top: "11%", right: "1%", zIndex: 50 }}>
-				<div className="flex gap-6 items-center">
-					<div onClick={onToggleRecord} className="cursor-pointer relative" style={{ pointerEvents: "auto" }}>
-						<DynamicLiquidGlass
-							width={67}
-							height={67}
-							radius={15}
-							refractionLevel={0.8}
-							specularOpacity={0.7}
-							glassBgOpacity={recordingState === "recording" ? 0.2 : 0.001}
-							blur={2}
-						>
-							{recordingState === "recording" ? (
-								<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#AA0000">
-									<rect x="6" y="6" width="12" height="12" rx="2" />
-								</svg>
-							) : (
-								<svg xmlns="http://www.w3.org/2000/svg" width="51" height="51" viewBox="0 0 51 51" fill="none">
-									<rect width="51" height="51" rx="10" fill="black" fillOpacity="0.01" />
-									<ellipse cx="25.5" cy="26" rx="9.5" ry="9" fill="#AA0000" />
-								</svg>
+				{(() => {
+					const extras = extraControls ?? [];
+					// First two extras share the metronome row; the rest cascade below.
+					const inMetronomeRow = extras.slice(0, 2);
+					const belowMetronome = extras.slice(2);
+					const showMetronomeRow = canControlMetronome || inMetronomeRow.length > 0;
+					const recordCell = (
+						<div onClick={onToggleRecord} className="cursor-pointer relative" style={{ pointerEvents: "auto" }}>
+							<DynamicLiquidGlass
+								width={67}
+								height={67}
+								radius={15}
+								refractionLevel={0.8}
+								specularOpacity={0.7}
+								glassBgOpacity={recordingState === "recording" ? 0.2 : 0.001}
+								blur={2}
+							>
+								{recordingState === "recording" ? (
+									<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="#AA0000">
+										<rect x="6" y="6" width="12" height="12" rx="2" />
+									</svg>
+								) : (
+									<svg xmlns="http://www.w3.org/2000/svg" width="51" height="51" viewBox="0 0 51 51" fill="none">
+										<rect width="51" height="51" rx="10" fill="black" fillOpacity="0.01" />
+										<ellipse cx="25.5" cy="26" rx="9.5" ry="9" fill="#AA0000" />
+									</svg>
+								)}
+							</DynamicLiquidGlass>
+							{recordingState === "countdown" && (
+								<span className="absolute -inset-1 flex items-center justify-center text-white text-lg font-bold">
+									{recordingCountdown > 0 ? recordingCountdown : "GO"}
+								</span>
 							)}
-						</DynamicLiquidGlass>
-						{recordingState === "countdown" && (
-							<span className="absolute -inset-1 flex items-center justify-center text-white text-lg font-bold">
-								{recordingCountdown > 0 ? recordingCountdown : "GO"}
-							</span>
-						)}
-					</div>
-
-					<div onClick={openSettings} className="cursor-pointer" style={{ pointerEvents: "auto" }}>
-						<DynamicLiquidGlass
-							width={67}
-							height={67}
-							radius={15}
-							refractionLevel={0.8}
-							specularOpacity={0.7}
-							glassBgOpacity={showSettings ? 0.15 : 0.001}
-						>
-							<img src="/icons/Wrench.svg" alt="Settings" style={{ width: "35px", height: "35px", objectFit: "contain" }} />
-						</DynamicLiquidGlass>
-					</div>
-
-					<div onClick={onLogout} className="cursor-pointer" style={{ pointerEvents: "auto" }}>
-						<DynamicLiquidGlass width={67} height={67} radius={15} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={0.001}>
-							<img src="/icons/Logout.svg" alt="Logout" style={{ width: "35px", height: "35px", objectFit: "contain" }} />
-						</DynamicLiquidGlass>
-					</div>
-				</div>
-
-				{canControlMetronome && (
-					<div className="mt-5 flex justify-end">
+						</div>
+					);
+					const wrenchCell = (
+						<div onClick={openSettings} className="cursor-pointer" style={{ pointerEvents: "auto" }}>
+							<DynamicLiquidGlass
+								width={67}
+								height={67}
+								radius={15}
+								refractionLevel={0.8}
+								specularOpacity={0.7}
+								glassBgOpacity={showSettings ? 0.15 : 0.001}
+							>
+								<img src="/icons/Wrench.svg" alt="Settings" style={{ width: "35px", height: "35px", objectFit: "contain" }} />
+							</DynamicLiquidGlass>
+						</div>
+					);
+					const exitCell = (
+						<div onClick={onLogout} className="cursor-pointer" style={{ pointerEvents: "auto" }}>
+							<DynamicLiquidGlass width={67} height={67} radius={15} refractionLevel={0.8} specularOpacity={0.7} glassBgOpacity={0.001}>
+								<img src="/icons/Logout.svg" alt="Logout" style={{ width: "35px", height: "35px", objectFit: "contain" }} />
+							</DynamicLiquidGlass>
+						</div>
+					);
+					const metronomeCell = canControlMetronome ? (
 						<div
 							ref={metronomeAnchorRef}
 							onClick={handleMetronomeClick}
@@ -240,8 +252,35 @@ export const Navigation = ({
 								/>
 							)}
 						</div>
-					</div>
-				)}
+					) : (
+						// Empty grid cell so the metronome column stays visually aligned
+						// when the metronome itself is hidden but the parent provided
+						// extras to slot into the same row.
+						<div style={{ width: 67, height: 67 }} aria-hidden />
+					);
+
+					return (
+						<div className="grid grid-cols-3 gap-5 justify-items-end">
+							{recordCell}
+							{wrenchCell}
+							{exitCell}
+
+							{showMetronomeRow && (
+								<>
+									{inMetronomeRow[0] ?? <div style={{ width: 67, height: 67 }} aria-hidden />}
+									{inMetronomeRow[1] ?? <div style={{ width: 67, height: 67 }} aria-hidden />}
+									{metronomeCell}
+								</>
+							)}
+
+							{belowMetronome.map((node, i) => (
+								<div key={i} className="contents">
+									{node}
+								</div>
+							))}
+						</div>
+					);
+				})()}
 
 				{onToggleChat && !isChatOpen && (
 					<div onClick={onToggleChat} className="cursor-pointer relative mt-5 inline-block">

@@ -17,6 +17,20 @@ interface CoursesMenuProps {
 	courses: Course[];
 }
 
+const COURSES_CATEGORY_KEY = "away:courses-category";
+const COURSES_SELECTED_KEY = "away:courses-selected-id";
+
+const PERSISTABLE_COURSE_CATEGORIES: ReadonlySet<string> = new Set<CourseCategoryFilter>([
+	"all",
+	"intro",
+	"scales",
+	"hand_independence",
+	"chords",
+	"intervals",
+	"ear_training",
+	"improvisation",
+]);
+
 export function CoursesMenu({ courses }: CoursesMenuProps) {
 	const router = useAppRouter();
 
@@ -28,6 +42,39 @@ export function CoursesMenu({ courses }: CoursesMenuProps) {
 	const [category, setCategory] = useState<CourseCategoryFilter>("all");
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [completedIds, setCompletedIds] = useState<string[]>(() => getCompletedCourses());
+
+	// Two-phase restore from localStorage so we land where the user left off.
+	// hydrated gates both the save effects (avoid overwriting saved values with
+	// defaults) and the "keep selection valid" effect (avoid snapping to the
+	// first item before restore has applied).
+	const [hydrated, setHydrated] = useState(false);
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		try {
+			const savedCat = window.localStorage.getItem(COURSES_CATEGORY_KEY);
+			const savedId = window.localStorage.getItem(COURSES_SELECTED_KEY);
+			if (savedCat && PERSISTABLE_COURSE_CATEGORIES.has(savedCat)) {
+				setCategory(savedCat as CourseCategoryFilter);
+			}
+			if (savedId) setSelectedId(savedId);
+		} catch {}
+		setHydrated(true);
+	}, []);
+
+	useEffect(() => {
+		if (!hydrated || typeof window === "undefined") return;
+		try {
+			window.localStorage.setItem(COURSES_CATEGORY_KEY, category);
+		} catch {}
+	}, [hydrated, category]);
+
+	useEffect(() => {
+		if (!hydrated || typeof window === "undefined") return;
+		try {
+			if (selectedId) window.localStorage.setItem(COURSES_SELECTED_KEY, selectedId);
+			else window.localStorage.removeItem(COURSES_SELECTED_KEY);
+		} catch {}
+	}, [hydrated, selectedId]);
 
 	// Pick up new completions if the user finishes a course while this page is mounted.
 	useEffect(() => {
@@ -81,6 +128,7 @@ export function CoursesMenu({ courses }: CoursesMenuProps) {
 	}, [courses, completedSet]);
 
 	useEffect(() => {
+		if (!hydrated) return;
 		if (filtered.length === 0) {
 			setSelectedId(null);
 			return;
@@ -88,7 +136,7 @@ export function CoursesMenu({ courses }: CoursesMenuProps) {
 		if (!filtered.find((c) => c.id === selectedId)) {
 			setSelectedId(filtered[0].id);
 		}
-	}, [filtered, selectedId]);
+	}, [hydrated, filtered, selectedId]);
 
 	// Prefetch the currently-selected course's player page so hitting Start (or double-click)
 	// feels instant.
