@@ -121,11 +121,6 @@ export function CoursesMenu({ courses }: CoursesMenuProps) {
 		return out;
 	}, [courses, completedSet]);
 
-	const totalStats = useMemo(() => {
-		const total = courses.length;
-		const completed = courses.reduce((n, c) => n + (completedSet.has(c.id) ? 1 : 0), 0);
-		return { completed, total };
-	}, [courses, completedSet]);
 
 	useEffect(() => {
 		if (!hydrated) return;
@@ -194,7 +189,6 @@ export function CoursesMenu({ courses }: CoursesMenuProps) {
 							active={category}
 							onChange={setCategory}
 							stats={categoryStats}
-							totalStats={totalStats}
 						/>
 						<StartButton onClick={handleStart} disabled={!selectedId} />
 					</div>

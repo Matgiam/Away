@@ -14,8 +14,6 @@ interface CourseCategoryListProps {
 	onChange: (key: CourseCategoryFilter) => void;
 	// Per-category completion counts. Categories not in the map render without a counter.
 	stats?: Partial<Record<CourseCategoryFilter, CategoryStats>>;
-	// Overall completion shown at the bottom-right of the panel.
-	totalStats?: CategoryStats;
 }
 
 const ITEMS: { key: CourseCategoryFilter; label: string }[] = [
@@ -23,7 +21,7 @@ const ITEMS: { key: CourseCategoryFilter; label: string }[] = [
 	...COURSE_CATEGORIES.map((c) => ({ key: c.key as CourseCategoryFilter, label: c.label })),
 ];
 
-export function CourseCategoryList({ active, onChange, stats, totalStats }: CourseCategoryListProps) {
+export function CourseCategoryList({ active, onChange, stats }: CourseCategoryListProps) {
 	return (
 		<DynamicLiquidGlass
 			width={300}
@@ -66,20 +64,6 @@ export function CourseCategoryList({ active, onChange, stats, totalStats }: Cour
 						);
 					})}
 				</div>
-
-				{totalStats && totalStats.total > 0 && (
-					<div className="flex items-center justify-end pt-3 pr-1">
-						<span
-							className={`italic text-xs tabular-nums tracking-wider ${
-								totalStats.completed >= totalStats.total
-									? "text-emerald-300/85"
-									: "text-white/45"
-							}`}
-						>
-							{totalStats.completed}/{totalStats.total}
-						</span>
-					</div>
-				)}
 			</div>
 		</DynamicLiquidGlass>
 	);

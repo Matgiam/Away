@@ -611,6 +611,28 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 		return () => releaseAllAuto();
 	}, [releaseAllAuto]);
 
+	// Pause the song when the user switches tabs. Without this, requestAnimationFrame
+	// gets throttled or suspended in background tabs — the playhead "catches up"
+	// when the tab becomes visible again, fast-forwarding through every note the
+	// user missed. Pausing on hide keeps the position exactly where they left it.
+	useEffect(() => {
+		if (typeof document === "undefined") return;
+		const onVisibility = () => {
+			if (!document.hidden) {
+				// Coming back. Reset the tick baseline so the first tick after
+				// resume doesn't compute a multi-minute dt from the stale ref.
+				lastFrameRef.current = 0;
+				return;
+			}
+			if (!playingRef.current) return;
+			playingRef.current = false;
+			setPlaying(false);
+			releaseAllAuto();
+		};
+		document.addEventListener("visibilitychange", onVisibility);
+		return () => document.removeEventListener("visibilitychange", onVisibility);
+	}, [releaseAllAuto]);
+
 	const handleNoteFromPiano = useCallback(
 		(m: number, vel: number) => {
 			unlockAudio();

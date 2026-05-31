@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { PasswordInput } from "./PasswordInput";
 
 export function UpdatePasswordForm({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
 	const [password, setPassword] = useState("");
@@ -41,14 +42,13 @@ export function UpdatePasswordForm({ className, ...props }: React.ComponentProps
 						<label htmlFor="password" className="text-xs uppercase tracking-widest text-white/60 font-medium">
 							New password
 						</label>
-						<input
+						<PasswordInput
 							id="password"
-							type="password"
-							placeholder="New password"
 							required
+							autoComplete="new-password"
+							placeholder="New password"
 							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-							className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white italic outline-none focus:border-white/25 transition-colors placeholder:text-white/20"
+							onChange={setPassword}
 						/>
 					</div>
 

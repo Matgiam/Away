@@ -376,20 +376,6 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 		return out;
 	}, [initialSongs, uploads, addedCommunity, completedSet]);
 
-	const totalSongStats = useMemo<CategoryStats>(() => {
-		const total = initialSongs.length + uploads.length + addedCommunity.length;
-		const completedBuiltIn = initialSongs.reduce(
-			(n, s) => n + (completedSet.has(s.id) ? 1 : 0),
-			0,
-		);
-		const completedUploads = uploads.reduce((n, u) => n + (completedSet.has(u.id) ? 1 : 0), 0);
-		const completedAdded = addedCommunity.reduce(
-			(n, c) => n + (completedSet.has(c.id) ? 1 : 0),
-			0,
-		);
-		return { completed: completedBuiltIn + completedUploads + completedAdded, total };
-	}, [initialSongs, uploads, addedCommunity, completedSet]);
-
 	// Keep the selected song valid as the visible list changes. Skipped until
 	// localStorage restore has completed so we don't snap to "first item" and
 	// override the user's last selection on mount.
@@ -543,7 +529,6 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 							active={category}
 							onChange={handleCategoryChange}
 							stats={categoryStats}
-							totalStats={totalSongStats}
 						/>
 						<StartButton onClick={handleStart} disabled={startDisabled} />
 					</div>

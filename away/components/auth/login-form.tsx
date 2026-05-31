@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { PasswordInput } from "./PasswordInput";
 
 export function LoginForm({
 	className,
@@ -87,13 +88,12 @@ export function LoginForm({
 								Forgot?
 							</Link>
 						</div>
-						<input
+						<PasswordInput
 							id="password"
-							type="password"
 							required
+							autoComplete="current-password"
 							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-							className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white italic outline-none focus:border-white/25 transition-colors placeholder:text-white/20"
+							onChange={setPassword}
 						/>
 					</div>
 

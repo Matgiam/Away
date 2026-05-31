@@ -241,7 +241,23 @@ export function ImprovisationStage({
 		<div className="relative h-full w-full">
 			<CourseFallingNotes items={laneItems} />
 
-			<div className="pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 flex flex-col items-center gap-3">
+			{/*
+			 * Button sits below the CourseStepCard, not at top-4. With images
+			 * now embedded in every step the card grew from 220 → 320px and
+			 * its z-30 box visually covers the old top-4 position — clicks
+			 * were landing on the card panel (pointer-events-auto) instead
+			 * of the button below.
+			 *
+			 * Card layout:
+			 *   28px (top-7 of card container)
+			 * + 30px (course-title row above card)
+			 * + 320px (cardHeight when image is present)
+			 * = 378px from screen top to card bottom
+			 *
+			 * Stage container starts at pt-72 = 288px → button at top-24 (96px)
+			 * lands at 288 + 96 = 384px — just below the card.
+			 */}
+			<div className="pointer-events-none absolute left-1/2 top-24 -translate-x-1/2 flex flex-col items-center gap-3">
 				<div className="pointer-events-auto">
 					<button onClick={handlePlay} className="transition-transform hover:scale-105">
 						<DynamicLiquidGlass

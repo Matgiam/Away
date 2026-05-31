@@ -3,6 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAudioEngineContext } from "@/components/providers/AudioEngineProvider";
 import { parseMidi, type ParsedMidi } from "@/lib/practice/midiParser";
+import { DEFAULT_SOUNDFONT } from "@/lib/types";
+
+// Hover-previews always play through this font regardless of what the user
+// has currently selected. The selection still applies the moment they enter
+// the song itself — only the preview is locked to piano so songs sound the
+// way they were composed when you're skimming the catalog.
+const PREVIEW_SOUNDFONT = DEFAULT_SOUNDFONT;
 
 // Cache parsed MIDIs across hovers so we don't re-fetch+re-parse the same file
 // every time the cursor leaves and returns. Keyed by URL.
@@ -50,9 +57,10 @@ function scheduleNotes(
 	midi: ParsedMidi,
 	startOffsetSec: number,
 	maxDurationSec: number,
-	playNote: (midi: number, vel: number, playerId: string) => void,
-	stopNote: (midi: number, playerId: string) => void,
+	playNote: (midi: number, vel: number, playerId: string, colorIndex?: number, noteColorHex?: string, soundfontKey?: string) => void,
+	stopNote: (midi: number, playerId: string, soundfontKey?: string) => void,
 	playerId: string,
+	soundfontKey: string,
 ): { release: () => void } {
 	const releases: ScheduledRelease[] = [];
 	const startedAt = performance.now();
@@ -67,9 +75,9 @@ function scheduleNotes(
 		const cappedEndMs = Math.min(noteEndMs, maxDurationSec * 1000);
 
 		const startTimer = setTimeout(() => {
-			playNote(note.midi, note.velocity / 127, playerId);
+			playNote(note.midi, note.velocity / 127, playerId, undefined, undefined, soundfontKey);
 			const releaseTimer = setTimeout(() => {
-				stopNote(note.midi, playerId);
+				stopNote(note.midi, playerId, soundfontKey);
 			}, Math.max(0, cappedEndMs - startDelayMs));
 			releases.push({ midi: note.midi, timeoutId: releaseTimer });
 		}, startDelayMs);
@@ -86,7 +94,7 @@ function scheduleNotes(
 			if (note.startSeconds < startOffsetSec) continue;
 			if (note.startSeconds - startOffsetSec >= maxDurationSec) break;
 			try {
-				stopNote(note.midi, playerId);
+				stopNote(note.midi, playerId, soundfontKey);
 			} catch {}
 		}
 	};
@@ -104,7 +112,7 @@ export interface PreviewOptions {
 }
 
 export function useMidiPreview() {
-	const { playNote, stopNote, unlockAudio } = useAudioEngineContext();
+	const { playNote, stopNote, unlockAudio, ensureSoundfontLoaded } = useAudioEngineContext();
 	const [state, setState] = useState<PreviewState>("idle");
 	const [activeUrl, setActiveUrl] = useState<string | null>(null);
 	const activeRef = useRef<ActiveHandle | null>(null);
@@ -136,6 +144,9 @@ export function useMidiPreview() {
 
 			try {
 				await unlockAudio();
+				// Kick off the piano soundfont load early so the first note of the
+				// preview can play through it. Cached after the first hover.
+				ensureSoundfontLoaded(PREVIEW_SOUNDFONT);
 				const parsed = await fetchAndParse(url);
 				if (tokenRef.current !== token) return; // hovered something else mid-flight
 
@@ -144,7 +155,7 @@ export function useMidiPreview() {
 				const firstNoteAt = parsed.notes.length > 0 ? parsed.notes[0].startSeconds : 0;
 				const offset = Math.max(startOffsetSec, firstNoteAt);
 
-				const handle = scheduleNotes(parsed, offset, maxDurationSec, playNote, stopNote, playerId);
+				const handle = scheduleNotes(parsed, offset, maxDurationSec, playNote, stopNote, playerId, PREVIEW_SOUNDFONT);
 				activeRef.current = { notes: handle, stopAllAt: performance.now() + maxDurationSec * 1000 };
 				setState("playing");
 
@@ -164,7 +175,7 @@ export function useMidiPreview() {
 				}
 			}
 		},
-		[playNote, stopNote, unlockAudio],
+		[playNote, stopNote, unlockAudio, ensureSoundfontLoaded],
 	);
 
 	// Ensure all scheduled notes are cancelled when the component unmounts.
