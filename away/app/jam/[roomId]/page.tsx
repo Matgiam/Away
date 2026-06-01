@@ -352,9 +352,6 @@ export default function JamRoom() {
 	const noteColorRef = useRef(noteColor);
 	const currentSoundfontRef = useRef(currentSoundfont);
 	const equippedBadgeRef = useRef<string | null>(null);
-	useEffect(() => {
-		noteColorRef.current = noteColor;
-	}, [noteColor]);
 
 	const trackPresence = useCallback(() => {
 		const channel = roomChannelRef.current;
@@ -399,8 +396,20 @@ export default function JamRoom() {
 	}, [trackPresence]);
 
 	useEffect(() => {
+		const prev = myNameRef.current;
+		const changed = prev !== myName;
 		myNameRef.current = myName;
 		trackPresence();
+		if (changed) {
+			roomChannelRef.current?.send({
+				type: "broadcast",
+				event: "display-name-change",
+				payload: { senderId: myTempId.current, displayName: myName },
+			});
+		}
+		setPlayers((prev) =>
+			prev.map((p) => (p.isMe ? { ...p, displayName: myName } : p)),
+		);
 	}, [myName, trackPresence]);
 
 	useEffect(() => {
@@ -409,7 +418,17 @@ export default function JamRoom() {
 	}, [user, trackPresence]);
 
 	useEffect(() => {
+		const prev = noteColorRef.current;
+		const changed = prev !== noteColor;
+		noteColorRef.current = noteColor;
 		trackPresence();
+		if (changed) {
+			roomChannelRef.current?.send({
+				type: "broadcast",
+				event: "note-color-change",
+				payload: { senderId: myTempId.current, noteColorHex: noteColor },
+			});
+		}
 		setPlayers((prev) =>
 			prev.map((p) => (p.isMe ? { ...p, noteColorHex: noteColor } : p)),
 		);
@@ -775,6 +794,25 @@ export default function JamRoom() {
 			}
 		});
 
+		room.on("broadcast", { event: "note-color-change" }, ({ payload }) => {
+			if (payload.senderId === myTempId.current) return;
+			setPlayers((prev) =>
+				prev.map((p) =>
+					p.id === payload.senderId ? { ...p, noteColorHex: payload.noteColorHex } : p,
+				),
+			);
+		});
+
+		room.on("broadcast", { event: "display-name-change" }, ({ payload }) => {
+			if (payload.senderId === myTempId.current) return;
+			if (!payload.displayName) return;
+			setPlayers((prev) =>
+				prev.map((p) =>
+					p.id === payload.senderId ? { ...p, displayName: payload.displayName } : p,
+				),
+			);
+		});
+
 		// `trackPresence` mirrors the presence payload as a "player-meta" broadcast so
 		// metadata changes (soundfont, note color, badge, displayName) reach peers even
 		// when the realtime-js version we're on doesn't emit a presence event for a
@@ -979,6 +1017,8 @@ export default function JamRoom() {
 						onCopySoundfont={selectSoundfont}
 						mutedIds={mutedIds}
 						onToggleMute={handleToggleMute}
+						myNoteColor={noteColor}
+						onMyNoteColorChange={setNoteColor}
 					/>
 				</div>
 				<Visualizer

@@ -61,6 +61,13 @@ export const Visualizer: React.FC<VisualizerProps> = ({
 
 		const WHITE_NOTE_RATIO = 0.9;
 		const BLACK_NOTE_RATIO = 0.6;
+		// Safety net for stuck trails. If a noteOff is dropped (peer disconnect,
+		// race with soundfont switch, missed MIDI message), the VisNote stays
+		// open and the trail extends forever. After MAX_HELD_MS we treat the
+		// note as released and fade it out over FADE_MS so it cleanly leaves
+		// the canvas instead of lingering.
+		const MAX_HELD_MS = 10000;
+		const FADE_MS = 1500;
 
 		const draw = () => {
 			const width = canvas.offsetWidth;
@@ -85,8 +92,23 @@ export const Visualizer: React.FC<VisualizerProps> = ({
 			for (let i = 0; i < noteLinesRef.current.length; i++) {
 				const note = noteLinesRef.current[i];
 
+				let effectiveEndTime: number;
+				let alpha = 1;
+				if (note.endTime !== null) {
+					effectiveEndTime = note.endTime;
+				} else {
+					const heldMs = now - note.startTime;
+					if (heldMs <= MAX_HELD_MS) {
+						effectiveEndTime = now;
+					} else {
+						effectiveEndTime = note.startTime + MAX_HELD_MS;
+						alpha = Math.max(0, 1 - (heldMs - MAX_HELD_MS) / FADE_MS);
+						if (alpha === 0) continue;
+					}
+				}
+
 				const yEnd = height - (now - note.startTime) * speed;
-				const yStart = note.endTime ? height - (now - note.endTime) * speed : height;
+				const yStart = height - (now - effectiveEndTime) * speed;
 				const noteHeight = Math.max(yStart - yEnd, 8);
 
 				if (yStart < -100) continue;
@@ -100,6 +122,7 @@ export const Visualizer: React.FC<VisualizerProps> = ({
 					x = note.whiteKeyIndex * whiteKeyWidth + whiteSideMargin;
 				}
 
+				ctx.globalAlpha = alpha;
 				ctx.fillStyle = note.color;
 				ctx.beginPath();
 				if (ctx.roundRect) {
@@ -109,6 +132,7 @@ export const Visualizer: React.FC<VisualizerProps> = ({
 				}
 				ctx.fill();
 			}
+			ctx.globalAlpha = 1;
 
 			animationFrameId = requestAnimationFrame(draw);
 		};

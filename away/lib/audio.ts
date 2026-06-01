@@ -3,30 +3,31 @@ import type { AudioLatency } from "./settings";
 
 // Map user-facing latency preset to the AudioContext `latencyHint` value
 // the spec defines. Anything outside the known presets falls back to
-// "interactive" (the most responsive — matches the historical default).
+// "balanced" — small enough to feel responsive for live play, large enough
+// that fast passages don't underrun the audio worklet and crackle.
 type LatencyHint = AudioContextLatencyCategory;
 
 function hintFor(latency: AudioLatency | undefined): LatencyHint {
-	if (latency === "balanced") return "balanced";
+	if (latency === "low") return "interactive";
 	if (latency === "stable") return "playback";
-	return "interactive";
+	return "balanced";
 }
 
 // Reads the persisted audioLatency preset directly from localStorage so the
 // engine can pick it up at boot time — the AudioEngineProvider's React state
-// isn't yet available when this runs. Falls back to "low" on first launch or
-// when storage is unreadable (private mode, quota errors, etc.).
+// isn't yet available when this runs. Falls back to "balanced" on first
+// launch or when storage is unreadable (private mode, quota errors, etc.).
 function readPersistedLatency(): AudioLatency {
-	if (typeof window === "undefined") return "low";
+	if (typeof window === "undefined") return "balanced";
 	try {
 		const raw = window.localStorage.getItem("away:appSettings");
-		if (!raw) return "low";
+		if (!raw) return "balanced";
 		const parsed = JSON.parse(raw) as { audioLatency?: AudioLatency };
 		const value = parsed.audioLatency;
 		if (value === "low" || value === "balanced" || value === "stable") return value;
-		return "low";
+		return "balanced";
 	} catch {
-		return "low";
+		return "balanced";
 	}
 }
 

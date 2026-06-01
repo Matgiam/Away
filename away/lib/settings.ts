@@ -26,11 +26,7 @@ export interface AppSettings {
 	backgroundColor: string;
 	reducedMotion: boolean;
 	showPlayerColors: boolean;
-	showPlayerNames: boolean;
-	chatSoundEnabled: boolean;
 	chatNotifications: boolean;
-	autoDownloadRecording: boolean;
-	confirmLeaveRoom: boolean;
 	chordRecognizerEnabled: boolean;
 	metronomeEnabled: boolean;
 	metronomeBpm: number;
@@ -44,7 +40,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	velocityMode: "dynamic",
 	fixedVelocity: 100,
 	sustainMode: "midi",
-	audioLatency: "low",
+	audioLatency: "balanced",
 	globalTranspose: 0,
 	showNoteLabels: false,
 	keyAnimations: true,
@@ -56,11 +52,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	backgroundColor: "#0b0416",
 	reducedMotion: false,
 	showPlayerColors: true,
-	showPlayerNames: false,
-	chatSoundEnabled: true,
 	chatNotifications: true,
-	autoDownloadRecording: true,
-	confirmLeaveRoom: false,
 	chordRecognizerEnabled: false,
 	metronomeEnabled: false,
 	metronomeBpm: 100,

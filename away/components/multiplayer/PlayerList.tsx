@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PLAYER_COLORS_SOLID } from "@/lib/playerColors";
 import { BadgedUsername } from "@/components/achievements/BadgedUsername";
 import { getAchievement } from "@/lib/achievements";
+import { ColorPicker } from "@/components/ui/ColorPicker";
 import type { SoundfontOption } from "@/hooks/useAudioEngine";
 
 interface Player {
@@ -34,6 +35,10 @@ interface PlayerListProps {
 	// chip in the popover and the toggle switches to "Unmute".
 	mutedIds?: ReadonlySet<string>;
 	onToggleMute?: (playerId: string) => void;
+	// Local user's current note color and updater. When provided, clicking
+	// the swatch on the local user's row opens a color picker.
+	myNoteColor?: string;
+	onMyNoteColorChange?: (hex: string) => void;
 }
 
 export const PlayerList: React.FC<PlayerListProps> = ({
@@ -50,11 +55,15 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 	onCopySoundfont,
 	mutedIds,
 	onToggleMute,
+	myNoteColor,
+	onMyNoteColorChange,
 }) => {
 	const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
 	const [hoveredId, setHoveredId] = useState<string | null>(null);
 	const [copiedPlayerId, setCopiedPlayerId] = useState<string | null>(null);
+	const [colorPickerOpen, setColorPickerOpen] = useState(false);
 	const popoverRef = useRef<HTMLDivElement>(null);
+	const colorPickerRef = useRef<HTMLDivElement>(null);
 
 	const handleCopySoundfont = (playerId: string, soundfontKey: string) => {
 		if (!onCopySoundfont) return;
@@ -88,6 +97,24 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 			window.removeEventListener("keydown", handleKey);
 		};
 	}, [openPopoverId]);
+
+	useEffect(() => {
+		if (!colorPickerOpen) return;
+		const handleClickOutside = (e: MouseEvent) => {
+			if (!colorPickerRef.current) return;
+			if (colorPickerRef.current.contains(e.target as Node)) return;
+			setColorPickerOpen(false);
+		};
+		const handleKey = (e: KeyboardEvent) => {
+			if (e.key === "Escape") setColorPickerOpen(false);
+		};
+		window.addEventListener("mousedown", handleClickOutside);
+		window.addEventListener("keydown", handleKey);
+		return () => {
+			window.removeEventListener("mousedown", handleClickOutside);
+			window.removeEventListener("keydown", handleKey);
+		};
+	}, [colorPickerOpen]);
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -297,14 +324,42 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 							)}
 						</div>
 
-						<div
-							className="h-3.5 rounded-full"
-							style={{
-								width: "160px",
-								backgroundColor: player.noteColorHex || PLAYER_COLORS_SOLID[player.colorIndex % PLAYER_COLORS_SOLID.length],
-								opacity: isMuted ? 0.3 : 0.8,
-							}}
-						/>
+						{player.isMe && onMyNoteColorChange ? (
+							<div className="relative">
+								<button
+									type="button"
+									onClick={() => setColorPickerOpen((v) => !v)}
+									className="h-3.5 rounded-full hover:opacity-100 transition-opacity cursor-pointer block p-0 border-0"
+									style={{
+										width: "160px",
+										backgroundColor: myNoteColor || player.noteColorHex || PLAYER_COLORS_SOLID[player.colorIndex % PLAYER_COLORS_SOLID.length],
+										opacity: colorPickerOpen ? 1 : 0.8,
+									}}
+									title="Change your note color"
+									aria-label="Change your note color"
+								/>
+								{colorPickerOpen && (
+									<div
+										ref={colorPickerRef}
+										className="absolute left-0 top-full mt-2 z-[60] p-3 rounded-xl border border-white/10 bg-[#0a0118]/95 backdrop-blur-xl shadow-2xl"
+									>
+										<ColorPicker
+											value={myNoteColor || player.noteColorHex || PLAYER_COLORS_SOLID[player.colorIndex % PLAYER_COLORS_SOLID.length]}
+											onChange={onMyNoteColorChange}
+										/>
+									</div>
+								)}
+							</div>
+						) : (
+							<div
+								className="h-3.5 rounded-full"
+								style={{
+									width: "160px",
+									backgroundColor: player.noteColorHex || PLAYER_COLORS_SOLID[player.colorIndex % PLAYER_COLORS_SOLID.length],
+									opacity: isMuted ? 0.3 : 0.8,
+								}}
+							/>
+						)}
 					</div>
 				);
 			})}

@@ -7,9 +7,9 @@ import { BadgedUsername } from "@/components/achievements/BadgedUsername";
 import type { AppSettings, AudioLatency } from "@/lib/settings";
 import type { Keybinds, LayoutPreset } from "@/lib/keybinds";
 
-type TabKey = "General" | "Audio" | "MIDI" | "Keyboard" | "Visualisation" | "Multiplayer" ;
+type TabKey = "General" | "Audio" | "MIDI" | "Keyboard" | "Visualisation";
 
-const TABS: TabKey[] = ["General", "Audio", "MIDI", "Keyboard", "Visualisation", "Multiplayer"];
+const TABS: TabKey[] = ["General", "Audio", "MIDI", "Keyboard", "Visualisation"];
 
 const BACKGROUND_PRESETS: { label: string; value: string }[] = [
 	{ label: "Midnight (default)", value: "#0b0416" },
@@ -448,17 +448,6 @@ export const SettingsPanel = ({
 								value={settings.audioLatency}
 								onChange={(v) => updateSetting("audioLatency", v)}
 							/>
-
-							<SectionHeader>Recording</SectionHeader>
-							<SettingRow
-								label="Auto-download recordings"
-								hint="When you stop a recording, save it to your downloads automatically."
-							>
-								<Toggle
-									value={settings.autoDownloadRecording}
-									onChange={(v) => updateSetting("autoDownloadRecording", v)}
-								/>
-							</SettingRow>
 						</div>
 					)}
 
@@ -615,62 +604,6 @@ export const SettingsPanel = ({
 						</div>
 					)}
 
-					{activeTab === "Multiplayer" && (
-						<div className="flex flex-col gap-4 max-w-2xl pt-4 pb-8">
-							<SectionHeader>Visuals</SectionHeader>
-							<SettingRow
-								label="Show other players' note colors"
-								hint="Off uses your own note color for every player's notes."
-							>
-								<Toggle
-									value={settings.showPlayerColors}
-									onChange={(v) => updateSetting("showPlayerColors", v)}
-								/>
-							</SettingRow>
-							<SettingRow
-								label="Show player names"
-								hint="Label notes with the player who triggered them."
-							>
-								<Toggle
-									value={settings.showPlayerNames}
-									onChange={(v) => updateSetting("showPlayerNames", v)}
-								/>
-							</SettingRow>
-
-							<SectionHeader>Chat</SectionHeader>
-							<SettingRow
-								label="In-app notifications"
-								hint="Show a badge counter when chat messages arrive while you're playing."
-							>
-								<Toggle
-									value={settings.chatNotifications}
-									onChange={(v) => updateSetting("chatNotifications", v)}
-								/>
-							</SettingRow>
-							<SettingRow
-								label="Notification sound"
-								hint="Play a soft chime for incoming messages."
-							>
-								<Toggle
-									value={settings.chatSoundEnabled}
-									onChange={(v) => updateSetting("chatSoundEnabled", v)}
-								/>
-							</SettingRow>
-
-							<SectionHeader>Rooms</SectionHeader>
-							<SettingRow
-								label="Confirm before leaving room"
-								hint="Ask before navigating away from a jam room."
-							>
-								<Toggle
-									value={settings.confirmLeaveRoom}
-									onChange={(v) => updateSetting("confirmLeaveRoom", v)}
-								/>
-							</SettingRow>
-						</div>
-					)}
-
-				
 				</div>
 			</div>
 		</div>
