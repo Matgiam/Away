@@ -830,6 +830,21 @@ export default function JamRoom() {
 			);
 		});
 
+		// A peer has just (re)subscribed to this channel. Their previous channel
+		// may have torn down too fast for our presence "leave" event to fire,
+		// leaving us with a stale WebRTC peer connection and stale player meta.
+		// Drop the old peer connection, re-broadcast our own meta so they see
+		// our up-to-date name/color, and eagerly re-initiate — perfect
+		// negotiation handles any offer collision if they initiate too.
+		room.on("broadcast", { event: "rejoin" }, ({ payload }) => {
+			if (payload.senderId === myTempId.current) return;
+			const peerId = payload.senderId as string;
+			releaseAllForPlayerRef.current(peerId);
+			removePeerRef.current(peerId);
+			trackPresence();
+			initiateConnectionRef.current(peerId, sendSignal);
+		});
+
 		// `trackPresence` mirrors the presence payload as a "player-meta" broadcast so
 		// metadata changes (soundfont, note color, badge, displayName) reach peers even
 		// when the realtime-js version we're on doesn't emit a presence event for a
@@ -936,6 +951,18 @@ export default function JamRoom() {
 			if (status === "SUBSCRIBED") {
 				myNameRef.current = myNameRef.current || myTempId.current;
 				trackPresence();
+				// Tell every peer in the channel that we just (re)joined so
+				// they can drop any stale peer/audio state for our id and
+				// re-broadcast their meta back. Without this, a fast leave +
+				// rejoin can leave the other side thinking we're still
+				// connected, which keeps a dead WebRTC connection in place
+				// (they can't hear us) and stops their player-meta from
+				// being repushed (we show no username for them).
+				room.send({
+					type: "broadcast",
+					event: "rejoin",
+					payload: { senderId: myTempId.current },
+				});
 			}
 		});
 
