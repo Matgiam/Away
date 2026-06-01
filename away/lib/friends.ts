@@ -183,7 +183,14 @@ export async function fetchPublicProfile(userId: string): Promise<PublicProfile 
 	};
 }
 
-export async function updateMyUsername(username: string): Promise<boolean> {
+// `skipAuthSync` skips the auth.updateUser call when set. That call refreshes
+// the access token, which causes any active Supabase realtime channel to
+// disconnect and rejoin — fine on a normal page, but inside a jam room it
+// makes the local user briefly leave the channel and breaks peer presence
+// state on reconnect. Callers inside live channels should pass true; the
+// profiles row is the source of truth either way, user_metadata is only ever
+// read as a fallback when the profile fetch fails.
+export async function updateMyUsername(username: string, skipAuthSync = false): Promise<boolean> {
 	const supabase = createClient();
 	const { data: userData } = await supabase.auth.getUser();
 	if (!userData.user) return false;
@@ -198,6 +205,8 @@ export async function updateMyUsername(username: string): Promise<boolean> {
 
 	if (profileError) return false;
 
-	await supabase.auth.updateUser({ data: { username: trimmed } });
+	if (!skipAuthSync) {
+		await supabase.auth.updateUser({ data: { username: trimmed } });
+	}
 	return true;
 }

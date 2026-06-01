@@ -506,7 +506,10 @@ export default function JamRoom() {
 	const handleUsernameChange = useCallback(
 		(next: string) => {
 			setMyName(next);
-			if (isLoggedIn) updateMyUsername(next);
+			// skipAuthSync: auth.updateUser refreshes the access token, which
+			// kicks the realtime channel into a reconnect and makes us briefly
+			// leave the room. The profiles row is still updated.
+			if (isLoggedIn) updateMyUsername(next, true);
 			try {
 				const saved = sessionStorage.getItem("away_user");
 				if (saved) {
@@ -588,6 +591,20 @@ export default function JamRoom() {
 
 	const myChatId = isLoggedIn ? user?.id || myTempId.current : myTempId.current;
 	const { messages, isChatOpen, setIsChatOpen, addMessage, unreadCount } = useChat(roomId, myChatId);
+
+	// Map of senderId → peer's note color, used by the chat panel to tint each
+	// roommate's bubbles in their own color. We key by both the presence id
+	// (anonymous senders) and the userId (logged-in senders) since either can
+	// appear as a message's senderId.
+	const senderColorById = useMemo(() => {
+		const map = new Map<string, string>();
+		players.forEach((p) => {
+			if (p.isMe || !p.noteColorHex) return;
+			map.set(p.id, p.noteColorHex);
+			if (p.userId) map.set(p.userId, p.noteColorHex);
+		});
+		return map;
+	}, [players]);
 
 	const handleLoginClick = useCallback(async () => {
 		await safeDecrement();
@@ -1052,6 +1069,7 @@ export default function JamRoom() {
 						onSend={handleSendMessage}
 						onClose={handleCloseChat}
 						onLoginClick={handleLoginClick}
+						senderColorById={senderColorById}
 					/>
 				</div>
 			)}

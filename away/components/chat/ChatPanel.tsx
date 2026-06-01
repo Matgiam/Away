@@ -11,9 +11,22 @@ interface ChatPanelProps {
 	onSend: (text: string) => void;
 	onClose: () => void;
 	onLoginClick: () => void;
+	// Map of senderId → peer's note color hex. Used to tint each roommate's
+	// chat bubbles in their own color so messages from different players are
+	// visually distinguishable.
+	senderColorById?: ReadonlyMap<string, string>;
 }
 
-export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, myId, myName, isLoggedIn, onSend, onClose, onLoginClick }) => {
+function hexToRgba(hex: string, alpha: number): string {
+	const clean = hex.replace("#", "");
+	if (clean.length !== 6) return `rgba(255,255,255,${alpha})`;
+	const r = parseInt(clean.slice(0, 2), 16);
+	const g = parseInt(clean.slice(2, 4), 16);
+	const b = parseInt(clean.slice(4, 6), 16);
+	return `rgba(${r},${g},${b},${alpha})`;
+}
+
+export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, myId, myName, isLoggedIn, onSend, onClose, onLoginClick, senderColorById }) => {
 	const [input, setInput] = useState("");
 	const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -49,13 +62,29 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, myId, myName, is
 				{messages.length === 0 && <p className="text-white/20 text-xs text-center mt-8">No messages yet. Say something!</p>}
 				{messages.map((msg) => {
 					const isMe = msg.senderId === myId;
+					const peerColor = !isMe ? senderColorById?.get(msg.senderId) : undefined;
+					const peerBubbleStyle = peerColor
+						? {
+								backgroundColor: hexToRgba(peerColor, 0.18),
+								borderColor: hexToRgba(peerColor, 0.45),
+							}
+						: undefined;
+					const peerNameStyle = peerColor ? { color: hexToRgba(peerColor, 0.85) } : undefined;
 					return (
 						<div key={msg.id} className={`flex flex-col gap-1 ${isMe ? "items-end" : "items-start"}`}>
-							<span className="text-[10px] text-white/30 font-mono px-1">{isMe ? myName || "You" : msg.senderName}</span>
+							<span
+								className={`text-[10px] font-mono px-1 ${peerColor ? "" : "text-white/30"}`}
+								style={peerNameStyle}
+							>
+								{isMe ? myName || "You" : msg.senderName}
+							</span>
 							<div
 								className={`px-3 py-2 rounded-xl text-sm max-w-[220px] break-words leading-relaxed ${
-									isMe ? "bg-white/10 text-white rounded-tr-none" : "bg-white/5 text-white/80 rounded-tl-none border border-white/8"
+									isMe
+										? "bg-white/10 text-white rounded-tr-none"
+										: `text-white/90 rounded-tl-none border ${peerColor ? "" : "bg-white/5 border-white/8"}`
 								}`}
+								style={peerBubbleStyle}
 							>
 								{msg.text}
 							</div>

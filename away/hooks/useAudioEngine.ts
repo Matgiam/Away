@@ -272,10 +272,11 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 					x = keyInfo.whiteKeyIndex * whiteKeyWidth;
 				}
 
+				const nowMs = performance.now();
 				const newNote: VisNote = {
 					id: Math.random().toString(),
 					midi,
-					startTime: performance.now(),
+					startTime: nowMs,
 					endTime: null,
 					isBlack,
 					whiteKeyIndex: keyInfo.whiteKeyIndex,
@@ -285,6 +286,19 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 					playerId,
 				};
 
+				// Drop notes that have scrolled offscreen so the array stays bounded.
+				// Without this, a long jam session accumulates thousands of dead
+				// VisNotes — every playNote then spreads the full array and the GC
+				// churn on the main thread can stall the audio worklet, which is
+				// one of the things that produces fast-play crackles. The cutoffs
+				// match the Visualizer's stuck-trail fade (10s held + 1.5s fade)
+				// so nothing visible is ever pruned.
+				const STALE_RELEASED_MS = 5000;
+				const STUCK_HELD_MS = 15000;
+				visNotesRef.current = visNotesRef.current.filter((n) => {
+					if (n.endTime === null) return nowMs - n.startTime < STUCK_HELD_MS;
+					return nowMs - n.endTime < STALE_RELEASED_MS;
+				});
 				visNotesRef.current.push(newNote);
 				setNoteLines([...visNotesRef.current]);
 			}
@@ -524,7 +538,18 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 									const pedalPressed = vel >= 64;
 									onSustain(pedalPressed);
 								} else if (command === 9 && vel > 0) {
-									const finalVel = velocityModeRef.current === "fixed" ? fixedVelocityRef.current : vel;
+									let finalVel: number;
+									if (velocityModeRef.current === "fixed") {
+										finalVel = fixedVelocityRef.current;
+									} else {
+										// Soft-compress the upper velocity range. Noisy MIDI sensors
+										// occasionally spike to 127 on fast passages, which triggers
+										// the loudest sample layer and pops out of the mix. Below
+										// 100 passes through unchanged; above 100 the slope flattens
+										// so a rogue 127 lands around 118 — still firmly fortissimo
+										// but no longer hitting the absolute-max layer.
+										finalVel = vel <= 100 ? vel : Math.round(100 + (vel - 100) * 0.65);
+									}
 									onPlay(transposed, finalVel);
 								} else if (command === 8 || (command === 9 && vel === 0)) {
 									onStop(transposed);

@@ -59,7 +59,6 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 	onMyNoteColorChange,
 }) => {
 	const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
-	const [hoveredId, setHoveredId] = useState<string | null>(null);
 	const [copiedPlayerId, setCopiedPlayerId] = useState<string | null>(null);
 	const [colorPickerOpen, setColorPickerOpen] = useState(false);
 	const popoverRef = useRef<HTMLDivElement>(null);
@@ -131,7 +130,6 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 					!!onAddFriend;
 
 				const isPopoverOpen = openPopoverId === player.id;
-				const isHovered = hoveredId === player.id;
 				// For my own entry use the live `currentSoundfont` prop instead of the
 				// synced `player.soundfont`, so the popover updates immediately when I switch.
 				const effectiveSoundfont = player.isMe
@@ -146,7 +144,6 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 				// click always copies their current sound, not the one they had when you opened
 				// the popover.
 				const canCopySoundfont = !player.isMe && !!player.soundfont && !!onCopySoundfont;
-				const showSoundfontTooltip = (isHovered || isPopoverOpen) && !!peerSoundfontName;
 				const isCopied = copiedPlayerId === player.id;
 				const isMuted = !!mutedIds?.has(player.id);
 				const canToggleMute = !player.isMe && !!onToggleMute;
@@ -155,8 +152,6 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 					<div
 						key={player.id}
 						className="flex flex-col gap-1.5"
-						onMouseEnter={() => setHoveredId(player.id)}
-						onMouseLeave={() => setHoveredId((prev) => (prev === player.id ? null : prev))}
 					>
 						<div className="flex items-center gap-3 relative">
 							<button
@@ -180,13 +175,6 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 									</>
 								)}
 							</button>
-
-							{showSoundfontTooltip && !isPopoverOpen && (
-								<div className="absolute left-0 top-full mt-1 z-[55] px-2.5 py-1 rounded-md border border-white/10 bg-[#0a0118]/95 backdrop-blur-xl text-white/85 text-xs whitespace-nowrap pointer-events-none shadow-lg">
-									<span className="text-white/50">Soundfont: </span>
-									<span className="italic">{peerSoundfontName}</span>
-								</div>
-							)}
 
 							{!player.isMe && player.isFriend && (
 								<img src="/icons/friends.svg" alt="" className="w-7 h-5 opacity-80" aria-label="Friend" />
