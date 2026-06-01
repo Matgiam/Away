@@ -417,22 +417,34 @@ export default function JamRoom() {
 		trackPresence();
 	}, [user, trackPresence]);
 
+	// `noteColor` is the live draft from the picker (used for local visual
+	// preview — own piano, own trails, own chat-bubble swatch). `savedNoteColor`
+	// is the last value we actually broadcast to peers. Decoupling them means
+	// dragging through colors no longer spams the channel with re-tracks /
+	// broadcasts — peers only see the change when the user clicks Save below.
+	const [savedNoteColor, setSavedNoteColor] = useState(noteColor);
 	useEffect(() => {
-		const prev = noteColorRef.current;
-		const changed = prev !== noteColor;
+		noteColorRef.current = savedNoteColor;
+	}, [savedNoteColor]);
+
+	const handleSaveNoteColor = useCallback(() => {
+		if (noteColor === savedNoteColor) return;
+		setSavedNoteColor(noteColor);
+		// Update the ref synchronously so trackPresence on the next line picks
+		// up the new value instead of waiting for the effect above to run.
 		noteColorRef.current = noteColor;
 		trackPresence();
-		if (changed) {
-			roomChannelRef.current?.send({
-				type: "broadcast",
-				event: "note-color-change",
-				payload: { senderId: myTempId.current, noteColorHex: noteColor },
-			});
-		}
+		roomChannelRef.current?.send({
+			type: "broadcast",
+			event: "note-color-change",
+			payload: { senderId: myTempId.current, noteColorHex: noteColor },
+		});
 		setPlayers((prev) =>
 			prev.map((p) => (p.isMe ? { ...p, noteColorHex: noteColor } : p)),
 		);
-	}, [noteColor, trackPresence]);
+	}, [noteColor, savedNoteColor, trackPresence]);
+
+	const noteColorDirty = noteColor !== savedNoteColor;
 
 	useEffect(() => {
 		const prev = currentSoundfontRef.current;
@@ -1031,6 +1043,8 @@ export default function JamRoom() {
 				onUsernameChange={handleUsernameChange}
 				noteColor={noteColor}
 				onNoteColorChange={setNoteColor}
+				onSaveNoteColor={handleSaveNoteColor}
+				noteColorDirty={noteColorDirty}
 				keyboardInputEnabled={keyboardInputEnabled}
 				onKeyboardInputEnabledChange={setKeyboardInputEnabled}
 				keybinds={keybinds}
@@ -1063,6 +1077,8 @@ export default function JamRoom() {
 						onToggleMute={handleToggleMute}
 						myNoteColor={noteColor}
 						onMyNoteColorChange={setNoteColor}
+						onSaveMyNoteColor={handleSaveNoteColor}
+						myNoteColorDirty={noteColorDirty}
 					/>
 				</div>
 				<Visualizer

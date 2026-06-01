@@ -39,6 +39,11 @@ interface PlayerListProps {
 	// the swatch on the local user's row opens a color picker.
 	myNoteColor?: string;
 	onMyNoteColorChange?: (hex: string) => void;
+	// When provided, the color picker shows a Save button that broadcasts the
+	// pending color to peers. The picker updates the local visual immediately
+	// via onMyNoteColorChange, but peers don't see the change until Save fires.
+	onSaveMyNoteColor?: () => void;
+	myNoteColorDirty?: boolean;
 }
 
 export const PlayerList: React.FC<PlayerListProps> = ({
@@ -57,6 +62,8 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 	onToggleMute,
 	myNoteColor,
 	onMyNoteColorChange,
+	onSaveMyNoteColor,
+	myNoteColorDirty,
 }) => {
 	const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
 	const [copiedPlayerId, setCopiedPlayerId] = useState<string | null>(null);
@@ -329,12 +336,29 @@ export const PlayerList: React.FC<PlayerListProps> = ({
 								{colorPickerOpen && (
 									<div
 										ref={colorPickerRef}
-										className="absolute left-0 top-full mt-2 z-[60] p-3 rounded-xl border border-white/10 bg-[#0a0118]/95 backdrop-blur-xl shadow-2xl"
+										className="absolute left-0 top-full mt-2 z-[60] p-3 rounded-xl border border-white/10 bg-[#0a0118]/95 backdrop-blur-xl shadow-2xl flex flex-col gap-3"
 									>
 										<ColorPicker
 											value={myNoteColor || player.noteColorHex || PLAYER_COLORS_SOLID[player.colorIndex % PLAYER_COLORS_SOLID.length]}
 											onChange={onMyNoteColorChange}
 										/>
+										{onSaveMyNoteColor && (
+											<button
+												type="button"
+												onClick={() => {
+													onSaveMyNoteColor();
+													setColorPickerOpen(false);
+												}}
+												disabled={!myNoteColorDirty}
+												className={`w-full px-3 py-2 rounded-lg text-sm italic transition-colors ${
+													myNoteColorDirty
+														? "bg-purple-500/30 text-white hover:bg-purple-500/40 border border-purple-400/40"
+														: "bg-white/5 text-white/30 border border-white/10 cursor-not-allowed"
+												}`}
+											>
+												{myNoteColorDirty ? "Save & share" : "Saved"}
+											</button>
+										)}
 									</div>
 								)}
 							</div>

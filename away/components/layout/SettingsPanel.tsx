@@ -51,6 +51,11 @@ export interface SettingsPanelProps {
 	// visualisation
 	noteColor: string;
 	onNoteColorChange: (hex: string) => void;
+	// When provided, the color picker shows a Save button that commits and
+	// broadcasts the color to peers in the current room. Without this, color
+	// changes apply locally only (e.g. on the home page outside multiplayer).
+	onSaveNoteColor?: () => void;
+	noteColorDirty?: boolean;
 
 	// app settings
 	settings: AppSettings;
@@ -248,6 +253,8 @@ export const SettingsPanel = ({
 	onKeybindPresetChange,
 	noteColor,
 	onNoteColorChange,
+	onSaveNoteColor,
+	noteColorDirty,
 	settings,
 	updateSetting,
 }: SettingsPanelProps) => {
@@ -522,8 +529,22 @@ export const SettingsPanel = ({
 							<p className="text-white/40 text-xs leading-relaxed">
 								Pick any color for white-key notes — black-key notes use the same color a shade darker.
 							</p>
-							<div className="pt-1">
+							<div className="pt-1 flex flex-col gap-3">
 								<ColorPicker value={noteColor} onChange={onNoteColorChange} />
+								{onSaveNoteColor && (
+									<button
+										type="button"
+										onClick={onSaveNoteColor}
+										disabled={!noteColorDirty}
+										className={`self-start px-4 py-2 rounded-lg text-sm italic transition-colors ${
+											noteColorDirty
+												? "bg-purple-500/30 text-white hover:bg-purple-500/40 border border-purple-400/40"
+												: "bg-white/5 text-white/30 border border-white/10 cursor-not-allowed"
+										}`}
+									>
+										{noteColorDirty ? "Save & share with room" : "Saved"}
+									</button>
+								)}
 							</div>
 
 							<SectionHeader>Background color</SectionHeader>

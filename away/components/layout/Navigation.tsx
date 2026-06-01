@@ -34,6 +34,8 @@ interface NavigationProps {
 	recordingCountdown?: number;
 	noteColor?: string;
 	onNoteColorChange?: (hex: string) => void;
+	onSaveNoteColor?: () => void;
+	noteColorDirty?: boolean;
 	keyboardInputEnabled?: boolean;
 	onKeyboardInputEnabledChange?: (enabled: boolean) => void;
 	keybinds?: Keybinds;
@@ -78,6 +80,8 @@ export const Navigation = ({
 	recordingCountdown = 0,
 	noteColor = "#db5361",
 	onNoteColorChange,
+	onSaveNoteColor,
+	noteColorDirty,
 	keyboardInputEnabled = true,
 	onKeyboardInputEnabledChange,
 	keybinds,
@@ -395,6 +399,8 @@ export const Navigation = ({
 					onKeybindPresetChange={onKeybindPresetChange!}
 					noteColor={noteColor}
 					onNoteColorChange={onNoteColorChange!}
+					onSaveNoteColor={onSaveNoteColor}
+					noteColorDirty={noteColorDirty}
 					settings={settings!}
 					updateSetting={updateSetting!}
 				/>
