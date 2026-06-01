@@ -873,11 +873,11 @@ export default function JamRoom() {
 					const updated: PlayerEntry = {
 						...p,
 						displayName: payload.displayName || p.displayName,
-						userId: payload.userId,
-						noteColorHex: payload.noteColorHex,
-						soundfont: payload.soundfont,
-						equippedBadge: payload.equippedBadge ?? null,
-						isFriend: !!payload.userId && friendIds.has(payload.userId),
+						userId: payload.userId ?? p.userId,
+						noteColorHex: payload.noteColorHex ?? p.noteColorHex,
+						soundfont: payload.soundfont ?? p.soundfont,
+						equippedBadge: payload.equippedBadge ?? p.equippedBadge ?? null,
+						isFriend: !!(payload.userId ?? p.userId) && friendIds.has((payload.userId ?? p.userId)!),
 					};
 					if (
 						updated.displayName === p.displayName &&
@@ -924,17 +924,30 @@ export default function JamRoom() {
 			});
 
 			const friendIds = friendUserIdsRef.current;
-			const newPlayers: PlayerEntry[] = entries.map((e, index) => ({
-				id: e.id,
-				userId: e.userId,
-				displayName: e.displayName,
-				colorIndex: index,
-				noteColorHex: e.noteColorHex,
-				soundfont: e.soundfont,
-				equippedBadge: e.equippedBadge,
-				isMe: e.id === myTempId.current,
-				isFriend: !!e.userId && friendIds.has(e.userId),
-			}));
+			// Supabase's local presence state can lag behind live broadcasts after
+			// a peer re-tracks — a `note-color-change` / `player-meta` broadcast
+			// arrives and lands in `players` instantly, then a presence "join"
+			// event fires for the same re-track but reads a still-stale
+			// presenceState() and overwrites our just-applied color back to the
+			// old value. Treat broadcasts as authoritative for any peer we already
+			// know about: only seed the broadcast-driven fields (displayName,
+			// noteColorHex, soundfont, equippedBadge) from presence the very first
+			// time we see that presence key.
+			const existingById = new Map(playersRef.current.map((p) => [p.id, p]));
+			const newPlayers: PlayerEntry[] = entries.map((e, index) => {
+				const existing = existingById.get(e.id);
+				return {
+					id: e.id,
+					userId: e.userId,
+					displayName: existing?.displayName ?? e.displayName,
+					colorIndex: index,
+					noteColorHex: existing?.noteColorHex ?? e.noteColorHex,
+					soundfont: existing?.soundfont ?? e.soundfont,
+					equippedBadge: existing ? existing.equippedBadge : e.equippedBadge,
+					isMe: e.id === myTempId.current,
+					isFriend: !!e.userId && friendIds.has(e.userId),
+				};
+			});
 			setPlayers(newPlayers);
 
 			const presentIds = new Set(newPlayers.map((p) => p.id));
