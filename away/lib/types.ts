@@ -67,6 +67,6 @@ export type Instrument = {
 // engine doesn't load anything before the catalog arrives.
 export const instruments: Record<string, Instrument> = {};
 
-// Default soundfont key — Steinway Grand. Used as the initial selection
+// Default soundfont key — Bright Grand. Used as the initial selection
 // before the user has expressed a preference.
-export const DEFAULT_SOUNDFONT = "keyboards_steinway_grand_piano";
+export const DEFAULT_SOUNDFONT = "keyboards_bright_grand";

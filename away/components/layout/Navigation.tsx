@@ -118,7 +118,7 @@ export const Navigation = ({
 	// this hook so the nav scales with viewport instead of staying fixed.
 	const navSize = useResponsiveNavSize();
 
-	const currentName = soundfonts.find((s) => s.key === currentSoundfont)?.name || "Salamander Grand Piano";
+	const currentName = soundfonts.find((s) => s.key === currentSoundfont)?.name || "Bright Grand";
 
 	const openSettings = () => {
 		setShowSettings(true);

@@ -187,10 +187,13 @@ export function useMidiPreview() {
 
 			try {
 				await unlockAudio();
-				// Kick off the piano soundfont load early so the first note of the
-				// preview can play through it. Cached after the first hover.
-				ensureSoundfontLoaded(PREVIEW_SOUNDFONT);
-				const parsed = await fetchAndParse(url);
+				// Load the preview soundfont and fetch the MIDI in parallel so the
+				// first note always plays through Bright Grand, never the user's
+				// current selection. The font load is cached after first hover.
+				const [parsed] = await Promise.all([
+					fetchAndParse(url),
+					ensureSoundfontLoaded(PREVIEW_SOUNDFONT),
+				]);
 				if (tokenRef.current !== token) return; // hovered something else mid-flight
 
 				// If the song doesn't start at 0, jump forward to the first note so the

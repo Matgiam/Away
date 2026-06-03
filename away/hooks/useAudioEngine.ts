@@ -605,11 +605,11 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 	}, [instruments, selectSoundfont]);
 
 	const ensureSoundfontLoaded = useCallback(
-		(key: string) => {
+		async (key: string): Promise<void> => {
 			if (!key) return;
 			if (!instrumentsRef.current[key]) return;
 			if (engineRef.current?.hasFont(key)) return;
-			loadSoundfont(key).catch(() => {});
+			await loadSoundfont(key).catch(() => {});
 		},
 		[loadSoundfont],
 	);
