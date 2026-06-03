@@ -33,6 +33,7 @@ export interface AppSettings {
 	metronomeBeatsPerBar: number;
 	metronomeVolume: number;
 	metronomeVisible: boolean;
+	showLatency: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -59,6 +60,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 	metronomeBeatsPerBar: 4,
 	metronomeVolume: 60,
 	metronomeVisible: false,
+	showLatency: false,
 };
 
 const STORAGE_KEY = "away:appSettings";

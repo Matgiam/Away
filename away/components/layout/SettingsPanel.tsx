@@ -372,6 +372,17 @@ export const SettingsPanel = ({
 								/>
 							</SettingRow>
 
+							<SectionHeader>Diagnostics</SectionHeader>
+							<SettingRow
+								label="Show network latency"
+								hint="Display your current ping to the backend (ms) in the bottom-left corner."
+							>
+								<Toggle
+									value={settings.showLatency}
+									onChange={(v) => updateSetting("showLatency", v)}
+								/>
+							</SettingRow>
+
 							<SectionHeader>Danger zone</SectionHeader>
 							<SettingRow
 								label="Reset all settings"

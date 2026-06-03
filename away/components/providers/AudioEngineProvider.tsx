@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { generatePiano } from "@/lib/piano";
 import { useAudioEngine } from "@/hooks/useAudioEngine";
 import { useMetronome } from "@/hooks/useMetronome";
@@ -23,6 +23,7 @@ import {
 	DEFAULT_SETTINGS,
 	type AppSettings,
 } from "@/lib/settings";
+import { fetchUserPreferences, updateUserPreferences } from "@/lib/userPreferences";
 
 type AudioEngineContextValue = ReturnType<typeof useAudioEngine> & {
 	pianoKeys: PianoKey[];
@@ -78,6 +79,44 @@ export function AudioEngineProvider({ children }: { children: ReactNode }) {
 	const [settings, setSettingsState] = useState<AppSettings>(() => ({ ...DEFAULT_SETTINGS }));
 	useEffect(() => {
 		setSettingsState(loadSettings());
+	}, []);
+
+	// Cross-device sync for the two visual prefs persisted on `profiles`:
+	// `background_color` and `note_color`. On mount, hydrate from the DB so a
+	// fresh device picks up the user's last chosen colors. After hydration, any
+	// further change is mirrored back to the DB (debounced).
+	const remoteHydratedRef = useRef(false);
+	const lastSyncedRef = useRef<{ backgroundColor: string | null; noteColor: string | null }>({
+		backgroundColor: null,
+		noteColor: null,
+	});
+	useEffect(() => {
+		let cancelled = false;
+		(async () => {
+			const prefs = await fetchUserPreferences();
+			if (cancelled) return;
+			if (prefs) {
+				if (prefs.noteColor) engine.setNoteColor(prefs.noteColor);
+				if (prefs.backgroundColor) {
+					setSettingsState((s) => {
+						const next = { ...s, backgroundColor: prefs.backgroundColor as string };
+						saveSettings(next);
+						return next;
+					});
+				}
+				lastSyncedRef.current = {
+					backgroundColor: prefs.backgroundColor,
+					noteColor: prefs.noteColor,
+				};
+			}
+			remoteHydratedRef.current = true;
+		})();
+		return () => {
+			cancelled = true;
+		};
+		// `engine.setNoteColor` is stable (useCallback in useAudioEngine), so it's
+		// safe to leave out of the deps — we only want this to run once.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 	// Transient (not persisted) — a counter so multiple owners can suppress without trampling
 	// each other. Metronome ticks only when this is 0.
@@ -158,6 +197,23 @@ export function AudioEngineProvider({ children }: { children: ReactNode }) {
 		if (settings.reducedMotion) html.classList.add("reduced-motion");
 		else html.classList.remove("reduced-motion");
 	}, [settings.reducedMotion]);
+
+	// Debounced mirror of background/note color → profiles row. Only fires once
+	// the initial DB fetch has resolved (so we don't clobber the remote value
+	// with the local default during startup). A 700ms window collapses the
+	// slider-drag color picker into a single network write.
+	useEffect(() => {
+		if (!remoteHydratedRef.current) return;
+		const bg = settings.backgroundColor;
+		const nc = engine.noteColor;
+		if (bg === lastSyncedRef.current.backgroundColor && nc === lastSyncedRef.current.noteColor) return;
+		const t = setTimeout(() => {
+			void updateUserPreferences({ backgroundColor: bg, noteColor: nc }).then((ok) => {
+				if (ok) lastSyncedRef.current = { backgroundColor: bg, noteColor: nc };
+			});
+		}, 700);
+		return () => clearTimeout(t);
+	}, [settings.backgroundColor, engine.noteColor]);
 
 	// Global metronome — ticks whenever settings.metronomeEnabled is true on any page,
 	// unless another component (eg. ImprovisationStage) has temporarily suppressed it.

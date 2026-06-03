@@ -8,6 +8,7 @@ import { TimeTracker } from "@/components/achievements/TimeTracker";
 import { AchievementBannerHost } from "@/components/achievements/AchievementBannerHost";
 import { SessionStatsSync } from "@/components/achievements/SessionStatsSync";
 import { NavigationIndicator } from "@/components/layout/NavigationIndicator";
+import { LatencyOverlay } from "@/components/layout/LatencyOverlay";
 
 
 const geistSans = Geist({
@@ -63,6 +64,7 @@ export default function RootLayout({
               <SessionStatsSync />
               <AchievementBannerHost />
               <NavigationIndicator />
+              <LatencyOverlay />
               {children}
             </TranscriptionProvider>
           </AudioEngineProvider>
