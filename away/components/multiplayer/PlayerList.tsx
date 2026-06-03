@@ -1,3 +1,12 @@
+// ============================================================================
+// multiplayer/PlayerList.tsx
+// ----------------------------------------------------------------------------
+// Right-hand panel in jam rooms showing every connected player with their
+// chosen colour, badge, and current soundfont. Clicking a row opens that
+// player's profile modal; clicking the local user opens the colour picker
+// to change their note colour live.
+// ============================================================================
+
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";

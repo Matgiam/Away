@@ -1,3 +1,11 @@
+// ============================================================================
+// auth/update-password-form.tsx
+// ----------------------------------------------------------------------------
+// Step 2 of the password reset flow: set a new password. Reached via the
+// link in the password-reset email; Supabase auto-signs the user in once
+// they land here so updateUser({ password }) works without re-auth.
+// ============================================================================
+
 "use client";
 
 import { cn } from "@/lib/utils";

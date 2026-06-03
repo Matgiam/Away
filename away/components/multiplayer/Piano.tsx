@@ -1,3 +1,18 @@
+// ============================================================================
+// multiplayer/Piano.tsx
+// ----------------------------------------------------------------------------
+// The 88-key piano UI used on every page that plays sound (home, multiplayer,
+// practice, courses).
+//
+// Layout: 52 white keys lay out as flex children, each numbered black key is
+// absolutely positioned above its neighbouring white key. Pointer events
+// (mouse, touch) call onPlayNote / onStopNote — keyboard / MIDI input goes
+// through other paths and reaches the same engine via useAudioEngine.
+//
+// `highlightedMidis` / `accentMidis` / `labelMidis` are used by the course
+// system to colour-code specific keys ("press this one", "every C", etc).
+// ============================================================================
+
 "use client";
 
 import { useRef, useMemo, useCallback, useEffect } from "react";

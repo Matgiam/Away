@@ -1,3 +1,13 @@
+// ============================================================================
+// layout/NavigationIndicator.tsx
+// ----------------------------------------------------------------------------
+// Thin top-of-page progress bar that lights up the instant any in-app
+// navigation starts, so the user gets immediate feedback (Next.js's own
+// loading UI takes a beat longer to appear). Listens for the
+// NAVIGATION_START_EVENT dispatched by `useAppRouter` and hides when the
+// pathname changes.
+// ============================================================================
+
 "use client";
 
 import { useEffect, useState } from "react";

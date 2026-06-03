@@ -1,3 +1,12 @@
+// ============================================================================
+// courses/ImprovisationStage.tsx
+// ----------------------------------------------------------------------------
+// Stage used by improvisation steps. Loops a backing chord progression at
+// the step's BPM and highlights the scale notes the user is free to play
+// over. Suppresses the global metronome while running (it owns its own
+// click clock so the two don't double-tick out of phase).
+// ============================================================================
+
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";

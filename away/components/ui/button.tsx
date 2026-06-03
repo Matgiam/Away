@@ -1,3 +1,15 @@
+// ============================================================================
+// ui/button.tsx
+// ----------------------------------------------------------------------------
+// shadcn-style Button primitive. Wraps a native <button> with Tailwind classes
+// driven by `cva` (class-variance-authority) so callers pick a variant
+// ("default" / "destructive" / "outline" / "secondary" / "ghost" / "link")
+// and a size ("default" / "sm" / "lg" / "icon").
+//
+// Pass `asChild` to render the styles onto whatever child you pass instead of
+// a real <button> (useful for wrapping <Link>, <a>, etc).
+// ============================================================================
+
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";

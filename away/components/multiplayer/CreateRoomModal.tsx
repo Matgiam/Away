@@ -1,3 +1,12 @@
+// ============================================================================
+// multiplayer/CreateRoomModal.tsx
+// ----------------------------------------------------------------------------
+// Two-step "Create room" modal. Step "settings" picks accessibility / max
+// players / optional password; step "name" lets the user title the room
+// and submit. Form state lives in `useCreateRoom`; this component is the
+// presentation layer.
+// ============================================================================
+
 import { AccessIcon } from "@/components/ui/AccessIcon";
 import type { Accessibility, CreateStep } from "@/hooks/useRooms";
 

@@ -1,3 +1,12 @@
+// ============================================================================
+// auth/PasswordInput.tsx
+// ----------------------------------------------------------------------------
+// Shared password input with a click-to-reveal eye button. Used by every
+// auth form so the visibility toggle is consistent everywhere. Each instance
+// has its own visibility state (sign-up has two — password + repeat — and
+// they toggle independently).
+// ============================================================================
+
 "use client";
 
 import { useState } from "react";

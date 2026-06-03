@@ -1,3 +1,12 @@
+// ============================================================================
+// achievements/AchievementBanner.tsx
+// ----------------------------------------------------------------------------
+// The "Achievement Unlocked!" toast shown when the user crosses a milestone.
+// Drops down from the top with a GSAP back-out tween, hangs for 6 seconds,
+// then animates back out and calls `onDismiss` so the host can move to the
+// next queued banner.
+// ============================================================================
+
 "use client";
 
 import { useRef } from "react";

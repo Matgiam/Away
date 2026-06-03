@@ -1,3 +1,11 @@
+// ============================================================================
+// layout/LatencyOverlay.tsx
+// ----------------------------------------------------------------------------
+// Optional debug overlay that shows live round-trip latency to Supabase.
+// Pings the REST endpoint every 2 seconds and displays the elapsed ms.
+// Visible only when `settings.showLatency` is on (toggled via SettingsPanel).
+// ============================================================================
+
 "use client";
 
 import { useEffect, useState } from "react";

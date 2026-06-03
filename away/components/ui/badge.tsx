@@ -1,3 +1,11 @@
+// ============================================================================
+// ui/badge.tsx
+// ----------------------------------------------------------------------------
+// shadcn-style Badge primitive. Small inline pill used for status labels
+// (e.g. "Approved", "Pending", "Hard"). `variant` selects the colour scheme;
+// arbitrary className overrides still work via the `cn` merge.
+// ============================================================================
+
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 

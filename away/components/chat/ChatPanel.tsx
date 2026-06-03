@@ -1,3 +1,13 @@
+// ============================================================================
+// chat/ChatPanel.tsx
+// ----------------------------------------------------------------------------
+// Sliding chat panel shown in multiplayer rooms. Renders the message list,
+// the compose input, and the "sign in to chat" prompt for anonymous users.
+//
+// Each peer's messages get tinted with their player colour via the
+// `senderColorById` map so it's easy to tell at a glance who said what.
+// ============================================================================
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";

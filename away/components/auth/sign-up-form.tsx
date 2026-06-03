@@ -1,3 +1,14 @@
+// ============================================================================
+// auth/sign-up-form.tsx
+// ----------------------------------------------------------------------------
+// Account creation form. After a successful signup, routes to
+// /auth/verify-email with the email as a query param so the verify page
+// already knows whom we're verifying.
+//
+// Also offers Google OAuth as an alternative; the OAuth callback lands on
+// /auth/callback and is handled by Supabase's PKCE flow.
+// ============================================================================
+
 "use client";
 
 import { cn, getSiteURL } from "@/lib/utils";

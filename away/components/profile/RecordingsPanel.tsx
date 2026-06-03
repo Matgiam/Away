@@ -1,3 +1,11 @@
+// ============================================================================
+// profile/RecordingsPanel.tsx
+// ============================================================================
+// Profile tab listing the user's screen recordings. Each row plays inline
+// (signed URL from `getUserRecordings`) with a delete button that pops the
+// DeleteConfirmModal before removing the row + storage object.
+// ============================================================================
+
 "use client";
 
 import { useEffect, useState } from "react";

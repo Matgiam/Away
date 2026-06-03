@@ -1,3 +1,13 @@
+// ============================================================================
+// courses/CourseFallingNotes.tsx
+// ----------------------------------------------------------------------------
+// Lane-based falling notes view specialised for course steps. Differs from
+// the practice-mode visualizer in that the lanes are explicitly positioned
+// by `progress` (0 = at the impact bar, 1 = top of the area) rather than
+// driven by real time. Used for chord / sequence steps where the lane only
+// needs to communicate "here are the targets".
+// ============================================================================
+
 "use client";
 
 import { useEffect, useRef } from "react";

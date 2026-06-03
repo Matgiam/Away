@@ -1,3 +1,19 @@
+// ============================================================================
+// achievements/SessionStatsSync.tsx
+// ----------------------------------------------------------------------------
+// The bridge between the local achievement counters (localStorage) and the
+// cross-device user_stats table (Supabase).
+//
+// Two responsibilities:
+//   * Bootstrap: on first mount (and on sign-in), pull server totals down so
+//     a fresh device sees the user's lifetime stats immediately.
+//   * Flush: every 30 s and on tab hide / unload, push any local deltas up
+//     to the server. The watermark only advances when the write succeeds, so
+//     a transient network failure doesn't silently lose progress.
+//
+// Returns null — this component is pure side-effects, no UI.
+// ============================================================================
+
 "use client";
 
 import { useEffect } from "react";

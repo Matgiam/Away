@@ -1,3 +1,16 @@
+// ============================================================================
+// layout/KeybindConfig.tsx
+// ----------------------------------------------------------------------------
+// Settings sub-panel for the computer-keyboard piano mapping.
+//
+// Lets the user:
+//   * Toggle keyboard input on/off entirely.
+//   * Pick a preset (QWERTY / AZERTY) — instantly applies the matching binds.
+//   * Slide the base MIDI note up / down (octave anchor).
+//   * Rebind individual actions (note keys + sustain + octave shifts) by
+//     clicking a row and pressing the new key.
+// ============================================================================
+
 "use client";
 
 import { useCallback, useEffect, useState } from "react";

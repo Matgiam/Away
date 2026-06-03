@@ -1,3 +1,17 @@
+// ============================================================================
+// useBackgroundTranscription.ts
+// ----------------------------------------------------------------------------
+// Owns the lifecycle of a single in-flight audio→MIDI transcription so the
+// user can close the upload modal and watch progress as a tiny floating
+// toast instead.
+//
+// The state machine: idle → running (with live progress) → done | error.
+// `done` and `error` are *terminal* — the toast sits there until the user
+// either acts on it (opens the finalize modal) or dismisses it. Starting
+// a new transcription while another is running aborts the old one and
+// replaces the toast.
+// ============================================================================
+
 "use client";
 
 import { useCallback, useRef, useState } from "react";
@@ -8,6 +22,7 @@ import { transcribeAudioToMidi, type TranscribeEngine } from "@/lib/practice/tra
 // toast instead. When the transcription finishes the result sits in `done`
 // state until the user either opens the finalize modal or dismisses it.
 
+// Discriminated union — each phase carries only the fields it needs.
 export type BackgroundTranscribeState =
 	| { phase: "idle" }
 	| {
@@ -31,6 +46,7 @@ export type BackgroundTranscribeState =
 			error: string;
 	  };
 
+// Public API the toast / modal use to drive the state.
 export type BackgroundTranscribeControls = {
 	state: BackgroundTranscribeState;
 	start: (file: File, engine: TranscribeEngine) => void;
@@ -40,6 +56,7 @@ export type BackgroundTranscribeControls = {
 
 export function useBackgroundTranscription(): BackgroundTranscribeControls {
 	const [state, setState] = useState<BackgroundTranscribeState>({ phase: "idle" });
+	// Single-controller pattern — one active transcription at a time.
 	const abortRef = useRef<AbortController | null>(null);
 
 	const start = useCallback((file: File, engine: TranscribeEngine) => {
@@ -57,6 +74,7 @@ export function useBackgroundTranscription(): BackgroundTranscribeControls {
 			message: "Starting…",
 		});
 
+		// Self-contained async block so we can return the controls synchronously.
 		(async () => {
 			try {
 				const midiBuffer = await transcribeAudioToMidi(
@@ -65,6 +83,8 @@ export function useBackgroundTranscription(): BackgroundTranscribeControls {
 						// Drop late progress updates if the user cancelled or another
 						// task has taken over.
 						if (controller.signal.aborted) return;
+						// Defensive merge: only apply when we're still on the same
+						// file (a rapid start→start could leave one update in flight).
 						setState((prev) =>
 							prev.phase === "running" && prev.fileName === file.name
 								? { ...prev, progress: event.progress, message: event.message }
@@ -77,6 +97,8 @@ export function useBackgroundTranscription(): BackgroundTranscribeControls {
 
 				if (controller.signal.aborted) return;
 
+				// Build a File from the MIDI bytes so the downstream finalize modal
+				// can treat it identically to a user-picked MIDI upload.
 				const midiName = file.name.replace(/\.[^.]+$/, "") + ".mid";
 				const midiFile = new File([midiBuffer], midiName, { type: "audio/midi" });
 				setState({
@@ -95,6 +117,8 @@ export function useBackgroundTranscription(): BackgroundTranscribeControls {
 					error: err instanceof Error ? err.message : "Transcription failed",
 				});
 			} finally {
+				// Only clear the ref if it's still pointing at us — a newer start
+				// may have already taken over.
 				if (abortRef.current === controller) {
 					abortRef.current = null;
 				}

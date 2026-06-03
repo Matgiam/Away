@@ -1,3 +1,19 @@
+// ============================================================================
+// audio.ts
+// ----------------------------------------------------------------------------
+// Sets up the global audio graph used by every page:
+//
+//     [SpessaSynth worklet] → Tone.Reverb → Tone.Volume → speakers
+//
+// This file owns:
+//   * Boot-time AudioContext creation (with the user's latency preset baked in).
+//   * The master Volume node (controlled by the volume slider).
+//   * The shared Reverb node (controlled by the reverb wet slider).
+//
+// The SpessaSynth engine itself lives in `spessaSynthEngine.ts` — this file
+// just provides the surrounding Tone.js plumbing.
+// ============================================================================
+
 import * as Tone from "tone";
 import type { AudioLatency } from "./settings";
 
@@ -8,9 +24,9 @@ import type { AudioLatency } from "./settings";
 type LatencyHint = AudioContextLatencyCategory;
 
 function hintFor(latency: AudioLatency | undefined): LatencyHint {
-	if (latency === "low") return "interactive";
-	if (latency === "stable") return "playback";
-	return "balanced";
+	if (latency === "low") return "interactive"; // small buffer, lowest latency
+	if (latency === "stable") return "playback";  // big buffer, crackle-resistant
+	return "balanced";                            // middle-of-the-road default
 }
 
 // Reads the persisted audioLatency preset directly from localStorage so the
@@ -18,16 +34,17 @@ function hintFor(latency: AudioLatency | undefined): LatencyHint {
 // isn't yet available when this runs. Falls back to "balanced" on first
 // launch or when storage is unreadable (private mode, quota errors, etc.).
 function readPersistedLatency(): AudioLatency {
-	if (typeof window === "undefined") return "balanced";
+	if (typeof window === "undefined") return "balanced"; // SSR guard
 	try {
 		const raw = window.localStorage.getItem("away:appSettings");
 		if (!raw) return "balanced";
 		const parsed = JSON.parse(raw) as { audioLatency?: AudioLatency };
 		const value = parsed.audioLatency;
+		// Whitelist check — never trust the value blindly.
 		if (value === "low" || value === "balanced" || value === "stable") return value;
 		return "balanced";
 	} catch {
-		return "balanced";
+		return "balanced"; // storage disabled / quota error / malformed JSON
 	}
 }
 
@@ -42,13 +59,22 @@ function readPersistedLatency(): AudioLatency {
 // apply (the SettingsPanel surfaces this).
 export const initAudioContext = async (): Promise<AudioContext> => {
 	const hint = hintFor(readPersistedLatency());
+
+	// 1. Native AudioContext — what spessasynth's AudioWorkletNode needs.
 	const native = new AudioContext({ latencyHint: hint });
+
+	// 2. Tone wraps it so reverb / volume nodes work against the same context.
 	const context = new Tone.Context({ context: native, latencyHint: hint });
 	Tone.setContext(context);
+
+	// `lookAhead = 0` means Tone schedules events immediately rather than
+	// queueing them — important for live play where every ms counts.
 	Tone.context.lookAhead = 0;
 	return native;
 };
 
+// Master volume node, wired straight to the speakers. `db` is in decibels;
+// 0 = unity, -Infinity = mute.
 export const createMasterVolume = (db: number): Tone.Volume => {
 	return new Tone.Volume(db).toDestination();
 };
@@ -59,6 +85,9 @@ export const createMasterVolume = (db: number): Tone.Volume => {
 // (concert-hall-ish); 1.8s reads as "small room" while halving CPU load.
 const REVERB_DECAY_SECONDS = 1.8;
 
+// Build the shared reverb send. `wet` is in [0, 1] — 0 = dry, 1 = fully wet.
+// Optional `output` lets the caller chain it (e.g. straight into the master
+// volume); omitted, it goes to the speakers directly.
 export const createReverb = (wet: number, output?: Tone.ToneAudioNode): Tone.Reverb => {
 	const reverb = new Tone.Reverb({ decay: REVERB_DECAY_SECONDS, wet });
 	if (output) {

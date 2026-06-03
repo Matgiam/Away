@@ -1,3 +1,12 @@
+// ============================================================================
+// layout/ProfileBackground.tsx
+// ----------------------------------------------------------------------------
+// Thin wrapper around `<SilkBackground>` that reads the user's current
+// background colour / animated / reduced-motion settings from localStorage
+// and re-reads them whenever the settings change. Mounted on the profile
+// page (the home page uses SilkBackground directly).
+// ============================================================================
+
 "use client";
 
 import { useEffect, useState } from "react";

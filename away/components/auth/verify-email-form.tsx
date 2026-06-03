@@ -1,3 +1,17 @@
+// ============================================================================
+// auth/verify-email-form.tsx
+// ----------------------------------------------------------------------------
+// 6-digit OTP verification UI shown on /auth/verify-email after signup.
+//
+// The 6 individual <input> boxes handle:
+//   * Single-digit input with auto-advance to the next box.
+//   * Backspace going back to the previous box.
+//   * Arrow keys for manual navigation.
+//   * Paste — splits the pasted string across boxes from the current position.
+//
+// Plus a "Resend code" button that calls supabase.auth.resend.
+// ============================================================================
+
 "use client";
 
 import { cn } from "@/lib/utils";

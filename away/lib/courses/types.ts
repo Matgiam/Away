@@ -1,3 +1,21 @@
+// ============================================================================
+// courses/types.ts
+// ----------------------------------------------------------------------------
+// Shapes for the structured-course system (the "Practice → Courses" tab).
+//
+// A `Course` is a sequence of `CourseStep`s the user works through. Each step
+// is one of several discriminated-union types — text, play-note, play-chord,
+// sequence, demo-sequence, improvisation, ear-training — and the player UI
+// in `components/courses/` dispatches on `step.type` to render the right
+// interactive surface.
+//
+// This file contains no runtime logic, only the type system + the category
+// constants used by the course menu.
+// ============================================================================
+
+// Top-level course categories shown in the course menu.
+// Keep this list in sync with COURSE_CATEGORIES below — the strings are used
+// as keys in the per-category course list.
 export type CourseCategoryKey =
 	| "intro"
 	| "scales"
@@ -12,6 +30,7 @@ export type CourseCategory = {
 	label: string;
 };
 
+// Display order for the menu. `label` is what the user sees on the cards.
 export const COURSE_CATEGORIES: CourseCategory[] = [
 	{ key: "intro", label: "Intro" },
 	{ key: "scales", label: "Scales" },
@@ -23,15 +42,18 @@ export const COURSE_CATEGORIES: CourseCategory[] = [
 ];
 
 // A "lane" is a falling-note column shown on screen.
+// Used by demo-sequence and improvisation steps to define what falls.
 export type LaneNote = {
 	midi: number;
 	startSeconds: number;
 	durationSeconds: number;
 	velocity?: number;
-	hand?: "right" | "left";
+	hand?: "right" | "left"; // colours / lanes the visualizer uses for hand independence
 };
 
 // Different types of interactive steps inside a course
+// Discriminated union — every step is one of these. The player picks the
+// right component by switching on `step.type`.
 export type CourseStep =
 	| TextStep
 	| PlayNoteStep
@@ -42,6 +64,8 @@ export type CourseStep =
 	| ImprovisationStep
 	| EarTrainingStep;
 
+// Fields every step shares. The optional fields here drive the auto-demo
+// system, the metronome auto-toggle, and the diagram/illustration system.
 interface BaseStep {
 	id: string;
 	title?: string;
@@ -76,6 +100,7 @@ interface BaseStep {
 }
 
 // Just text + optional key highlights
+// Static lesson card with no input required — user clicks "Next" to advance.
 export interface TextStep extends BaseStep {
 	type: "text";
 }
@@ -89,6 +114,7 @@ export interface PlayNoteStep extends BaseStep {
 }
 
 // User can play any midi from a list (eg. any C anywhere on the keyboard)
+// Octave-agnostic version of PlayNoteStep — used for "find all the C notes" etc.
 export interface PlayAnyOfStep extends BaseStep {
 	type: "play-any-of";
 	allowedMidis: number[];
@@ -104,6 +130,7 @@ export interface PlayChordStep extends BaseStep {
 }
 
 // User plays a sequence of notes in order
+// Sequence elements can be single notes OR chords (sub-arrays).
 export interface PlaySequenceStep extends BaseStep {
 	type: "play-sequence";
 	// Each element is either a single midi (one note) or an array of midis (chord)
@@ -144,6 +171,8 @@ export interface EarTrainingStep extends BaseStep {
 }
 
 // Improvisation step: backing chords loop, user plays freely over a scale
+// The backing track loops `chords` at the given BPM; user freedom is bounded
+// only by which `scaleMidis` are highlighted as "safe" notes to play.
 export interface ImprovisationStep extends BaseStep {
 	type: "improvisation";
 	bpm: number;
@@ -157,6 +186,7 @@ export interface ImprovisationStep extends BaseStep {
 	loopCount: number | null;
 }
 
+// Top-level course shape — the catalog in `catalog.ts` is an array of these.
 export type Course = {
 	id: string;
 	category: CourseCategoryKey;

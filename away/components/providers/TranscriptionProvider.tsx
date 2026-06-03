@@ -1,3 +1,18 @@
+// ============================================================================
+// TranscriptionProvider.tsx
+// ----------------------------------------------------------------------------
+// App-wide host for the in-flight background audio→MIDI transcription state.
+//
+// Lifts the background transcription state from PracticeMenu up to the root
+// layout so the floating toast renders on every page. The user can browse the
+// app, play solo, jam in multiplayer, etc. while Transkun crunches their audio
+// in the background.
+//
+// Clicking the toast on "done" routes back to /practice (where the upload
+// modal lives) via `pendingFinalize`. PracticeMenu watches the flag and opens
+// its modal with the result prefilled.
+// ============================================================================
+
 "use client";
 
 import {
@@ -13,15 +28,6 @@ import {
 	useBackgroundTranscription,
 	type BackgroundTranscribeControls,
 } from "@/hooks/useBackgroundTranscription";
-
-// Lifts the background transcription state from PracticeMenu up to the root
-// layout so the floating toast renders on every page. The user can browse the
-// app, play solo, jam in multiplayer, etc. while Transkun crunches their audio
-// in the background.
-//
-// Clicking the toast on "done" routes back to /practice (where the upload
-// modal lives) via `pendingFinalize`. PracticeMenu watches the flag and opens
-// its modal with the result prefilled.
 
 type TranscriptionContextValue = BackgroundTranscribeControls & {
 	pendingFinalize: boolean;

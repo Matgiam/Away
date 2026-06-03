@@ -1,7 +1,30 @@
+// ============================================================================
+// DynamicLiquidglass.tsx
+// ----------------------------------------------------------------------------
+// "Liquid glass" effect rendered with an SVG filter. Anything behind this
+// component shows through with a refracted bezel and specular highlight,
+// closely mimicking the visual style used by recent Apple UIs.
+//
+// Approach (adapted from https://kube.io/blog/liquid-glass-css-svg/):
+//   1. Pre-compute a displacement map and specular map onto two canvas
+//      elements at mount. The displacement map encodes refraction along a
+//      mathematically-defined "lip" curve (see LIP_FN below).
+//   2. Reference both maps in an SVG <filter> that chains
+//      feGaussianBlur → feDisplacementMap → feColorMatrix → feComposite
+//      → feComponentTransfer → feBlend.
+//   3. Apply the filter via `backdrop-filter: url(#filter-id)` to a div
+//      sitting on top of whatever content is behind it.
+//
+// `children` render in a centred overlay above the glass, so callers can
+// drop labels / icons on top without fighting the filter.
+// ============================================================================
+
 "use client";
 
 import React, { useEffect, useState } from "react";
 
+// Helper curves used to shape the "lip" of the glass — the surface where
+// light bends as it crosses the edge.
 const CONVEX = { fn: (x: number) => Math.pow(1 - Math.pow(1 - x, 4), 1 / 4) };
 const CONCAVE = { fn: (x: number) => 1 - Math.sqrt(1 - (1 - x) ** 2) };
 const LIP_FN = (x: number) => {

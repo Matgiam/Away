@@ -1,3 +1,15 @@
+// ============================================================================
+// multiplayer/Visualizer.tsx
+// ----------------------------------------------------------------------------
+// Canvas-based falling-notes visualizer. Renders the `VisNote[]` array
+// produced by useAudioEngine as coloured rectangles falling from the top of
+// the screen down toward the piano.
+//
+// `fallSpeed` is pixels per second; `cornerRadius` rounds the rectangles.
+// Notes that have a null endTime stretch downward in real time; once an
+// endTime is stamped, the rectangle's height freezes and starts to fade.
+// ============================================================================
+
 "use client";
 
 import { useRef, useEffect } from "react";

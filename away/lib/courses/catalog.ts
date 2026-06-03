@@ -1,3 +1,30 @@
+// ============================================================================
+// courses/catalog.ts
+// ----------------------------------------------------------------------------
+// The full catalog of structured piano courses. This is the single source of
+// truth for everything the user sees under Practice → Courses.
+//
+// Structure:
+//   * Top-level export is `COURSES_LIST: Course[]` — every course defined in
+//     this file, in display order, grouped by category.
+//   * Each `Course` contains a sequence of `CourseStep`s (see ./types.ts) that
+//     the player UI in `components/courses/` renders one at a time.
+//
+// Conventions used throughout the catalog:
+//   * MIDI constants (C_MAJOR, A_MINOR, G_MAJOR_SCALE, …) come from ./music.ts
+//     so courses don't sprinkle magic numbers everywhere.
+//   * `highlightKeys` paints specific keys; `highlightAccent` adds a secondary
+//     colour (used e.g. to show "every C across the keyboard").
+//   * Most steps describe their own demo via the discriminated-union fields
+//     (chord, sequence, etc.); only DemoSequenceStep needs explicit timing.
+//   * The TOTAL_COURSES constant in `lib/achievements.ts` must match the count
+//     in this file — bumping the catalog without updating that const breaks
+//     the "Finish every course" achievement.
+//
+// The file is mostly declarative data; the runtime logic lives in the course
+// player components, not here.
+// ============================================================================
+
 import {
 	A_MINOR,
 	A_MINOR_HIGH,
@@ -31,6 +58,9 @@ import {
 } from "./music";
 import type { Course } from "./types";
 
+// Pre-computed "every C / D / E / … on the 88-key piano" arrays. Used by the
+// "play any C anywhere" style of intro step so the user can hit the note in
+// whichever octave they like.
 const ALL_CS = midisOfLetterInRange("C", 21, 108);
 const ALL_DS = midisOfLetterInRange("D", 21, 108);
 const ALL_ES = midisOfLetterInRange("E", 21, 108);
@@ -39,6 +69,8 @@ const ALL_GS = midisOfLetterInRange("G", 21, 108);
 const ALL_AS = midisOfLetterInRange("A", 21, 108);
 const ALL_BS = midisOfLetterInRange("B", 21, 108);
 
+// Used by the "C# / Db" black-key lesson. Named explicitly because that
+// course wants exactly C#4 (not "any C#").
 const C_SHARP_4 = 61;
 
 const COURSES_LIST: Course[] = [

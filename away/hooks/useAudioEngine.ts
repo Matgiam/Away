@@ -1,3 +1,34 @@
+// ============================================================================
+// useAudioEngine.ts
+// ----------------------------------------------------------------------------
+// The single owner of the live audio graph. Everywhere in the app that
+// produces sound — local key presses, Web MIDI input, peers sending notes
+// over WebRTC, MIDI playback in practice mode — funnels through `playNote`
+// / `stopNote` exposed here.
+//
+// Graph (built once at boot):
+//
+//   [your keys / MIDI / peers] → SpessaSynthEngine (AudioWorklet)
+//                                          │
+//                                          ▼
+//                                    Tone.Reverb → Tone.Volume → speakers
+//
+// Per-player channel routing happens inside SpessaSynthEngine — SELF on
+// channel 0, peers on 1..15 (skipping 9, the drum slot). That's why a peer's
+// soundfont choice doesn't affect anyone else's tone.
+//
+// Other responsibilities of this hook:
+//   * Master volume (persisted in localStorage, with mute behaviour at 0).
+//   * Note colour (persisted hex; legacy index-based settings migrated).
+//   * Soundfont catalog fetching + per-font lazy loading.
+//   * Reverb wet-mix slider.
+//   * Web MIDI device discovery + the velocity-curve soft-compression.
+//   * VisNote bookkeeping (the array driving the falling-bars visualizer).
+//   * Sustain pedal state tracking (per-player so peer pedals are independent).
+//   * Garbage-collection of stale VisNotes so a long jam doesn't accumulate
+//     thousands of dead notes and cause GC pauses that crackle the worklet.
+// ============================================================================
+
 "use client";
 
 import { useRef, useCallback, useEffect, useMemo, useState } from "react";
@@ -9,24 +40,32 @@ import { SpessaSynthEngine, SELF_CHANNEL } from "../lib/spessaSynthEngine";
 import { getVisualizerColor, getKeySolidColor, PLAYER_COLORS_SOLID } from "@/lib/playerColors";
 import { darkenHex, normalizeHex } from "@/lib/color";
 
+// Sentinel player id for the local user. Peer ids come from Supabase user ids.
 const SELF = "self";
 const DEFAULT_VOLUME_PERCENT = 75;
 
+// Public soundfont option shape used by the picker.
 export type SoundfontOption = { key: string; name: string; category: SoundfontCategory };
 
+// Master volume slider is linear in user-perception (0..100) but Tone.Volume
+// expects dB. 40·log10(p/100) gives roughly the standard "0 dB at 100, -40 dB
+// at 10, -∞ at 0" curve that audio sliders typically use.
 function percentToDb(percent: number): number {
 	if (percent <= 0) return -Infinity;
 	return 40 * Math.log10(percent / 100);
 }
 
+// localStorage keys. The three LEGACY_* entries are read once during migration
+// (see loadPersistedNoteColor) but never written.
 const VOLUME_STORAGE_KEY = "away:masterVolume";
 const NOTE_COLOR_HEX_STORAGE_KEY = "away:noteColorHex";
 const LEGACY_WHITE_INDEX_KEY = "away:whiteNoteColorIndex";
 const LEGACY_BLACK_INDEX_KEY = "away:blackNoteColorIndex";
 const LEGACY_SINGLE_INDEX_KEY = "away:noteColorIndex";
 const SOUNDFONT_STORAGE_KEY = "away:selectedSoundfont";
-const DEFAULT_NOTE_COLOR_HEX = PLAYER_COLORS_SOLID[0];
+const DEFAULT_NOTE_COLOR_HEX = PLAYER_COLORS_SOLID[0]; // brand red
 
+// Returns the soundfont key the user last picked, or null on first visit.
 function loadPersistedSoundfont(): string | null {
 	if (typeof window === "undefined") return null;
 	try {
@@ -36,6 +75,7 @@ function loadPersistedSoundfont(): string | null {
 	}
 }
 
+// Volume reader. Clamped to [0, 100] even if localStorage has garbage.
 function loadPersistedVolume(): number {
 	if (typeof window === "undefined") return DEFAULT_VOLUME_PERCENT;
 	const raw = window.localStorage.getItem(VOLUME_STORAGE_KEY);
@@ -45,6 +85,9 @@ function loadPersistedVolume(): number {
 	return Math.max(0, Math.min(100, parsed));
 }
 
+// Note colour reader with legacy migration. Older versions stored the colour
+// as an index into PLAYER_COLORS_SOLID; we now store the hex directly. This
+// function reads either form so users don't lose their picked colour.
 function loadPersistedNoteColor(): string {
 	if (typeof window === "undefined") return DEFAULT_NOTE_COLOR_HEX;
 	const raw = window.localStorage.getItem(NOTE_COLOR_HEX_STORAGE_KEY);
@@ -66,21 +109,39 @@ function loadPersistedNoteColor(): string {
 	return DEFAULT_NOTE_COLOR_HEX;
 }
 
+// Top-level hook. `pianoKeys` is the static 88-key model from generatePiano();
+// `setNoteLines` is the visualizer's state setter — the hook mutates a ref
+// (visNotesRef) and pushes a shallow copy on every change so React re-renders.
 export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispatch<React.SetStateAction<VisNote[]>>) => {
+	// Tone.start() has been called (user gesture unlocked audio).
 	const audioStartedRef = useRef(false);
+	// Synth + audio nodes — populated in the init effect.
 	const engineRef = useRef<SpessaSynthEngine | null>(null);
 	const reverbRef = useRef<Tone.Reverb | null>(null);
 	const masterVolumeNodeRef = useRef<Tone.Volume | null>(null);
 
+	// Per-MIDI-note tracking. The inner map is playerId → soundfontKey for
+	// the player(s) currently holding that note. Multiple players can hold
+	// the same note (chord-on-chord); the synth replays each on its own channel.
 	const noteHoldersRef = useRef<Map<number, Map<string, string>>>(new Map());
+	// Notes the local player has released but sustain pedal is keeping alive.
 	const sustainedNotesRef = useRef<Set<number>>(new Set());
+	// Local sustain state. True = pedal down.
 	const isSustainOnRef = useRef(false);
+	// Backing store for the visualizer. setNoteLines is called with [...this]
+	// whenever it changes so React can re-render the canvas.
 	const visNotesRef = useRef<VisNote[]>([]);
+	// One-shot guard so the audio init effect doesn't run twice in Strict Mode.
 	const initializedRef = useRef(false);
 
+	// Per-peer sustain mirrors the local sustain refs but keyed by peer id.
 	const peerSustainRef = useRef<Map<string, boolean>>(new Map());
 	const peerSustainedNotesRef = useRef<Map<string, Set<number>>>(new Map());
+	// Mirror of `currentSoundfont` state into a ref — the playNote hot path
+	// reads it without triggering re-renders.
 	const currentSoundfontRef = useRef<string>(DEFAULT_SOUNDFONT);
+	// Forward reference so playNote can ask the engine to lazy-load a peer's
+	// font when we hear them play one we don't have.
 	const loadSoundfontRef = useRef<((key: string) => Promise<void>) | null>(null);
 
 	const [midiDevices, setMidiDevices] = useState<string[]>([]);
@@ -88,6 +149,8 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 	const [localPressedMidis, setLocalPressedMidis] = useState<number[]>([]);
 	const [localSustainedMidis, setLocalSustainedMidis] = useState<number[]>([]);
 
+	// Settings refs. The settings panel writes through the setter callbacks
+	// below; the audio hot path reads the refs to avoid stale-closure bugs.
 	const midiTransposeRef = useRef(0);
 	const velocityModeRef = useRef<"dynamic" | "fixed">("dynamic");
 	const fixedVelocityRef = useRef(100);
@@ -183,6 +246,10 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		category: (val.category ?? "Other") as SoundfontCategory,
 	}));
 
+	// `Tone.start()` resumes the AudioContext after the required user gesture.
+	// Idempotent — subsequent calls are no-ops. Every interaction that might
+	// produce sound calls this first so we don't lose the first note of a
+	// session to a suspended context.
 	const unlockAudio = useCallback(async () => {
 		if (audioStartedRef.current) return;
 		try {
@@ -193,6 +260,13 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		}
 	}, []);
 
+	// MAIN ENTRY POINT for sound. Called by:
+	//   * Local key / mouse / MIDI input (SELF playerId)
+	//   * useWebRTC's onReceiveNote handler (peer playerId)
+	//   * Practice mode's MIDI playback scheduler
+	//   * Course player's demo-note scheduler
+	//
+	// Optional args control colour resolution and per-peer soundfont routing.
 	const playNote = useCallback(
 		(midi: number, vel: number = 0.7, playerId: string = SELF, colorIndex?: number, noteColorHex?: string, soundfontKey?: string) => {
 			let holders = noteHoldersRef.current.get(midi);
@@ -200,11 +274,17 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 				holders = new Map();
 				noteHoldersRef.current.set(midi, holders);
 			}
+			// Already holding this note for this player — drop the duplicate
+			// (key auto-repeat, double-noteOn from MIDI, etc).
 			if (holders.has(playerId)) return;
 
 			const isSelf = playerId === SELF;
 			const engine = engineRef.current;
 
+			// Resolve the soundfont this note should play through. Self uses
+			// the local selection; peers use the soundfont they reported in
+			// presence (if we've loaded it; otherwise fall back to ours and
+			// kick off a background load).
 			let effectiveFontKey: string;
 			if (isSelf) {
 				effectiveFontKey = currentSoundfontRef.current;
@@ -213,6 +293,8 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 				if (engine?.hasFont(requestedKey)) {
 					effectiveFontKey = requestedKey;
 				} else {
+					// Lazy-load missing peer font in the background — the next
+					// note this peer plays will hit the right tone.
 					if (requestedKey && !engine?.hasFont(requestedKey)) {
 						loadSoundfontRef.current?.(requestedKey)?.catch(() => {});
 					}
@@ -221,6 +303,8 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 			}
 			holders.set(playerId, effectiveFontKey);
 
+			// Re-pressing a sustained note "refreshes" it — remove from the
+			// sustained set so it'll behave like a normal hold.
 			if (isSelf) {
 				sustainedNotesRef.current.delete(midi);
 				setLocalPressedMidis((prev) => (prev.includes(midi) ? prev : [...prev, midi].sort((a, b) => a - b)));
@@ -229,9 +313,15 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 				peerSustainedNotesRef.current.get(playerId)?.delete(midi);
 			}
 
+			// Look up the static key info — used for layout (x, w) and the
+			// black/white branching below.
 			const keyInfo = pianoKeys.find((k) => k.midi === midi);
 			const isBlack = keyInfo?.isBlack ?? false;
 
+			// Colour resolution priority:
+			//   1. explicit hex (peer-supplied via presence)
+			//   2. colour index (legacy / older callers)
+			//   3. local note colour setting
 			let solidColor: string;
 			let visColor: string;
 			if (noteColorHex) {
@@ -246,22 +336,31 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 				visColor = isBlack ? darkenHex(base) : base;
 			}
 
+			// Light up the physical key in the Piano component. Direct DOM
+			// poke (no React re-render) — this is the hot path and we'd
+			// otherwise re-render the whole keyboard on every key press.
 			const keyEl = document.querySelector(`[data-midi="${midi}"]`) as HTMLElement | null;
 			if (keyEl) {
 				keyEl.style.setProperty("--active-color", solidColor);
 				keyEl.classList.add("active");
 			}
 
-			// spessasynth expects MIDI-spec velocity 0-127.
+			// spessasynth expects MIDI-spec velocity 0-127. Callers may pass
+			// either a 0..1 normalised float or a raw MIDI int — handle both.
 			const midiVel = vel > 1 ? Math.round(vel) : Math.max(1, Math.round(vel * 127));
 
+			// Engine guards: don't try to play before audio is unlocked or
+			// the soundfont is loaded — the worklet would just discard the event.
 			if (audioStartedRef.current && engine?.ready && engine.hasFont(effectiveFontKey)) {
 				const channel = engine.channelForPlayer(playerId, isSelf);
 				engine.selectFontOnChannel(channel, effectiveFontKey);
 				engine.noteOn(channel, midi, midiVel);
 			}
 
+			// Build a VisNote for the falling-bars visualizer.
 			if (keyInfo) {
+				// 52 white keys span the viewport width. Black keys are 60%
+				// the width of a white key and centred between two whites.
 				const whiteKeyWidth = window.innerWidth / 52;
 				let x, w;
 				if (isBlack) {
@@ -306,20 +405,28 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		[pianoKeys, setNoteLines],
 	);
 
+	// Counterpart to playNote — clears the hold, applies sustain if active,
+	// and closes the matching VisNote's endTime so the visualizer can fade it.
 	const stopNote = useCallback((midi: number, playerId: string = SELF, _soundfontKey?: string) => {
 		const holders = noteHoldersRef.current.get(midi);
-		if (!holders || !holders.has(playerId)) return;
+		if (!holders || !holders.has(playerId)) return; // not actually holding
 		holders.delete(playerId);
 		const isSelf = playerId === SELF;
 		if (isSelf) {
 			setLocalPressedMidis((prev) => prev.filter((n) => n !== midi));
 		}
 
+		// Find the most recent VisNote still open for this midi+player and
+		// stamp its endTime. findLast (not find) because a fast repeat could
+		// leave two on the array for the same pitch.
 		const pendingNote = visNotesRef.current.findLast((n) => n.midi === midi && n.endTime === null && n.playerId === playerId);
 		if (pendingNote) pendingNote.endTime = performance.now();
 
 		const engine = engineRef.current;
 
+		// Decide whether sustain is in effect for this player on this note.
+		// Settings override real pedal state for the local user; peers honour
+		// whatever they last told us via setPeerSustain.
 		let sustainActive: boolean;
 		if (isSelf) {
 			sustainActive =
@@ -361,6 +468,8 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		}
 	}, []);
 
+	// Used when a peer leaves the room — releases every note they were
+	// holding so we don't keep peer audio ringing forever after a disconnect.
 	const releaseAllForPlayer = useCallback(
 		(playerId: string) => {
 			const midis: number[] = [];
@@ -505,6 +614,10 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		[loadSoundfont],
 	);
 
+	// Wire up the Web MIDI API. Iterates over every input device, attaches an
+	// `onmidimessage` listener that decodes the status byte → command nibble
+	// → note/velocity, and routes to onPlay / onStop / onSustain. Pattern
+	// follows the MDN Web MIDI guide.
 	const connectMIDI = useCallback(
 		(
 			onPlay: (note: number, velocity: number) => void = (n, v) => playNote(n, v),
@@ -512,6 +625,7 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 			onSustain: (active: boolean) => void = (active) => setSustain(active),
 		) => {
 			const nav = navigator as any;
+			// Brave hides the API behind a setting — surface a specific hint.
 			if (!nav.requestMIDIAccess) {
 				setMidiError("Web MIDI is not enabled in this browser. In Brave, open brave://settings/content/midiSysex and enable MIDI for this site.");
 				setMidiDevices([]);
@@ -526,7 +640,10 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 						m.inputs.forEach((i: any) => {
 							names.push(i.name || "Unknown MIDI device");
 							i.onmidimessage = (msg: any) => {
+								// Some controllers send their first note before
+								// the user has gestured anywhere in our UI — unlock here.
 								unlockAudio();
+								// MIDI status byte format: high nibble = command, low nibble = channel.
 								const [cmd, note, vel] = msg.data;
 								const command = cmd >> 4;
 
@@ -569,6 +686,8 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		[playNote, stopNote, unlockAudio, setSustain],
 	);
 
+	// Boot effect — builds the audio graph, loads the default soundfont, and
+	// hooks up Web MIDI. Runs exactly once even in StrictMode (initializedRef).
 	useEffect(() => {
 		if (initializedRef.current) return;
 		initializedRef.current = true;

@@ -1,3 +1,11 @@
+// ============================================================================
+// layout/MetronomePopover.tsx
+// ----------------------------------------------------------------------------
+// Quick-access popover for the global metronome. Toggle on/off, set BPM,
+// pick beats-per-bar from the common values (2/3/4/6), adjust click volume.
+// Anchored below its trigger in the nav strip.
+// ============================================================================
+
 "use client";
 
 import { useEffect, useRef } from "react";

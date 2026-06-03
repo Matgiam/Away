@@ -1,3 +1,15 @@
+// ============================================================================
+// practice/FallingNotes.tsx
+// ----------------------------------------------------------------------------
+// Time-driven falling notes used by practice mode (and the demo stage in
+// courses). Reads `notes[]` + `currentTime` + `lookAheadSeconds` and draws
+// every note whose window overlaps the visible band.
+//
+// Per-note colour is decided by `handForNote` so right-hand and left-hand
+// columns can be tinted differently. `gateMidis` shows which notes the user
+// must play next; `hitMidis` shows what they've already hit.
+// ============================================================================
+
 "use client";
 
 import { useEffect, useRef } from "react";

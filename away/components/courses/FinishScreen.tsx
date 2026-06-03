@@ -1,3 +1,11 @@
+// ============================================================================
+// courses/FinishScreen.tsx
+// ----------------------------------------------------------------------------
+// "Course complete" celebration overlay shown after the final step. Lists
+// the summary bullets (either from `course.summary` or auto-derived from
+// the step titles) and offers Replay / Back-to-courses actions.
+// ============================================================================
+
 "use client";
 
 interface FinishScreenProps {

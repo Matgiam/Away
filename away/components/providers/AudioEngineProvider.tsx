@@ -1,3 +1,23 @@
+// ============================================================================
+// AudioEngineProvider.tsx
+// ----------------------------------------------------------------------------
+// Top-level provider that hosts the singleton audio engine for the whole app.
+//
+// Wraps `useAudioEngine` (the synth + visualizer state) together with:
+//   * The static 88-key piano model (`generatePiano`).
+//   * Settings panel state (loaded from localStorage, mirrored back on change).
+//   * Keybind config (preset, base MIDI, per-action mapping).
+//   * The global metronome (suppress/resume reference-counted so a feature
+//     that owns its own click track can mute the global one cleanly).
+//   * Cross-device sync for the two visual prefs stored on `profiles`
+//     (background colour + note colour), with a 700ms write debounce.
+//
+// Mount this once in `app/layout.tsx`; everything else consumes via
+// `useAudioEngineContext()`. There must only ever be one in the tree —
+// audio worklets are not cheap, and having two engines would also conflict
+// over MIDI input access.
+// ============================================================================
+
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";

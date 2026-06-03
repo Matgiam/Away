@@ -1,3 +1,13 @@
+// ============================================================================
+// achievements/BadgedUsername.tsx
+// ----------------------------------------------------------------------------
+// Renders a username with the user's currently-equipped achievement icon
+// next to it. Listens to BADGE_EQUIP_EVENT so the badge updates everywhere
+// the moment the user equips a different one — no page refresh needed.
+//
+// Used in chat, the room player list, and anywhere the user's name shows up.
+// ============================================================================
+
 "use client";
 
 import { useEffect, useState } from "react";

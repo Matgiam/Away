@@ -1,3 +1,17 @@
+// ============================================================================
+// SilkBackground.tsx
+// ----------------------------------------------------------------------------
+// Animated "silk" shader background filling the viewport on most pages.
+//
+// Adapted from React Bits' Silk component (https://reactbits.dev/backgrounds/silk).
+// Renders a full-screen plane through React Three Fiber, driving the GLSL
+// fragment shader's `uTime` uniform on every frame for smooth animation.
+//
+// Props let callers tune speed, colour, scale, rotation, and noise intensity
+// — the defaults are the values tuned for the Away theme. `animated={false}`
+// stops the time uniform from advancing (used when reducedMotion is enabled).
+// ============================================================================
+
 "use client";
 
 import { useEffect, useRef, useMemo, forwardRef } from "react";

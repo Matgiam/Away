@@ -1,3 +1,12 @@
+// ============================================================================
+// courses/EarTrainingStage.tsx
+// ----------------------------------------------------------------------------
+// Stage used by ear-training course steps. Plays the configured pitches
+// (sequential or chordal) and shows multiple-choice answer buttons. The
+// piano stays silent — nothing is highlighted — so the user has to identify
+// the sound by ear.
+// ============================================================================
+
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";

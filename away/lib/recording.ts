@@ -1,14 +1,42 @@
+// ============================================================================
+// recording.ts
+// ----------------------------------------------------------------------------
+// Supabase data-access for screen recordings.
+//
+// Each recording is a WebM blob produced by `hooks/useRecording.ts` (which
+// merges getDisplayMedia + getUserMedia → MediaRecorder). This module handles
+// the persistence side:
+//
+//   * `uploadRecording`  — uploads the blob to the `recordings` bucket and
+//                          inserts a row in the `recordings` table.
+//   * `getUserRecordings` — list of recordings for a user, each with a 1-hour
+//                          signed URL so the playback `<video>` can load them.
+//   * `deleteRecording`   — removes both the storage file and the DB row.
+//
+// The on-disk path is `${userId}/${timestamp}.webm` — user-scoped folders
+// make storage RLS policies trivial ("can read anything under your own id").
+// ============================================================================
+
 import { createClient } from "@/lib/supabase/client";
 
+// Used by the recording UI to track its three states.
+//   idle      — nothing happening
+//   countdown — 3-2-1 before recording actually starts
+//   recording — MediaRecorder is active
 export type RecordingState = "idle" | "countdown" | "recording";
 
+// Upload `blob` to storage AND insert a metadata row. Returns the storage
+// path on success or null on any failure.
 export async function uploadRecording(
   userId: string,
   blob: Blob,
   duration: number,
 ): Promise<string | null> {
   const supabase = createClient();
+  // Per-user folder + timestamp ensures uniqueness without a UUID lookup.
   const fileName = `${userId}/${Date.now()}.webm`;
+
+  // Step 1: upload the blob into the `recordings` bucket.
   const { error: uploadError } = await supabase.storage
     .from("recordings")
     .upload(fileName, blob);
@@ -18,6 +46,8 @@ export async function uploadRecording(
     return null;
   }
 
+  // Step 2: create the matching row so we can list it later.
+  // Duration is rounded — sub-second precision isn't useful for the UI.
   const { error: dbError } = await supabase.from("recordings").insert({
     user_id: userId,
     storage_path: fileName,
@@ -32,8 +62,13 @@ export async function uploadRecording(
   return fileName;
 }
 
+// List a user's recordings, newest first, with playback URLs attached.
+// Storage URLs are signed (private bucket); the 3600s TTL is fine for a
+// session — by the time it expires the user has either watched the recording
+// or moved on.
 export async function getUserRecordings(userId: string) {
   const supabase = createClient();
+  // Pull metadata rows first — light query.
   const { data, error } = await supabase
     .from("recordings")
     .select("*")
@@ -45,11 +80,12 @@ export async function getUserRecordings(userId: string) {
     return [];
   }
 
+  // Attach a signed URL to each row. Parallel so the round-trips stack.
   const withUrls = await Promise.all(
     (data ?? []).map(async (r) => {
       const { data: urlData } = await supabase.storage
         .from("recordings")
-        .createSignedUrl(r.storage_path, 3600);
+        .createSignedUrl(r.storage_path, 3600); // 1 hour
       return { ...r, url: urlData?.signedUrl ?? null };
     }),
   );
@@ -57,6 +93,9 @@ export async function getUserRecordings(userId: string) {
   return withUrls;
 }
 
+// Delete both halves of a recording — storage file then DB row. We delete
+// storage first because if the bucket op fails we want to keep the row
+// (otherwise the user would lose the record without freeing the storage).
 export async function deleteRecording(
   recordingId: string,
   storagePath: string,

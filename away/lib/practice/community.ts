@@ -1,3 +1,20 @@
+// ============================================================================
+// practice/community.ts
+// ----------------------------------------------------------------------------
+// Community MIDI library (the "Community" tab in the practice menu).
+//
+// Three flows live here:
+//   1. **Submission** — users publish one of their private uploads to the
+//      community pool. Goes into `community_midis` with status="pending".
+//   2. **Browsing**   — any signed-in user can list approved community MIDIs,
+//      search, preview, and add them to their personal collection.
+//   3. **Admin**      — admins (profiles.is_admin = true) approve or reject
+//      pending submissions.
+//
+// Public ids are prefixed with "c:" — same scheme as `uploads.ts` uses "u:" —
+// so the router can dispatch on the prefix without a DB hit.
+// ============================================================================
+
 import { createClient } from "@/lib/supabase/client";
 import {
 	downloadUploadedMidi,
@@ -6,8 +23,11 @@ import {
 	type UploadedSongMeta,
 } from "./uploads";
 
+// Review state machine: submissions land as "pending" and get one of the
+// other two states after admin review.
 export type CommunityStatus = "pending" | "approved" | "rejected";
 
+// Raw row from `community_midis`.
 export type CommunityMidiRow = {
 	id: string;
 	submitter_id: string;
@@ -26,6 +46,7 @@ export type CommunityMidiRow = {
 	created_at: string;
 };
 
+// UI shape — camelCase + a resolved submitter username.
 export type CommunityMidi = {
 	id: string;
 	submitterId: string;
@@ -46,9 +67,11 @@ export type CommunityMidi = {
 
 const BUCKET = "community_midis";
 const TABLE = "community_midis";
+// Separate table for "I added this community MIDI to my collection" links.
 const ADDITIONS_TABLE = "community_midi_additions";
 const COMMUNITY_ID_PREFIX = "c:";
 
+// Public id ↔ row id helpers, same scheme as uploads.ts.
 export function communityIdFromRowId(rowId: string): string {
 	return `${COMMUNITY_ID_PREFIX}${rowId}`;
 }
@@ -61,6 +84,7 @@ export function isCommunityId(id: string): boolean {
 	return id.startsWith(COMMUNITY_ID_PREFIX);
 }
 
+// Row → UI shape. `submitterUsername` is filled in by `attachUsernames`.
 function rowToMidi(row: CommunityMidiRow, submitterUsername: string | null = null): CommunityMidi {
 	return {
 		id: communityIdFromRowId(row.id),
@@ -81,6 +105,8 @@ function rowToMidi(row: CommunityMidiRow, submitterUsername: string | null = nul
 	};
 }
 
+// Batch-resolve submitter ids → usernames so a list of N rows costs 1 extra
+// query rather than N. Mirrors the friends.ts pattern.
 async function attachUsernames(rows: CommunityMidiRow[]): Promise<CommunityMidi[]> {
 	if (rows.length === 0) return [];
 	const supabase = createClient();
@@ -97,6 +123,8 @@ async function attachUsernames(rows: CommunityMidiRow[]): Promise<CommunityMidi[
 // Admin check
 // -----------------------------------------------------------------------------
 
+// True if the logged-in user has profiles.is_admin = true. Used to gate the
+// /admin/midi-review route and the admin actions below.
 export async function isCurrentUserAdmin(): Promise<boolean> {
 	const supabase = createClient();
 	const { data: { user } } = await supabase.auth.getUser();
@@ -109,6 +137,7 @@ export async function isCurrentUserAdmin(): Promise<boolean> {
 // Submission flow (user-facing)
 // -----------------------------------------------------------------------------
 
+// Inputs for `submitCommunityMidi`.
 export type SubmitParams = {
 	file: File;
 	title: string;
@@ -118,6 +147,8 @@ export type SubmitParams = {
 	bpm: number;
 };
 
+// Upload to the community bucket + create the pending row. Same orphan-cleanup
+// pattern as uploads.saveUploadedSong.
 export async function submitCommunityMidi(params: SubmitParams): Promise<CommunityMidi> {
 	const supabase = createClient();
 	const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -155,6 +186,7 @@ export async function submitCommunityMidi(params: SubmitParams): Promise<Communi
 		.single();
 
 	if (insertError) {
+		// Clean up the orphaned storage file.
 		await supabase.storage.from(BUCKET).remove([storagePath]).catch(() => {});
 		throw insertError;
 	}
@@ -170,6 +202,7 @@ export async function submitFromExistingUpload(
 	upload: UploadedSongMeta,
 	overrides: { title?: string; artist?: string; difficulty?: UploadDifficulty },
 ): Promise<CommunityMidi> {
+	// Pull the original MIDI bytes from the private bucket.
 	const buffer = await downloadUploadedMidi(upload.storagePath);
 	const blob = new Blob([buffer], { type: "audio/midi" });
 	const file = new File([blob], upload.fileName, { type: "audio/midi" });
@@ -183,10 +216,13 @@ export async function submitFromExistingUpload(
 		bpm: upload.bpm,
 	});
 
+	// Best-effort link back to the private upload — failure is non-fatal.
 	await setUploadCommunitySubmission(upload.id, rowIdFromCommunityId(result.id)).catch(() => {});
 	return result;
 }
 
+// List the current user's submissions across all statuses (so they can see
+// pending + approved + rejected in one place).
 export async function listMyCommunitySubmissions(): Promise<CommunityMidi[]> {
 	const supabase = createClient();
 	const { data: { user } } = await supabase.auth.getUser();
@@ -201,6 +237,7 @@ export async function listMyCommunitySubmissions(): Promise<CommunityMidi[]> {
 	return attachUsernames((data as CommunityMidiRow[]) ?? []);
 }
 
+// Withdraw / delete a submission. Removes storage file + DB row.
 export async function withdrawCommunitySubmission(communityId: string): Promise<void> {
 	const supabase = createClient();
 	const rowId = rowIdFromCommunityId(communityId);
@@ -244,6 +281,8 @@ function sanitizeIlike(term: string): string {
 	return term.replace(/[%_,()*]/g, "").trim();
 }
 
+// Paginated list of approved community MIDIs. `search` switches to a single-
+// page filtered view (see comment on CommunityListParams).
 export async function listApprovedCommunityMidis(
 	params: CommunityListParams = {},
 ): Promise<CommunityListPage> {
@@ -255,6 +294,7 @@ export async function listApprovedCommunityMidis(
 	let query = supabase.from(TABLE).select("*").eq("status", "approved");
 
 	if (term) {
+		// PostgREST .or(): "title.ilike.%foo%,artist.ilike.%foo%" → title OR artist.
 		query = query.or(`title.ilike.%${term}%,artist.ilike.%${term}%`);
 	}
 
@@ -273,6 +313,7 @@ export async function listApprovedCommunityMidis(
 	return { items, hasMore };
 }
 
+// Fetch one community MIDI by public id (used by /practice/play/[songId]).
 export async function getCommunityMidi(communityId: string): Promise<CommunityMidi | null> {
 	const supabase = createClient();
 	const rowId = rowIdFromCommunityId(communityId);
@@ -295,6 +336,7 @@ export function getCommunityMidiPublicUrl(storagePath: string): string {
 	return data.publicUrl;
 }
 
+// Pull the MIDI bytes for actual playback.
 export async function downloadCommunityMidi(storagePath: string): Promise<ArrayBuffer> {
 	const supabase = createClient();
 	const { data, error } = await supabase.storage.from(BUCKET).download(storagePath);
@@ -302,6 +344,8 @@ export async function downloadCommunityMidi(storagePath: string): Promise<ArrayB
 	return await data.arrayBuffer();
 }
 
+// Bump the play counter via an RPC so the increment is atomic — multiple
+// users opening the same song at once won't lose increments to last-writer-wins.
 export async function incrementCommunityPlayCount(communityId: string): Promise<void> {
 	const supabase = createClient();
 	const rowId = rowIdFromCommunityId(communityId);
@@ -313,6 +357,8 @@ export async function incrementCommunityPlayCount(communityId: string): Promise<
 // "Add to Custom"
 // -----------------------------------------------------------------------------
 
+// Returns just the ids of community MIDIs the current user has added. Used to
+// decorate "Add" buttons on browse rows ("Added" / "Add").
 export async function listMyAddedCommunityIds(): Promise<string[]> {
 	const supabase = createClient();
 	const { data: { user } } = await supabase.auth.getUser();
@@ -328,6 +374,8 @@ export async function listMyAddedCommunityIds(): Promise<string[]> {
 	);
 }
 
+// Full list of added community MIDIs — used by the "My Custom" tab. Performs
+// a join so we can return the MIDI metadata in one round-trip.
 export async function listMyAddedCommunityMidis(): Promise<CommunityMidi[]> {
 	const supabase = createClient();
 	const { data: { user } } = await supabase.auth.getUser();
@@ -340,6 +388,8 @@ export async function listMyAddedCommunityMidis(): Promise<CommunityMidi[]> {
 		.order("added_at", { ascending: false });
 	if (error) throw error;
 
+	// Supabase's TS types treat the joined relation as an array even when
+	// there's only one row per FK — normalise to a single row here.
 	type JoinedRow = {
 		community_midi_id: string;
 		added_at: string;
@@ -351,12 +401,14 @@ export async function listMyAddedCommunityMidis(): Promise<CommunityMidi[]> {
 		const joined = Array.isArray(raw.community_midis)
 			? raw.community_midis[0] ?? null
 			: raw.community_midis;
+		// Filter out anything that's no longer approved (got rejected post-add).
 		if (joined && joined.status === "approved") rows.push(joined);
 	}
 
 	return attachUsernames(rows);
 }
 
+// Idempotent: upsert on (user_id, community_midi_id) so repeated adds are no-ops.
 export async function addCommunityToCustom(communityId: string): Promise<void> {
 	const supabase = createClient();
 	const { data: { user } } = await supabase.auth.getUser();
@@ -369,6 +421,7 @@ export async function addCommunityToCustom(communityId: string): Promise<void> {
 	if (error) throw error;
 }
 
+// Remove from the user's custom collection. No-op if the row doesn't exist.
 export async function removeCommunityFromCustom(communityId: string): Promise<void> {
 	const supabase = createClient();
 	const { data: { user } } = await supabase.auth.getUser();
@@ -386,6 +439,7 @@ export async function removeCommunityFromCustom(communityId: string): Promise<vo
 // Admin flow
 // -----------------------------------------------------------------------------
 
+// All pending submissions, oldest first (FIFO review queue).
 export async function listPendingSubmissions(): Promise<CommunityMidi[]> {
 	const supabase = createClient();
 	const { data, error } = await supabase
@@ -397,6 +451,8 @@ export async function listPendingSubmissions(): Promise<CommunityMidi[]> {
 	return attachUsernames((data as CommunityMidiRow[]) ?? []);
 }
 
+// Recently reviewed (approved + rejected), newest first — feeds the admin
+// "Recent decisions" panel.
 export async function listRecentlyReviewed(limit = 20): Promise<CommunityMidi[]> {
 	const supabase = createClient();
 	const { data, error } = await supabase
@@ -409,6 +465,7 @@ export async function listRecentlyReviewed(limit = 20): Promise<CommunityMidi[]>
 	return attachUsernames((data as CommunityMidiRow[]) ?? []);
 }
 
+// Count-only query for the nav-bar badge ("3 submissions waiting").
 export async function countPendingSubmissions(): Promise<number> {
 	const supabase = createClient();
 	const { count, error } = await supabase
@@ -419,6 +476,7 @@ export async function countPendingSubmissions(): Promise<number> {
 	return count ?? 0;
 }
 
+// Approve a pending submission. Stamps `reviewed_by` and clears any old review note.
 export async function approveSubmission(communityId: string): Promise<void> {
 	const supabase = createClient();
 	const { data: { user } } = await supabase.auth.getUser();
@@ -437,6 +495,8 @@ export async function approveSubmission(communityId: string): Promise<void> {
 	if (error) throw error;
 }
 
+// Reject a pending submission. `note` lets the admin record a reason that the
+// submitter sees on their "My submissions" list.
 export async function rejectSubmission(communityId: string, note: string | null): Promise<void> {
 	const supabase = createClient();
 	const { data: { user } } = await supabase.auth.getUser();
@@ -455,6 +515,7 @@ export async function rejectSubmission(communityId: string, note: string | null)
 	if (error) throw error;
 }
 
+// Hard-delete an entry (storage + row). Used by admins for take-downs.
 export async function adminDeleteSubmission(communityId: string): Promise<void> {
 	const supabase = createClient();
 	const rowId = rowIdFromCommunityId(communityId);
@@ -466,6 +527,8 @@ export async function adminDeleteSubmission(communityId: string): Promise<void> 
 		.maybeSingle();
 	if (row) {
 		const path = (row as { storage_path: string }).storage_path;
+		// Storage delete is best-effort — even if the bucket is somehow already
+		// missing the object, we still want to clear the row below.
 		await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
 	}
 

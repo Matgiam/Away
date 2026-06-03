@@ -1,7 +1,24 @@
+// ============================================================================
+// practice/uploads.ts
+// ----------------------------------------------------------------------------
+// Per-user MIDI uploads ("My uploads" tab in the practice menu).
+//
+// Each upload has two halves:
+//   * The MIDI file itself — stored in the private `midi_uploads` Supabase
+//     storage bucket under `${userId}/${uuid}.mid`.
+//   * A `user_song_uploads` row holding the metadata the practice menu needs
+//     (title, artist, difficulty, duration, BPM, …).
+//
+// Public ids are the row id prefixed with "u:" so the practice player can
+// tell at a glance whether `[songId]` is a built-in, an upload (`u:…`), or
+// a community pick (`c:…`, defined in community.ts).
+// ============================================================================
+
 import { createClient } from "@/lib/supabase/client";
 
 export type UploadDifficulty = "easy" | "medium" | "hard";
 
+// Raw row shape — snake_case as stored in Postgres.
 export type UploadedSongRow = {
 	id: string;
 	user_id: string;
@@ -18,6 +35,7 @@ export type UploadedSongRow = {
 	community_submission_id: string | null;
 };
 
+// camelCase view used by the UI.
 export type UploadedSongMeta = {
 	id: string;
 	title: string;
@@ -33,8 +51,11 @@ export type UploadedSongMeta = {
 
 const BUCKET = "midi_uploads";
 const TABLE = "user_song_uploads";
+// Public ids carry this prefix so callers can route "u:…" vs "c:…" vs
+// built-in song ids through the right loader without a DB lookup.
 const UPLOAD_ID_PREFIX = "u:";
 
+// Public id ↔ row id helpers. Round-trip safe in both directions.
 export function uploadIdFromRowId(rowId: string): string {
 	return `${UPLOAD_ID_PREFIX}${rowId}`;
 }
@@ -49,6 +70,7 @@ export function isUploadId(id: string): boolean {
 	return id.startsWith(UPLOAD_ID_PREFIX);
 }
 
+// Row → UI shape. Keeps snake_case out of every component.
 function rowToMeta(row: UploadedSongRow): UploadedSongMeta {
 	return {
 		id: uploadIdFromRowId(row.id),
@@ -79,12 +101,14 @@ export async function setUploadCommunitySubmission(
 	if (error) throw error;
 }
 
+// Convenience wrapper so callers don't repeat the auth.getUser pattern.
 export async function getCurrentUserId(): Promise<string | null> {
 	const supabase = createClient();
 	const { data } = await supabase.auth.getUser();
 	return data.user?.id ?? null;
 }
 
+// List the current user's uploads, newest first. Returns [] for anonymous users.
 export async function listUploadedSongs(): Promise<UploadedSongMeta[]> {
 	const supabase = createClient();
 	const { data: { user } } = await supabase.auth.getUser();
@@ -100,6 +124,7 @@ export async function listUploadedSongs(): Promise<UploadedSongMeta[]> {
 	return ((data as UploadedSongRow[]) ?? []).map(rowToMeta);
 }
 
+// Single-upload fetch — used by /practice/play/[songId] when the id is an upload.
 export async function getUploadedSongMeta(uploadId: string): Promise<UploadedSongMeta | null> {
 	const supabase = createClient();
 	const rowId = rowIdFromUploadId(uploadId);
@@ -114,6 +139,8 @@ export async function getUploadedSongMeta(uploadId: string): Promise<UploadedSon
 	return rowToMeta(data as UploadedSongRow);
 }
 
+// Download the raw MIDI bytes from the private bucket. Used by the practice
+// player when actually loading the file.
 export async function downloadUploadedMidi(storagePath: string): Promise<ArrayBuffer> {
 	const supabase = createClient();
 	const { data, error } = await supabase.storage.from(BUCKET).download(storagePath);
@@ -138,6 +165,7 @@ export async function getUploadedSongSignedUrl(
 	return data.signedUrl;
 }
 
+// Args required to save a new upload (storage + DB).
 export type SaveUploadParams = {
 	file: File;
 	title: string;
@@ -147,12 +175,17 @@ export type SaveUploadParams = {
 	bpm: number;
 };
 
+// Upload the file to storage, then insert the metadata row. If the row insert
+// fails we clean up the orphaned storage file so the user can retry without
+// hitting "name already taken".
 export async function saveUploadedSong(params: SaveUploadParams): Promise<UploadedSongMeta> {
 	const supabase = createClient();
 	const { data: { user }, error: authError } = await supabase.auth.getUser();
 	if (authError) throw authError;
 	if (!user) throw new Error("You need to sign in to upload songs.");
 
+	// Generate a unique storage path. Falls back to `${ts}-${rand}` on older
+	// browsers / runtimes that don't have crypto.randomUUID.
 	const fileId =
 		typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
 			? crypto.randomUUID()
@@ -162,6 +195,7 @@ export async function saveUploadedSong(params: SaveUploadParams): Promise<Upload
 	const ext = extMatch ? extMatch[0].toLowerCase() : ".mid";
 	const storagePath = `${user.id}/${fileId}${ext}`;
 
+	// Step 1: storage upload.
 	const { error: storageError } = await supabase.storage
 		.from(BUCKET)
 		.upload(storagePath, params.file, {
@@ -170,6 +204,7 @@ export async function saveUploadedSong(params: SaveUploadParams): Promise<Upload
 		});
 	if (storageError) throw storageError;
 
+	// Step 2: metadata insert.
 	const { data, error: insertError } = await supabase
 		.from(TABLE)
 		.insert({
@@ -186,6 +221,7 @@ export async function saveUploadedSong(params: SaveUploadParams): Promise<Upload
 		.single();
 
 	if (insertError) {
+		// Roll back the storage upload so the bucket doesn't accumulate orphans.
 		await supabase.storage.from(BUCKET).remove([storagePath]).catch(() => {});
 		throw insertError;
 	}
@@ -193,6 +229,8 @@ export async function saveUploadedSong(params: SaveUploadParams): Promise<Upload
 	return rowToMeta(data as UploadedSongRow);
 }
 
+// Delete both halves of an upload. Storage first so a row never points at a
+// stale path; if the storage delete fails we don't drop the row.
 export async function deleteUploadedSong(uploadId: string): Promise<void> {
 	const supabase = createClient();
 	const rowId = rowIdFromUploadId(uploadId);
@@ -203,7 +241,7 @@ export async function deleteUploadedSong(uploadId: string): Promise<void> {
 		.eq("id", rowId)
 		.maybeSingle();
 	if (fetchError) throw fetchError;
-	if (!row) return;
+	if (!row) return; // already gone — treat as success
 
 	const storagePath = (row as { storage_path: string }).storage_path;
 	const { error: storageError } = await supabase.storage.from(BUCKET).remove([storagePath]);
@@ -213,6 +251,8 @@ export async function deleteUploadedSong(uploadId: string): Promise<void> {
 	if (deleteError) throw deleteError;
 }
 
+// Partial update — only sends fields the caller specifies. No-op if `patch`
+// has nothing meaningful in it (saves a round-trip).
 export async function updateUploadedSongMeta(
 	uploadId: string,
 	patch: Partial<Pick<UploadedSongMeta, "title" | "artist" | "difficulty">>,

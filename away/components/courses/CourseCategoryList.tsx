@@ -1,3 +1,11 @@
+// ============================================================================
+// courses/CourseCategoryList.tsx
+// ----------------------------------------------------------------------------
+// Horizontal scrollable strip of course-category pills (Intro, Scales,
+// Chords, …). Each pill shows the per-category completion counter
+// ("3/5 done") so the user can see at a glance what's left.
+// ============================================================================
+
 "use client";
 
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";

@@ -1,3 +1,13 @@
+// ============================================================================
+// auth/login-form.tsx
+// ----------------------------------------------------------------------------
+// The email/password login form + Google OAuth button shown on /auth/login.
+// On success, navigates to `redirectTo` (defaults to "/"). On failure shows
+// the Supabase error string inline.
+//
+// Pattern follows the Supabase + Next.js App Router quickstart.
+// ============================================================================
+
 "use client";
 
 import { cn, getSiteURL } from "@/lib/utils";

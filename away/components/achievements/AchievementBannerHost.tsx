@@ -1,3 +1,12 @@
+// ============================================================================
+// achievements/AchievementBannerHost.tsx
+// ----------------------------------------------------------------------------
+// Sits in the root layout, listens for ACHIEVEMENT_UNLOCK_EVENT from anywhere
+// in the app, and renders one AchievementBanner at a time. When the current
+// banner dismisses, the host drops it from the queue and the next one (if
+// any) renders automatically.
+// ============================================================================
+
 "use client";
 
 import { useEffect, useState } from "react";

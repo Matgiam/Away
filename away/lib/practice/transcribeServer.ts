@@ -1,3 +1,6 @@
+// ============================================================================
+// practice/transcribeServer.ts
+// ----------------------------------------------------------------------------
 // Client for the Transkun server (Hugging Face Space).
 // Heavy quality model — plan on 2-5 minutes per song on CPU.
 //
@@ -5,6 +8,10 @@
 //   1. POST /transcribe                 multipart audio  → { jobId }
 //   2. GET  /jobs/{id}    (poll every 2 s)               → status
 //   3. GET  /jobs/{id}/midi    once status == "done"     → MIDI bytes
+//
+// Wrapped in the client-side queue from `transcribeQueue.ts` so multiple
+// users can't pile-drive the single-CPU worker.
+// ============================================================================
 
 import type { TranscribeProgressCallback } from "./transcribe";
 import { markProcessing, releaseSlot, waitForTranscribeSlot } from "./transcribeQueue";
@@ -14,6 +21,8 @@ const POLL_INTERVAL_MS = 2000;
 // length and CPU load. Bar caps at 90% so it doesn't lie.
 const ESTIMATED_TOTAL_SECONDS = 240;
 
+// Shape returned by GET /jobs/{id}. The two server implementations report
+// progress slightly differently — we handle both.
 type JobStatus = {
 	jobId?: string;
 	status: "queued" | "running" | "done" | "error";
@@ -26,10 +35,14 @@ type JobStatus = {
 	progress?: number;
 };
 
+// Optional API key header. Set on the HF Space when the URL is public so
+// random visitors can't burn the GPU/CPU budget.
 function authHeaders(apiKey: string | undefined): Record<string, string> {
 	return apiKey ? { "X-API-Key": apiKey } : {};
 }
 
+// Same abort-aware sleep as transcribeQueue — duplicated rather than imported
+// to keep the two modules independent.
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 	return new Promise((resolve, reject) => {
 		if (signal?.aborted) {
@@ -48,6 +61,8 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 	});
 }
 
+// "143" → "2m 23s" — used in the progress label so the user has a sense of
+// how long they've been waiting.
 function formatElapsed(seconds: number): string {
 	const total = Math.max(0, Math.floor(seconds));
 	const m = Math.floor(total / 60);
@@ -55,6 +70,7 @@ function formatElapsed(seconds: number): string {
 	return `${m}m ${s.toString().padStart(2, "0")}s`;
 }
 
+// Main entry — full upload + poll + download. Returns the MIDI bytes when done.
 export async function transcribeAudioToMidiServer(
 	file: File,
 	apiUrl: string,
@@ -62,6 +78,7 @@ export async function transcribeAudioToMidiServer(
 	onProgress: TranscribeProgressCallback,
 	signal?: AbortSignal,
 ): Promise<ArrayBuffer> {
+	// Strip trailing slashes so `${baseUrl}/transcribe` doesn't double-slash.
 	const baseUrl = apiUrl.replace(/\/+$/, "");
 
 	// 0. Client-side queue ---------------------------------------------------
@@ -71,6 +88,8 @@ export async function transcribeAudioToMidiServer(
 	const queueRowId = await waitForTranscribeSlot(
 		file.name,
 		({ positionInQueue, activeCount }) => {
+			// At the head of the line — surface a different message so the user
+			// knows their wait is about to end.
 			if (positionInQueue <= 1) {
 				onProgress({
 					phase: "model",

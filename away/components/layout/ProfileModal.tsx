@@ -1,3 +1,16 @@
+// ============================================================================
+// layout/ProfileModal.tsx
+// ----------------------------------------------------------------------------
+// Full-screen profile modal opened from various entry points (clicking a
+// player in the room list, clicking your own avatar in the nav, …).
+//
+// Shows:
+//   * Username (editable when viewing your own profile).
+//   * Stats — total notes, time played, connexions, friend count.
+//   * Accept / decline / send friend request actions when viewing someone else.
+//   * Achievement grid for the local user.
+// ============================================================================
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";

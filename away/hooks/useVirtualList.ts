@@ -1,3 +1,30 @@
+// ============================================================================
+// useVirtualList.ts
+// ----------------------------------------------------------------------------
+// Fixed-height row virtualization for long lists.
+//
+// Why: rendering hundreds of practice songs / community MIDIs / recordings
+// as plain DOM nodes burns memory and makes scrolling jank. This hook gives
+// you just-enough state to render only the visible window plus a small
+// overscan, while pretending to the scrollbar that the whole list is there.
+//
+// Caller is responsible for the actual layout. Use the returned values like:
+//
+//   <div ref={containerRef} onScroll={onScroll} style={{ overflowY: "auto" }}>
+//     <div style={{ height: totalHeight, position: "relative" }}>
+//       {items.slice(startIndex, endIndex).map((item, i) => (
+//         <div
+//           key={item.id}
+//           style={{ position: "absolute", top: offsetForIndex(startIndex + i), height: itemHeight }}
+//         >…</div>
+//       ))}
+//     </div>
+//   </div>
+//
+// Also fires `onEndReached` once when the user scrolls to the bottom, used
+// to drive "load more" for paginated sources (community library, etc.).
+// ============================================================================
+
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -45,12 +72,17 @@ export function useVirtualList({
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	const [scrollTop, setScrollTop] = useState(0);
 	const [containerHeight, setContainerHeight] = useState(0);
+	// Track last "fired" state so we don't repeatedly fire onEndReached at the bottom.
 	const endReachedFiredRef = useRef(false);
 	const lastItemCountRef = useRef(itemCount);
 
+	// Row stride = height of one row + the gap below it.
 	const rowStride = itemHeight + gap;
+	// Trailing gap is removed so the spacer doesn't add phantom scroll past the last row.
 	const totalHeight = itemCount === 0 ? 0 : itemCount * rowStride - gap;
 
+	// Measure the container on mount and on resize. useLayoutEffect to avoid a
+	// flash of "everything rendered" before the window math kicks in.
 	useLayoutEffect(() => {
 		const el = containerRef.current;
 		if (!el) return;
@@ -66,6 +98,7 @@ export function useVirtualList({
 		return () => ro.disconnect();
 	}, []);
 
+	// Simple scroll handler — just records the offset; window math runs on render.
 	const onScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
 		setScrollTop(event.currentTarget.scrollTop);
 	}, []);
@@ -78,12 +111,15 @@ export function useVirtualList({
 	}
 	lastItemCountRef.current = itemCount;
 
+	// Window math: subtract overscan from the start, add to the end.
 	const startIndex = Math.max(0, Math.floor(scrollTop / rowStride) - overscan);
 	const endIndex = Math.min(
 		itemCount,
 		Math.ceil((scrollTop + containerHeight) / rowStride) + overscan,
 	);
 
+	// End-reached detection. Re-runs on every relevant change so callers don't
+	// have to remember to call us — they just hand over `onEndReached`.
 	useEffect(() => {
 		if (!onEndReached || itemCount === 0 || containerHeight === 0) return;
 		const distanceFromBottom = totalHeight - (scrollTop + containerHeight);
@@ -93,6 +129,7 @@ export function useVirtualList({
 				onEndReached();
 			}
 		} else {
+			// Reset once the user scrolls back up — re-arms the trigger.
 			endReachedFiredRef.current = false;
 		}
 	}, [
@@ -104,6 +141,7 @@ export function useVirtualList({
 		endReachedThreshold,
 	]);
 
+	// Pre-multiplied stride — saves callers from re-deriving the same value.
 	const offsetForIndex = useCallback((index: number) => index * rowStride, [rowStride]);
 
 	return {

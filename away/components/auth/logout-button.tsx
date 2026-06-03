@@ -1,3 +1,10 @@
+// ============================================================================
+// auth/logout-button.tsx
+// ----------------------------------------------------------------------------
+// One-line button — calls supabase.auth.signOut() and routes to /auth/login.
+// Used in the profile menu / settings panel.
+// ============================================================================
+
 "use client";
 
 import { createClient } from "@/lib/supabase/client";

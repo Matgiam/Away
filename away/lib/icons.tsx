@@ -1,3 +1,24 @@
+// ============================================================================
+// icons.tsx
+// ----------------------------------------------------------------------------
+// Inline SVG icons used by the achievements grid. Five tiers (1–5) across four
+// categories — Piano, Clock, Medal, Note — plus a single Ultimate icon that
+// unlocks when every other achievement has been earned.
+//
+// Conventions:
+//   * Every icon is an 80×80 viewBox (the Ultimate is 99×120 because of its
+//     drop-shadow filter), forwarding all SVGProps so callers can pass
+//     `className`, `width`, etc.
+//   * Gradients have unique IDs per icon (`p1card`, `c2screen`, `m4coin`, …)
+//     to avoid the classic "same gradient id used in two SVGs on the same
+//     page" bug where the second SVG silently picks up the first's colours.
+//   * Drawing style is intentionally chunky / 3D-illustrated to match the
+//     achievement-badge vibe.
+//
+// Exports at the bottom are the per-category arrays the AchievementGrid maps
+// over to render the unlocked / locked states.
+// ============================================================================
+
 import type { ReactElement, SVGProps } from "react";
 
 /* 20 achievement icons — chunky 3D-illustrated SVG style.
@@ -8,6 +29,13 @@ export type AchievementIconComponent = (props: SVGProps<SVGSVGElement>) => React
 
 /* ============================================================
    PIANO  —  notes played
+   ----------------------------------------------------------------
+   Five upright/grand piano variants, escalating in style:
+     Piano1 — small wooden card (low-tier)
+     Piano2 — red+blue toy piano
+     Piano3 — wood-grain upright with brass pedals
+     Piano4 — sleek black grand
+     Piano5 — glowing iridescent grand (top tier)
    ============================================================ */
 
 const Piano1: AchievementIconComponent = (props) => (
@@ -197,6 +225,13 @@ const Piano5: AchievementIconComponent = (props) => (
 
 /* ============================================================
    CLOCK / HORLOGE — time played
+   ----------------------------------------------------------------
+   Five timekeepers escalating from analog to magical:
+     Clock1 — old alarm clock with bells
+     Clock2 — digital wristwatch
+     Clock3 — minimalist dark wall clock
+     Clock4 — vintage pocket watch with crown
+     Clock5 — magical hourglass with glow
    ============================================================ */
 
 const Clock1: AchievementIconComponent = (props) => (
@@ -368,6 +403,13 @@ const Clock5: AchievementIconComponent = (props) => (
 
 /* ============================================================
    MEDAL — courses finished
+   ----------------------------------------------------------------
+   Five medals escalating from paper ribbon to gem trophy:
+     Medal1 — paper star with red ribbon
+     Medal2 — bronze coin with red ribbon
+     Medal3 — silver coin with blue ribbon (white star)
+     Medal4 — gold coin with laurel wreath
+     Medal5 — gold trophy with gem (top tier)
    ============================================================ */
 
 const Medal1: AchievementIconComponent = (props) => (
@@ -538,6 +580,13 @@ const Medal5: AchievementIconComponent = (props) => (
 
 /* ============================================================
    MUSIC NOTES — songs
+   ----------------------------------------------------------------
+   Five note glyphs escalating from sketch to fanfare:
+     Note1 — single quarter note (grey)
+     Note2 — eighth note with red flag
+     Note3 — beamed pair (cyan + red)
+     Note4 — golden treble clef on staff
+     Note5 — banner of golden notes (top tier)
    ============================================================ */
 
 const Note1: AchievementIconComponent = (props) => (
@@ -699,6 +748,9 @@ const Note5: AchievementIconComponent = (props) => (
 		</g>
 	</svg>
 );
+// Ultimate — stylised "A" (for Away). Awarded only when every other achievement
+// has been unlocked. Uses a drop-shadow filter (`filter0_d_312_9`) so the
+// viewBox is 99×120 instead of the 80×80 used elsewhere.
 const Ultimate: AchievementIconComponent = (props) => (
 	<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 99 120" fill="none" {...props}>
 		<g filter="url(#filter0_d_312_9)">
@@ -726,8 +778,13 @@ const Ultimate: AchievementIconComponent = (props) => (
 	</svg>
 );
 
+// Indexed arrays so the AchievementGrid can pull `PIANO_ICONS[tier - 1]` etc.
+// without a switch statement. Order MUST match the tier order in the
+// achievements config — swapping entries here silently swaps which icon
+// shows up for which milestone.
 export const PIANO_ICONS: AchievementIconComponent[] = [Piano1, Piano2, Piano3, Piano4, Piano5];
 export const CLOCK_ICONS: AchievementIconComponent[] = [Clock1, Clock2, Clock3, Clock4, Clock5];
 export const MEDAL_ICONS: AchievementIconComponent[] = [Medal1, Medal2, Medal3, Medal4, Medal5];
 export const NOTE_ICONS: AchievementIconComponent[] = [Note1, Note2, Note3, Note4, Note5];
+// Single-element array (rather than just `Ultimate`) for API symmetry with the others.
 export const ULTIMATE_ICONS: AchievementIconComponent[] = [Ultimate];

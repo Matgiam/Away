@@ -1,3 +1,11 @@
+// ============================================================================
+// layout/RecordingSignInModal.tsx
+// ----------------------------------------------------------------------------
+// Sign-in prompt shown when an anonymous user clicks the Record button.
+// Recording uploads need a userId to attach to, so we block the flow up
+// front rather than throw the file away after the fact.
+// ============================================================================
+
 "use client";
 
 import { useEffect } from "react";

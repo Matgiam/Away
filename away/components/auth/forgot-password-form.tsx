@@ -1,3 +1,11 @@
+// ============================================================================
+// auth/forgot-password-form.tsx
+// ----------------------------------------------------------------------------
+// Step 1 of the password reset flow: ask Supabase to email a reset link.
+// On success shows a "check your email" confirmation; the actual password
+// change happens on /auth/update-password (which the email link points to).
+// ============================================================================
+
 "use client";
 
 import { cn, getSiteURL } from "@/lib/utils";

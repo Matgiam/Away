@@ -1,3 +1,11 @@
+// ============================================================================
+// courses/CourseStepCard.tsx
+// ----------------------------------------------------------------------------
+// The "step info" card shown alongside every interactive course step.
+// Contains the step title, body text, optional illustration, step progress
+// (e.g. "3 of 12"), and the prev/next navigation buttons.
+// ============================================================================
+
 "use client";
 
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";

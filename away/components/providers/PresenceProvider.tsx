@@ -1,3 +1,15 @@
+// ============================================================================
+// PresenceProvider.tsx
+// ----------------------------------------------------------------------------
+// Global "who's online right now" provider. Subscribes once at the layout
+// level to a Supabase Realtime presence channel and exposes the current set
+// of online user ids through `useOnlineUsers()`.
+//
+// Used by the profile / friends UIs to render the green online dot next to
+// usernames. Channel re-subscribes automatically when auth state changes,
+// so signing in / out doesn't require a page reload to update presence.
+// ============================================================================
+
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";

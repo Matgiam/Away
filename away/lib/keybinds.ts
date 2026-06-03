@@ -1,3 +1,26 @@
+// ============================================================================
+// keybinds.ts
+// ----------------------------------------------------------------------------
+// Maps computer-keyboard keys to piano actions (note triggers, sustain pedal,
+// octave shift). The mapping is layout-aware (QWERTY vs AZERTY) and fully
+// user-customisable through the KeybindConfig panel.
+//
+// Concepts:
+//   * `PIANO_ACTIONS`    — 24 entries (two octaves) ordered by semitone.
+//                          Each action is "play note N semitones from the base
+//                          MIDI", so the same binding works at any octave.
+//   * `CONTROL_ACTIONS`  — octave up/down + sustain pedal.
+//   * `Keybinds`         — a record mapping every action id → a KeyboardEvent
+//                          `code` (e.g. "KeyA", "Space") or `null` if unbound.
+//   * `LayoutPreset`     — built-in QWERTY / AZERTY presets the user can pick.
+//
+// Persistence is via localStorage. The `STORAGE_KEY` constants below are the
+// raw keys, the helpers are the only thing the rest of the app should call.
+// ============================================================================
+
+// Two octaves of "play this semitone above the base note" actions. The base
+// note is configurable (`DEFAULT_BASE_MIDI` = middle C = 60), so the same
+// bindings work for high or low octaves just by moving the base.
 export const PIANO_ACTIONS = [
 	{ id: "C0", label: "C (low)", semitone: 0 },
 	{ id: "Cs0", label: "C♯ / D♭ (low)", semitone: 1 },
@@ -27,6 +50,8 @@ export const PIANO_ACTIONS = [
 
 export type PianoActionId = (typeof PIANO_ACTIONS)[number]["id"];
 
+// Non-note actions — pedal + octave shift. Kept separate so the UI can
+// render them under a different heading.
 export const CONTROL_ACTIONS = [
 	{ id: "octaveDown", label: "Octave down" },
 	{ id: "octaveUp", label: "Octave up" },
@@ -35,16 +60,25 @@ export const CONTROL_ACTIONS = [
 
 export type ControlActionId = (typeof CONTROL_ACTIONS)[number]["id"];
 
+// Union of every action id — used as the key type for the Keybinds map.
 export type ActionId = PianoActionId | ControlActionId;
 
+// One binding entry: action id → KeyboardEvent.code, or null if unbound.
+// Using `code` (not `key`) means bindings stick to the *physical* key, so
+// they survive layout changes mid-session.
 export type Keybinds = Record<ActionId, string | null>;
 
 export type LayoutPreset = "qwerty" | "azerty";
 
+// Default base note — middle C. Shifted by the octave up/down controls.
 export const DEFAULT_BASE_MIDI = 60;
+// Bounds keep the keyboard input on a usable part of the piano even after
+// repeated octave shifts.
 export const MIN_BASE_MIDI = 24;
 export const MAX_BASE_MIDI = 84;
 
+// AZERTY (mostly continental Europe) preset. Keys arranged so the home row
+// covers the lower octave and the top row covers the upper octave.
 export const AZERTY_PRESET: Keybinds = {
 	C0: "KeyZ",
 	Cs0: "KeyS",
@@ -75,6 +109,9 @@ export const AZERTY_PRESET: Keybinds = {
 	sustain: "Space",
 };
 
+// QWERTY preset — same idea as AZERTY but adjusted for the standard US layout.
+// Note B0 lands on Comma (",") because KeyM is already taken by something
+// else in the QWERTY arrangement.
 export const QWERTY_PRESET: Keybinds = {
 	C0: "KeyW",
 	Cs0: "KeyS",
@@ -105,17 +142,22 @@ export const QWERTY_PRESET: Keybinds = {
 	sustain: "Space",
 };
 
+// Lookup so the picker can resolve "qwerty" → bindings without a switch.
 export const PRESETS: Record<LayoutPreset, Keybinds> = {
 	qwerty: QWERTY_PRESET,
 	azerty: AZERTY_PRESET,
 };
 
+// localStorage keys — kept private to this module; callers go through the
+// `load*` / `save*` helpers.
 const STORAGE_KEY = "away:keybinds";
 const PRESET_STORAGE_KEY = "away:keybindPreset";
 const ENABLED_STORAGE_KEY = "away:keyboardInputEnabled";
 
+// Read persisted bindings; merge over QWERTY so newly-added actions get
+// sensible defaults without forcing a reset.
 export function loadKeybinds(): Keybinds {
-	if (typeof window === "undefined") return { ...QWERTY_PRESET };
+	if (typeof window === "undefined") return { ...QWERTY_PRESET }; // SSR
 	try {
 		const raw = window.localStorage.getItem(STORAGE_KEY);
 		if (!raw) return { ...QWERTY_PRESET };
@@ -126,11 +168,14 @@ export function loadKeybinds(): Keybinds {
 	}
 }
 
+// Persist the full binding map.
 export function saveKeybinds(binds: Keybinds): void {
 	if (typeof window === "undefined") return;
 	window.localStorage.setItem(STORAGE_KEY, JSON.stringify(binds));
 }
 
+// Returns "qwerty" / "azerty" if the user explicitly picked a preset,
+// or null if they're using a custom mapping.
 export function loadActivePreset(): LayoutPreset | null {
 	if (typeof window === "undefined") return null;
 	const raw = window.localStorage.getItem(PRESET_STORAGE_KEY);
@@ -138,6 +183,8 @@ export function loadActivePreset(): LayoutPreset | null {
 	return null;
 }
 
+// Persist the active preset (or clear it if `preset` is null, meaning the
+// user has gone custom).
 export function saveActivePreset(preset: LayoutPreset | null): void {
 	if (typeof window === "undefined") return;
 	if (preset === null) {
@@ -147,10 +194,12 @@ export function saveActivePreset(preset: LayoutPreset | null): void {
 	}
 }
 
+// Master on/off for computer-keyboard input. Defaults to ON for first-time
+// users — they almost always want to be able to play with the keyboard.
 export function loadKeyboardInputEnabled(): boolean {
 	if (typeof window === "undefined") return true;
 	const raw = window.localStorage.getItem(ENABLED_STORAGE_KEY);
-	if (raw === null) return true;
+	if (raw === null) return true; // unset = enabled
 	return raw === "true";
 }
 
@@ -159,6 +208,8 @@ export function saveKeyboardInputEnabled(enabled: boolean): void {
 	window.localStorage.setItem(ENABLED_STORAGE_KEY, String(enabled));
 }
 
+// User-facing labels for KeyboardEvent.code values. The default "KeyA" /
+// "Digit2" / "Numpad7" are ugly to display, so we map the common ones.
 const FRIENDLY_CODE_NAMES: Record<string, string> = {
 	Space: "Space",
 	Enter: "Enter",
@@ -197,12 +248,15 @@ const FRIENDLY_CODE_NAMES: Record<string, string> = {
 	NumpadDecimal: "Num .",
 };
 
+// Pretty-print a KeyboardEvent.code for the settings panel. Falls back to
+// stripping common prefixes ("Key", "Digit", "Numpad") so "KeyA" → "A",
+// "Digit3" → "3", "NumpadAdd" → "Num +" (already in the map above).
 export function codeToDisplay(code: string | null | undefined): string {
-	if (!code) return "—";
+	if (!code) return "—"; // unbound
 	if (FRIENDLY_CODE_NAMES[code]) return FRIENDLY_CODE_NAMES[code];
-	if (code.startsWith("Key")) return code.slice(3);
-	if (code.startsWith("Digit")) return code.slice(5);
+	if (code.startsWith("Key")) return code.slice(3);     // "KeyA" → "A"
+	if (code.startsWith("Digit")) return code.slice(5);   // "Digit3" → "3"
 	if (code.startsWith("Numpad")) return "Num " + code.slice(6);
-	if (code.startsWith("F") && /^F\d+$/.test(code)) return code;
-	return code;
+	if (code.startsWith("F") && /^F\d+$/.test(code)) return code; // F-keys: "F5" → "F5"
+	return code; // unknown — show the raw code rather than nothing
 }

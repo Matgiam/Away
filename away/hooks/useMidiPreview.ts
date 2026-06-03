@@ -1,3 +1,21 @@
+// ============================================================================
+// useMidiPreview.ts
+// ----------------------------------------------------------------------------
+// Hover-preview for MIDI files in the practice catalog. Plays the first few
+// seconds of a song through the audio engine when the user hovers a row.
+//
+// Behaviour:
+//   * The first hover for a given URL fetches + parses the MIDI; subsequent
+//     hovers reuse a cached parse (capped at 32 entries, LRU-ish).
+//   * Each preview is bounded by `maxDurationSec` (default 3s) — when the
+//     window ends the hook auto-clears state.
+//   * Hovering another row mid-playback cancels the running preview before
+//     starting the new one (token-based — see `tokenRef`).
+//   * Previews are always played through the default piano soundfont so the
+//     catalog sounds consistent regardless of what instrument the user has
+//     currently selected for the main view.
+// ============================================================================
+
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -13,9 +31,12 @@ const PREVIEW_SOUNDFONT = DEFAULT_SOUNDFONT;
 
 // Cache parsed MIDIs across hovers so we don't re-fetch+re-parse the same file
 // every time the cursor leaves and returns. Keyed by URL.
+// Module-level so cache survives component unmounts (catalog re-renders).
 const PARSED_CACHE = new Map<string, Promise<ParsedMidi>>();
-const CACHE_LIMIT = 32;
+const CACHE_LIMIT = 32; // older entries are evicted FIFO once we hit this
 
+// Returns a (cached or freshly-fetched) ParsedMidi for `url`. Stores the
+// in-flight promise so concurrent hovers don't double-fetch.
 async function fetchAndParse(url: string): Promise<ParsedMidi> {
 	let pending = PARSED_CACHE.get(url);
 	if (pending) return pending;
@@ -27,6 +48,8 @@ async function fetchAndParse(url: string): Promise<ParsedMidi> {
 		return parseMidi(buffer);
 	})();
 
+	// FIFO eviction — drops the oldest insertion. Map's iteration order is
+	// insertion-order so .keys().next() gives us that.
 	if (PARSED_CACHE.size >= CACHE_LIMIT) {
 		const firstKey = PARSED_CACHE.keys().next().value;
 		if (firstKey) PARSED_CACHE.delete(firstKey);
@@ -36,11 +59,14 @@ async function fetchAndParse(url: string): Promise<ParsedMidi> {
 	try {
 		return await pending;
 	} catch (e) {
+		// Don't cache failures — a transient network error shouldn't poison
+		// the URL forever.
 		PARSED_CACHE.delete(url);
 		throw e;
 	}
 }
 
+// Lifecycle states surfaced to the caller for cursor / loading UI.
 type PreviewState = "idle" | "loading" | "playing" | "error";
 
 type ActiveHandle = {
@@ -53,6 +79,12 @@ type ScheduledRelease = {
 	timeoutId: ReturnType<typeof setTimeout>;
 };
 
+// Schedule note-on / note-off pairs against `setTimeout`. Returns a `release`
+// closure that cancels everything and best-effort silences any still-ringing
+// pitches.
+//
+// We use setTimeout (not the Web Audio scheduler) because previews are short
+// and start-of-attack precision isn't critical here — the simplicity wins.
 function scheduleNotes(
 	midi: ParsedMidi,
 	startOffsetSec: number,
@@ -67,11 +99,15 @@ function scheduleNotes(
 	const endByWallTime = startedAt + maxDurationSec * 1000;
 
 	for (const note of midi.notes) {
+		// Skip anything before the requested start offset.
 		if (note.startSeconds < startOffsetSec) continue;
+		// Stop once we've passed the preview window. Note: `notes` is sorted
+		// by startSeconds, so `break` is safe here.
 		if (note.startSeconds - startOffsetSec >= maxDurationSec) break;
 
 		const startDelayMs = (note.startSeconds - startOffsetSec) * 1000;
 		const noteEndMs = startDelayMs + note.durationSeconds * 1000;
+		// Clamp the release to the window so we don't ring past the preview end.
 		const cappedEndMs = Math.min(noteEndMs, maxDurationSec * 1000);
 
 		const startTimer = setTimeout(() => {
@@ -88,6 +124,7 @@ function scheduleNotes(
 	const release = () => {
 		if (stopped) return;
 		stopped = true;
+		// Cancel every pending timer.
 		for (const r of releases) clearTimeout(r.timeoutId);
 		// Hard release of every pitch that *might* still be ringing — cheap and safe.
 		for (const note of midi.notes) {
@@ -116,8 +153,11 @@ export function useMidiPreview() {
 	const [state, setState] = useState<PreviewState>("idle");
 	const [activeUrl, setActiveUrl] = useState<string | null>(null);
 	const activeRef = useRef<ActiveHandle | null>(null);
+	// Monotonic counter — increments on each play() call so async callbacks
+	// can tell whether they're still "current".
 	const tokenRef = useRef(0);
 
+	// Cancel the active preview (e.g. on mouseleave or manual stop).
 	const stop = useCallback(() => {
 		const cur = activeRef.current;
 		if (cur?.notes) {
@@ -128,6 +168,7 @@ export function useMidiPreview() {
 		setState("idle");
 	}, []);
 
+	// Start playing a new preview. Cancels any existing one first.
 	const play = useCallback(
 		async (url: string, opts: PreviewOptions = {}) => {
 			const maxDurationSec = opts.maxDurationSec ?? 3;
@@ -138,6 +179,8 @@ export function useMidiPreview() {
 			if (activeRef.current?.notes) activeRef.current.notes.release();
 			activeRef.current = null;
 
+			// Increment the token — any older in-flight callbacks will detect they
+			// are no longer current and bail out.
 			const token = ++tokenRef.current;
 			setState("loading");
 			setActiveUrl(url);
@@ -159,7 +202,8 @@ export function useMidiPreview() {
 				activeRef.current = { notes: handle, stopAllAt: performance.now() + maxDurationSec * 1000 };
 				setState("playing");
 
-				// Auto-clean state when the window ends.
+				// Auto-clean state when the window ends. Token check guards against
+				// the user hovering somewhere else before the timer fires.
 				setTimeout(() => {
 					if (tokenRef.current === token) {
 						activeRef.current = null;

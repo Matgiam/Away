@@ -1,3 +1,15 @@
+// ============================================================================
+// layout/Navigation.tsx
+// ----------------------------------------------------------------------------
+// The bottom navigation strip with the liquid-glass pills — Soundfont,
+// Settings, Metronome, Chat, Profile. Each pill is a popover trigger; the
+// actual panels (SoundfontPanel, SettingsPanel, MetronomePopover) render
+// here too, anchored to their triggers.
+//
+// All sizing comes from `useResponsiveNavSize` so the layout proportions
+// match at any viewport width up to 1920px (then freeze).
+// ============================================================================
+
 "use client";
 
 import React, { useRef, useState } from "react";

@@ -1,3 +1,15 @@
+// ============================================================================
+// layout/ChordDisplay.tsx
+// ----------------------------------------------------------------------------
+// Floating "current chord" pill above the piano. Listens to the held-note
+// set and runs `recognizeChord` to show the chord name (e.g. "Cmaj7/E") in
+// real time.
+//
+// `placement` lets multiple pills stack vertically — practice mode uses one
+// at placement 0 for the user's chord and another at placement 1 for the
+// song's current chord.
+// ============================================================================
+
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";

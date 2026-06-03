@@ -1,3 +1,11 @@
+// ============================================================================
+// courses/CourseSideControls.tsx
+// ----------------------------------------------------------------------------
+// Vertical strip of liquid-glass buttons shown beside the course player —
+// "back to courses", "replay current step", and an optional "play demo"
+// button on steps that have an auto-demo.
+// ============================================================================
+
 "use client";
 
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";

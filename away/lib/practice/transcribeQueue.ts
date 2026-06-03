@@ -1,3 +1,6 @@
+// ============================================================================
+// practice/transcribeQueue.ts
+// ----------------------------------------------------------------------------
 // Client-side queue for Transkun (HF Space) audio→MIDI requests.
 //
 // Problem: the HF Space has 1 CPU worker. If 10 users hit it simultaneously
@@ -12,18 +15,24 @@
 //
 // Stale rows (>30 min, owner closed their tab) get ignored by the position
 // math so abandoned tabs don't block the queue indefinitely.
+// ============================================================================
 
 import { createClient } from "@/lib/supabase/client";
 
 const TABLE = "transcribe_queue";
+// Two simultaneous transcriptions is what the HF Space CPU can handle without
+// the per-job times exploding.
 const MAX_CONCURRENT = 2;
 const POLL_INTERVAL_MS = 2000;
+// Hard ceiling so a wedged queue can't make the user wait forever.
 const MAX_WAIT_MS = 30 * 60 * 1000;
+// Anything older than this is treated as abandoned and ignored.
 const STALE_AFTER_MS = 30 * 60 * 1000;
 
 type ActiveStatus = "uploading" | "processing";
 const ACTIVE_STATUSES: ActiveStatus[] = ["uploading", "processing"];
 
+// Progress event shape — the upload modal renders this directly.
 export type QueueWaitProgress = {
 	positionInQueue: number; // 1-based, includes self
 	activeCount: number; // currently in uploading/processing
@@ -32,6 +41,8 @@ export type QueueWaitProgress = {
 
 export type QueueWaitCallback = (progress: QueueWaitProgress) => void;
 
+// Promise-based sleep that respects an AbortSignal. Used between polls so the
+// caller can cancel the entire wait by aborting (e.g. user closes the modal).
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 	return new Promise((resolve, reject) => {
 		if (signal?.aborted) {
@@ -50,6 +61,7 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 	});
 }
 
+// Timestamp used to filter out abandoned rows in the position math.
 function staleCutoffISO(): string {
 	return new Date(Date.now() - STALE_AFTER_MS).toISOString();
 }
@@ -71,6 +83,8 @@ export async function waitForTranscribeSlot(
 		throw new Error("Sign in to use audio transcription.");
 	}
 
+	// Take a number. `created_at` decides priority — the row's own value comes
+	// back so we don't need a second query to know our place in line.
 	const { data: row, error: insertErr } = await supabase
 		.from(TABLE)
 		.insert({ user_id: userId, file_name: fileName, status: "waiting" })

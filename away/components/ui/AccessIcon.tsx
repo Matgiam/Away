@@ -1,4 +1,14 @@
-import { useState } from "react"; // 1. Import useState
+// ============================================================================
+// ui/AccessIcon.tsx
+// ----------------------------------------------------------------------------
+// Visual badge for a room's access type — Public / Private / Friends — shown
+// on lobby cards and the create-room modal.
+//
+// Renders the matching icon (globe / lock / friends) plus an optional label,
+// optionally wrapped in the DynamicLiquidGlass effect that tints up on hover.
+// ============================================================================
+
+import { useState } from "react";
 import type { Accessibility } from "@/hooks/useRooms";
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
 

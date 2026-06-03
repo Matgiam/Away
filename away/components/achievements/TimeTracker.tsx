@@ -1,3 +1,11 @@
+// ============================================================================
+// achievements/TimeTracker.tsx
+// ----------------------------------------------------------------------------
+// Headless component (returns null) that ticks the "total seconds on Away"
+// counter once per second while the tab is visible. Pauses entirely on
+// `visibilitychange` so background tabs don't accumulate phantom time.
+// ============================================================================
+
 "use client";
 
 import { useEffect } from "react";

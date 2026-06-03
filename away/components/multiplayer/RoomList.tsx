@@ -1,3 +1,11 @@
+// ============================================================================
+// multiplayer/RoomList.tsx
+// ----------------------------------------------------------------------------
+// The lobby grid on /multiplayer. Renders the filter buttons (Public /
+// Private / Friends) and one card per visible room. Clicking a card calls
+// `handleJoinRoom` (which routes to the password modal for private rooms).
+// ============================================================================
+
 import { AccessIcon } from "@/components/ui/AccessIcon";
 import type { Room, Accessibility } from "@/hooks/useRooms";
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";

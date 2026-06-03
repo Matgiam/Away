@@ -1,3 +1,11 @@
+// ============================================================================
+// courses/CourseDemoStage.tsx
+// ----------------------------------------------------------------------------
+// Auto-playback stage used by demo-sequence course steps. Schedules the
+// supplied notes and renders the falling-notes visualizer so the user can
+// watch the demonstration before being asked to repeat it themselves.
+// ============================================================================
+
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";

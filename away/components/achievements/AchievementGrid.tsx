@@ -1,3 +1,19 @@
+// ============================================================================
+// achievements/AchievementGrid.tsx
+// ----------------------------------------------------------------------------
+// The 7×3 grid of achievement badges on the profile page.
+//
+// Each badge shows:
+//   * The category icon at full saturation (unlocked) or greyscale (locked).
+//   * On hover: a tooltip with the achievement name + description, plus a
+//     progress bar / value for locked achievements.
+//   * Click on an unlocked badge to equip / unequip it (the equipped badge
+//     shows next to the user's name in chat / room lists via BadgedUsername).
+//
+// The 21st slot — the "Master" achievement — gets a special gradient border
+// and shadow to mark it as the meta-tier reward.
+// ============================================================================
+
 "use client";
 
 import { useEffect, useRef, useState } from "react";

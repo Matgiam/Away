@@ -1,3 +1,19 @@
+// ============================================================================
+// layout/SettingsPanel.tsx
+// ----------------------------------------------------------------------------
+// The large settings modal opened from the nav strip. Tabbed UI:
+//
+//   General        — username, master volume, reset-all button
+//   Audio          — reverb, velocity mode, sustain mode, audio-latency preset
+//   MIDI           — Web MIDI device list, transpose, fixed velocity
+//   Keyboard       — keybind layout / base midi / per-action remapping (KeybindConfig)
+//   Visualisation  — background colour preset / picker, note colour, animations,
+//                    visualizer style, falling-note speed, etc.
+//
+// Every setting mutates AppSettings via `updateSetting` (settings persist in
+// localStorage; backgroundColor + noteColor also sync to Supabase).
+// ============================================================================
+
 "use client";
 
 import { useEffect, useRef, useState } from "react";

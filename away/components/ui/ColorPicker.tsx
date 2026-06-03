@@ -1,3 +1,20 @@
+// ============================================================================
+// ui/ColorPicker.tsx
+// ----------------------------------------------------------------------------
+// HSV colour picker used by the settings panel for "note colour" and
+// "background colour".
+//
+// Two interactive surfaces:
+//   * Saturation × Value pad — drag to pick S (x-axis) and V (y-axis) at the
+//     current hue. Rendered as the hue colour with white→transparent (S) and
+//     transparent→black (V) gradients overlaid.
+//   * Hue strip — drag to pick H from the rainbow gradient.
+//
+// Plus a hex text input below for typing values directly. The picker is
+// controlled — value comes in, onChange goes out — and the hex draft state
+// keeps the input usable while the user is mid-edit.
+// ============================================================================
+
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";

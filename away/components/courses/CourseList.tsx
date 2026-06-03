@@ -1,3 +1,10 @@
+// ============================================================================
+// courses/CourseList.tsx
+// ----------------------------------------------------------------------------
+// Card grid of courses inside the CoursesMenu. Each card shows the title,
+// estimated minutes, a completion check, and double-click play behaviour.
+// ============================================================================
+
 "use client";
 
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";

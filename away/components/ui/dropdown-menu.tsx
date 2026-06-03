@@ -1,3 +1,15 @@
+// ============================================================================
+// ui/dropdown-menu.tsx
+// ----------------------------------------------------------------------------
+// shadcn-style wrapper around @radix-ui/react-dropdown-menu. Re-exports every
+// Radix part with Tailwind classes applied and a couple of small custom bits
+// (the ChevronRight on sub-menu triggers, the Check / Circle indicators on
+// checkbox / radio items).
+//
+// Wrappers are intentionally thin pass-throughs — anything not styled here
+// behaves exactly like the Radix primitive.
+// ============================================================================
+
 "use client";
 
 import * as React from "react";

@@ -1,3 +1,11 @@
+// ============================================================================
+// multiplayer/JoinRoomModal.tsx
+// ----------------------------------------------------------------------------
+// Password prompt shown when joining a private room. Form state lives in
+// `useJoinRoom`; the actual verification happens server-side via the
+// `join_private_room` RPC (the password never reaches the client).
+// ============================================================================
+
 import type { Room } from "@/hooks/useRooms";
 
 interface JoinRoomModalProps {

@@ -1,3 +1,18 @@
+// ============================================================================
+// useAppRouter.ts
+// ----------------------------------------------------------------------------
+// Thin wrapper around Next.js's `useRouter` that:
+//   1. Fires the global "navigation started" event before every push/replace/back
+//      so the NavigationIndicator's top progress bar can show *immediately* —
+//      Next's own loading UI doesn't appear until the RSC payload starts loading.
+//   2. Dedupes `prefetch()` calls per-instance, so wiring it up to hover /
+//      focus handlers is cheap.
+//
+// Drop-in replacement for `useRouter` for in-app navigation. Don't mix the two
+// — using the bare `useRouter` for some pushes leaves those without the
+// progress bar flash.
+// ============================================================================
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -11,8 +26,11 @@ import { notifyNavigationStart } from "@/lib/navigation";
 //      in a session is cheap (and useful for hover/select handlers).
 export function useAppRouter() {
 	const router = useRouter();
+	// Per-hook prefetch cache. Re-mounting the consumer clears it, but that's
+	// fine — Next caches the response anyway, we just save one router call.
 	const prefetched = useRef<Set<string>>(new Set());
 
+	// All three navigators share the same pattern: notify, then delegate.
 	const push = useCallback(
 		(href: string) => {
 			notifyNavigationStart();
@@ -34,6 +52,8 @@ export function useAppRouter() {
 		router.back();
 	}, [router]);
 
+	// Idempotent prefetch — subsequent calls for the same href are no-ops.
+	// No `notifyNavigationStart` here since prefetch shouldn't flash the bar.
 	const prefetch = useCallback(
 		(href: string) => {
 			if (prefetched.current.has(href)) return;

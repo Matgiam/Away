@@ -1,3 +1,11 @@
+// ============================================================================
+// courses/CoursesMenu.tsx
+// ----------------------------------------------------------------------------
+// The course catalog menu — root of /practice/courses. Renders the category
+// list, the course grid, the search bar, and the Start button. Selection
+// state lives here; clicking Start routes into /practice/courses/[id].
+// ============================================================================
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";

@@ -1,3 +1,14 @@
+// ============================================================================
+// layout/SoundfontPanel.tsx
+// ----------------------------------------------------------------------------
+// Soundfont picker popover. Lists every loaded .sf2/.sf3 grouped by category
+// (Piano, Guitar, Strings, …). Selecting one calls into useAudioEngine to
+// load + switch the local channel to that font.
+//
+// Includes an "All" pseudo-category so the user can scan the full list
+// without first picking a category.
+// ============================================================================
+
 "use client";
 
 import { useMemo, useState } from "react";

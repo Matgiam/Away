@@ -1,3 +1,10 @@
+// ============================================================================
+// multiplayer/BackButton.tsx
+// ----------------------------------------------------------------------------
+// Floating "back to home" arrow shown on /multiplayer and /jam pages. Pre-
+// fetches "/" on mount so the navigation feels instant.
+// ============================================================================
+
 "use client";
 
 import { useAppRouter } from "@/hooks/useAppRouter";
