@@ -25,6 +25,13 @@ import { createClient } from "@/lib/supabase/client";
 //   recording — MediaRecorder is active
 export type RecordingState = "idle" | "countdown" | "recording";
 
+// Window event fired by `useRecording` after a recording has been successfully
+// uploaded to Supabase. The root-layout-mounted RecordingSavedBannerHost
+// listens for these and pops a toast pointing the user at Profile → Recordings.
+// Mirrors the ACHIEVEMENT_UNLOCK_EVENT pattern so the two banners share
+// behaviour (queueing, GSAP entry, auto-dismiss).
+export const RECORDING_SAVED_EVENT = "away:recording-saved";
+
 // Upload `blob` to storage AND insert a metadata row. Returns the storage
 // path on success or null on any failure.
 export async function uploadRecording(

@@ -6,6 +6,7 @@ import { PresenceProvider } from "@/components/providers/PresenceProvider";
 import { TranscriptionProvider } from "@/components/providers/TranscriptionProvider";
 import { TimeTracker } from "@/components/achievements/TimeTracker";
 import { AchievementBannerHost } from "@/components/achievements/AchievementBannerHost";
+import { RecordingSavedBannerHost } from "@/components/layout/RecordingSavedBannerHost";
 import { SessionStatsSync } from "@/components/achievements/SessionStatsSync";
 import { NavigationIndicator } from "@/components/layout/NavigationIndicator";
 import { LatencyOverlay } from "@/components/layout/LatencyOverlay";
@@ -63,6 +64,7 @@ export default function RootLayout({
               <TimeTracker />
               <SessionStatsSync />
               <AchievementBannerHost />
+              <RecordingSavedBannerHost />
               <NavigationIndicator />
               <LatencyOverlay />
               {children}

@@ -20,7 +20,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import type { RecordingState } from "@/lib/recording";
-import { uploadRecording } from "@/lib/recording";
+import { uploadRecording, RECORDING_SAVED_EVENT } from "@/lib/recording";
 
 export function useRecording(userId: string | null) {
   const [state, setState] = useState<RecordingState>("idle");
@@ -125,7 +125,13 @@ export function useRecording(userId: string | null) {
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
         // userId is guaranteed non-null here — we early-returned at the top of
         // startRecording if it wasn't set.
-        await uploadRecording(userId, blob, duration);
+        const path = await uploadRecording(userId, blob, duration);
+
+        // Notify the global banner host. Only fire on success so failed
+        // uploads don't pop a "saved" toast that the user can't act on.
+        if (path && typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent(RECORDING_SAVED_EVENT));
+        }
 
         cleanup();
         setState("idle");

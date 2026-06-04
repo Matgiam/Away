@@ -5,6 +5,7 @@ import { useAppRouter } from "@/hooks/useAppRouter";
 import { SilkBackground } from "@/components/effects/SilkBackground";
 import { Navigation } from "@/components/layout/Navigation";
 import { Piano } from "@/components/multiplayer/Piano";
+import { Visualizer } from "@/components/multiplayer/Visualizer";
 import { ChordDisplay } from "@/components/layout/ChordDisplay";
 import { useAudioEngineContext } from "@/components/providers/AudioEngineProvider";
 import { useKeyboardInput } from "@/hooks/useKeyboardInput";
@@ -137,6 +138,7 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 		updateSetting,
 		resetSettings,
 		localHeldMidis,
+		noteLines,
 	} = useAudioEngineContext();
 
 	const [userId, setUserId] = useState<string | null>(null);
@@ -720,6 +722,20 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 
 			<div className="absolute inset-0 z-10 flex flex-col pb-[150px] pt-72">
 				<div className="relative flex-1 min-h-0">
+					{/* User's own note trails — same canvas-based Visualizer that
+					    runs in solo / multiplayer / regular-practice modes. Sits
+					    behind the course content (which has its own absolute-
+					    positioned lane bars on top) so the trails are visible
+					    without competing for clicks. pointer-events:none lets the
+					    stage UI underneath stay interactive. */}
+					<div className="absolute inset-0 pointer-events-none">
+						<Visualizer
+							noteLines={noteLines}
+							enabled={settings.visualizerEnabled}
+							fallSpeed={settings.noteFallSpeed}
+							cornerRadius={settings.noteCornerRadius}
+						/>
+					</div>
 					{isImprovStep && step?.type === "improvisation" ? (
 						<ImprovisationStage
 							step={step}
