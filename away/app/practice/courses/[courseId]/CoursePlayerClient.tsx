@@ -12,7 +12,7 @@ import { useRecording } from "@/hooks/useRecording";
 import { RecordingSignInModal } from "@/components/layout/RecordingSignInModal";
 import { createClient } from "@/lib/supabase/client";
 import { CourseStepCard } from "@/components/courses/CourseStepCard";
-import { CourseSideControls } from "@/components/courses/CourseSideControls";
+import { buildCourseControls } from "@/components/courses/CourseSideControls";
 import { CourseFallingNotes, type LaneItem } from "@/components/courses/CourseFallingNotes";
 import { CourseDemoStage, buildSyntheticDemoNotes } from "@/components/courses/CourseDemoStage";
 import { FinishScreen, summaryFromSteps } from "@/components/courses/FinishScreen";
@@ -692,15 +692,14 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 				settings={settings}
 				updateSetting={updateSetting}
 				onResetSettings={resetSettings}
-			/>
-
-			<CourseSideControls
-				onSelectCourse={() => router.push("/practice/courses")}
-				onReplayStep={handleReplayStep}
-				canReplay={true}
-				demoMode={hasDemo}
-				demoLabel={demoState === "playing" ? "Playing demo…" : "Replay demo"}
-				onDemo={replayDemo}
+				extraControls={buildCourseControls({
+					onSelectCourse: () => router.push("/practice/courses"),
+					onReplayStep: handleReplayStep,
+					canReplay: true,
+					demoMode: hasDemo,
+					demoPlaying: demoState === "playing",
+					onDemo: replayDemo,
+				})}
 			/>
 
 			<CourseStepCard

@@ -211,7 +211,7 @@ export function CommunityView({
 		<div
 			ref={containerRef}
 			onScroll={onScroll}
-			className="practice-song-list h-full w-full overflow-y-auto pr-4"
+			className="practice-song-list h-full w-full overflow-y-auto overflow-x-hidden pr-4"
 		>
 			{filterPills}
 			<div style={{ position: "relative", height: totalHeight }}>

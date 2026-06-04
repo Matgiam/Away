@@ -336,7 +336,7 @@ const COURSES_LIST: Course[] = [
 	{
 		id: "intro-c-position-rh",
 		category: "intro",
-		title: "C Position — Right Hand",
+		title: "C Position Right Hand",
 		description: "Park 5 fingers on 5 keys.",
 		estimatedMinutes: 3,
 		summary: ["Right thumb on middle C, pinky on G", "Walked C-D-E-F-G up and back", "Skipped notes with fingers 1, 3, 5"],
@@ -390,7 +390,7 @@ const COURSES_LIST: Course[] = [
 	{
 		id: "intro-c-position-lh",
 		category: "intro",
-		title: "C Position — Left Hand",
+		title: "C Position Left Hand",
 		description: "Same five keys, an octave lower.",
 		estimatedMinutes: 3,
 		summary: [

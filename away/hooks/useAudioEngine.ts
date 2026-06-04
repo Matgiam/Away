@@ -156,6 +156,26 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 	const fixedVelocityRef = useRef(100);
 	const sustainModeRef = useRef<"midi" | "always" | "off">("midi");
 
+	// Ghost-note suppression for matrix-scanned MIDI keyboards. When many keys
+	// are held simultaneously the hardware's row/column scanner can saturate
+	// and report velocity 127 for additional notes — we get a phantom hit
+	// that's wildly louder than what the user actually played. We maintain a
+	// rolling window of the last few velocities and, when a lot of keys are
+	// already down, clamp incoming velocities that spike far above the running
+	// median back to that median. Below the held-key threshold, every note
+	// passes through untouched so single accents at the start of a phrase
+	// still come through clean.
+	const recentVelocitiesRef = useRef<number[]>([]);
+	const RECENT_VELOCITY_WINDOW = 8;
+	// Number of currently-held notes at which we start trusting the median
+	// over the raw incoming velocity. Tuned for typical hardware: ghost notes
+	// usually appear at 10–14 simultaneous keys on cheap controllers.
+	const GHOST_HELD_THRESHOLD = 10;
+	// How far above the median a new velocity has to spike before we treat it
+	// as a ghost. 30 is enough room for a normal accent but small enough to
+	// catch the 127 phantoms.
+	const GHOST_VELOCITY_DELTA = 30;
+
 	const setMidiTranspose = useCallback((semitones: number) => {
 		midiTransposeRef.current = Math.max(-24, Math.min(24, Math.round(semitones)));
 	}, []);
@@ -644,37 +664,122 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 						const names: string[] = [];
 						m.inputs.forEach((i: any) => {
 							names.push(i.name || "Unknown MIDI device");
+							// Per-input running-status memory. The MIDI protocol lets a
+							// device omit the status byte for consecutive messages of
+							// the same type — common with bursts (chord slams, forearm
+							// presses) since it halves the bytes on the wire. The
+							// browser will sometimes coalesce those into a single
+							// onmidimessage buffer; if we don't carry status across
+							// loop iterations the second event onwards has no opcode
+							// and gets silently dropped.
+							let runningStatus = 0;
 							i.onmidimessage = (msg: any) => {
 								// Some controllers send their first note before
 								// the user has gestured anywhere in our UI — unlock here.
 								unlockAudio();
-								// MIDI status byte format: high nibble = command, low nibble = channel.
-								const [cmd, note, vel] = msg.data;
-								const command = cmd >> 4;
-
-								const transposed = note + midiTransposeRef.current;
-								if (transposed < 0 || transposed > 127) return;
-
-								if (command === 11 && note === 64) {
-									if (sustainModeRef.current !== "midi") return;
-									const pedalPressed = vel >= 64;
-									onSustain(pedalPressed);
-								} else if (command === 9 && vel > 0) {
-									let finalVel: number;
-									if (velocityModeRef.current === "fixed") {
-										finalVel = fixedVelocityRef.current;
+								// Walk the entire buffer instead of decoding only the
+								// first 3 bytes. A "Note On burst" buffer can look like
+								// [0x90, 60, 100, 62, 105, 64, 80, …] under running
+								// status, or [0x90, 60, 100, 0x90, 62, 105, …] without —
+								// both forms need to fan out into individual events.
+								const data: Uint8Array = msg.data;
+								let p = 0;
+								while (p < data.length) {
+									let statusByte: number;
+									// New status byte? Update running status and advance.
+									if (data[p] >= 0x80) {
+										statusByte = data[p];
+										// Real-time / system messages (0xF8+) don't change
+										// running status — they slot into the stream as one-byte
+										// events. Skip them and don't pollute runningStatus.
+										if (statusByte >= 0xF8) {
+											p++;
+											continue;
+										}
+										// SysEx is opaque; we don't use it and would need to
+										// scan to 0xF7. Just bail on the rest of the buffer
+										// rather than guess.
+										if (statusByte === 0xF0) return;
+										runningStatus = statusByte;
+										p++;
+									} else if (runningStatus) {
+										// Continuation under running status — reuse the last
+										// channel-voice opcode without consuming a byte.
+										statusByte = runningStatus;
 									} else {
-										// Soft-compress the upper velocity range. Noisy MIDI sensors
-										// occasionally spike to 127 on fast passages, which triggers
-										// the loudest sample layer and pops out of the mix. Below
-										// 100 passes through unchanged; above 100 the slope flattens
-										// so a rogue 127 lands around 118 — still firmly fortissimo
-										// but no longer hitting the absolute-max layer.
-										finalVel = vel <= 100 ? vel : Math.round(100 + (vel - 100) * 0.65);
+										// Stray data byte with no status established — skip.
+										p++;
+										continue;
 									}
-									onPlay(transposed, finalVel);
-								} else if (command === 8 || (command === 9 && vel === 0)) {
-									onStop(transposed);
+
+									const command = statusByte >> 4;
+									// Channel-voice messages we care about all carry two
+									// data bytes (Note On/Off, CC). 0xC0/0xD0 (program
+									// change / channel pressure) carry one; 0xE0 (pitch
+									// bend) carries two. We don't act on those but still
+									// have to consume the right number of bytes so we
+									// don't desync the parser.
+									const expectedDataBytes = command === 12 || command === 13 ? 1 : 2;
+									if (p + expectedDataBytes > data.length) break;
+									const d0 = data[p];
+									const d1 = expectedDataBytes === 2 ? data[p + 1] : 0;
+									p += expectedDataBytes;
+
+									if (command === 11 && d0 === 64) {
+										if (sustainModeRef.current !== "midi") continue;
+										const pedalPressed = d1 >= 64;
+										onSustain(pedalPressed);
+										continue;
+									}
+
+									if (command !== 8 && command !== 9) continue;
+
+									const note = d0;
+									const vel = d1;
+									const transposed = note + midiTransposeRef.current;
+									if (transposed < 0 || transposed > 127) continue;
+
+									if (command === 9 && vel > 0) {
+										let finalVel: number;
+										if (velocityModeRef.current === "fixed") {
+											finalVel = fixedVelocityRef.current;
+										} else {
+											// Ghost-note suppression for matrix-saturated
+											// controllers. Counts how many keys SELF is
+											// holding; above the threshold a velocity that
+											// jumps far above the running median is folded
+											// back to the median.
+											let selfHeldCount = 0;
+											for (const holders of noteHoldersRef.current.values()) {
+												if (holders.has(SELF)) selfHeldCount++;
+											}
+											let dynamicVel = vel;
+											const window = recentVelocitiesRef.current;
+											if (selfHeldCount >= GHOST_HELD_THRESHOLD && window.length >= 3) {
+												const sorted = [...window].sort((a, b) => a - b);
+												const median = sorted[Math.floor(sorted.length / 2)];
+												if (vel > median + GHOST_VELOCITY_DELTA) {
+													dynamicVel = median;
+												}
+											}
+											// Update the rolling window with the *original*
+											// velocity (pre-clamp) so a single suspected
+											// ghost can't drag the median down for future
+											// detection.
+											window.push(vel);
+											if (window.length > RECENT_VELOCITY_WINDOW) window.shift();
+
+											// Soft-compress the upper velocity range so a
+											// rogue 127 lands around 118 instead of hitting
+											// the absolute-max sample layer.
+											finalVel = dynamicVel <= 100 ? dynamicVel : Math.round(100 + (dynamicVel - 100) * 0.65);
+										}
+										onPlay(transposed, finalVel);
+									} else {
+										// command === 8, or command === 9 with velocity 0
+										// (some controllers use Note On vel=0 as Note Off).
+										onStop(transposed);
+									}
 								}
 							};
 						});

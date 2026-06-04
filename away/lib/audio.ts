@@ -73,10 +73,25 @@ export const initAudioContext = async (): Promise<AudioContext> => {
 	return native;
 };
 
-// Master volume node, wired straight to the speakers. `db` is in decibels;
-// 0 = unity, -Infinity = mute.
+// Master volume node, wired through a brick-wall limiter on the way to the
+// speakers. `db` is in decibels; 0 = unity, -Infinity = mute.
+//
+// Why the limiter is here, not just gain staging: piano polyphony stacks
+// linearly — 16 voices ringing at once can sum to >0 dBFS and the destination
+// hard-clips. The user perceives the clip as "every new note plays at max
+// velocity" because the harsh transient sounds identical regardless of input
+// velocity. A limiter at -1 dB transparently catches those peaks: normal
+// playing never trips it, but a thick chord with a fresh attack on top gets
+// caught before the speakers do something nasty.
+//
+// Threshold is -1 dB (just below clip). Tone.Limiter is a fast-attack
+// max-ratio compressor under the hood — effectively a brick wall.
 export const createMasterVolume = (db: number): Tone.Volume => {
-	return new Tone.Volume(db).toDestination();
+	const volume = new Tone.Volume(db);
+	const limiter = new Tone.Limiter(-1);
+	volume.connect(limiter);
+	limiter.toDestination();
+	return volume;
 };
 
 // Tone.Reverb is a ConvolverNode under the hood — heavy on the audio thread.

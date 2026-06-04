@@ -251,22 +251,16 @@ export function ImprovisationStage({
 			<CourseFallingNotes items={laneItems} />
 
 			{/*
-			 * Button sits below the CourseStepCard, not at top-4. With images
-			 * now embedded in every step the card grew from 220 → 320px and
-			 * its z-30 box visually covers the old top-4 position — clicks
-			 * were landing on the card panel (pointer-events-auto) instead
-			 * of the button below.
-			 *
-			 * Card layout:
-			 *   28px (top-7 of card container)
-			 * + 30px (course-title row above card)
-			 * + 320px (cardHeight when image is present)
-			 * = 378px from screen top to card bottom
-			 *
-			 * Stage container starts at pt-72 = 288px → button at top-24 (96px)
-			 * lands at 288 + 96 = 384px — just below the card.
+			 * Anchored to the *bottom* of the stage now instead of the top,
+			 * so it sits clear of both the CourseStepCard above AND the
+			 * falling chord bars in the middle of the lane. Previously
+			 * top-24 put it in the bars' trajectory; users saw the chord
+			 * blocks crossing through the button on the way down.
 			 */}
-			<div className="pointer-events-none absolute left-1/2 top-24 -translate-x-1/2 flex flex-col items-center gap-3">
+			<div className="pointer-events-none absolute left-1/2 bottom-6 -translate-x-1/2 flex flex-col items-center gap-3">
+				<div className="text-white text-3xl font-bold italic tracking-wide drop-shadow-[0_3px_12px_rgba(0,0,0,0.6)]">
+					{running ? currentChordName : "—"}
+				</div>
 				<div className="pointer-events-auto">
 					<button onClick={handlePlay} className="transition-transform hover:scale-105">
 						<DynamicLiquidGlass
@@ -280,9 +274,6 @@ export function ImprovisationStage({
 							<span className="text-white text-base italic font-semibold tracking-wide">{running ? " Stop backing" : "  Start backing"}</span>
 						</DynamicLiquidGlass>
 					</button>
-				</div>
-				<div className="text-white text-3xl font-bold italic tracking-wide drop-shadow-[0_3px_12px_rgba(0,0,0,0.6)]">
-					{running ? currentChordName : "—"}
 				</div>
 				<div className="text-white/60 text-xs italic tracking-wide uppercase">{step.bpm} BPM · C · Am · F · G</div>
 			</div>

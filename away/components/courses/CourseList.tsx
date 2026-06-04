@@ -58,7 +58,7 @@ export function CourseList({
 	}
 
 	return (
-		<div className="practice-song-list h-full w-full overflow-y-auto pr-4 flex flex-col gap-3">
+		<div className="practice-song-list h-full w-full overflow-y-auto overflow-x-hidden pr-4 flex flex-col gap-3">
 			{courses.map((course) => {
 				const isSelected = course.id === selectedId;
 				const isCompleted = !!completedIds?.has(course.id);

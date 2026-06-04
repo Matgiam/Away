@@ -284,7 +284,7 @@ export function UploadsView({
 		<div
 			ref={containerRef}
 			onScroll={onScroll}
-			className="practice-song-list h-full w-full overflow-y-auto pr-4"
+			className="practice-song-list h-full w-full overflow-y-auto overflow-x-hidden pr-4"
 		>
 			{/* Sub-category filter row — keeps Custom internally categorized so the
 			    list stays browsable even with dozens of uploads. */}

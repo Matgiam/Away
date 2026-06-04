@@ -120,7 +120,7 @@ export function SongList({ songs, selectedId, completedIds, onSelect, onPlay, em
 	}
 
 	return (
-		<div className="practice-song-list h-full w-full overflow-y-auto pr-4 flex flex-col gap-3">
+		<div className="practice-song-list h-full w-full overflow-y-auto overflow-x-hidden pr-4 flex flex-col gap-3">
 			{songs.map((song) => {
 				const isSelected = song.id === selectedId;
 				const isCompleted = !!completedIds?.has(song.id);

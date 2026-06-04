@@ -105,6 +105,15 @@ export class SpessaSynthEngine {
 		const synth = new WorkletSynthesizer(ctx);
 		await synth.isReady; // worklet handshake
 		const out = ctx.createGain();
+		// Trim 4 dB off the synth bus before it hits the master chain. Piano
+		// SoundFonts ship with samples normalised near 0 dBFS, so a handful of
+		// simultaneous voices already runs the bus hot; once you stack 15+
+		// the sum slams into the master limiter even at modest velocities,
+		// which makes every new attack on top sound like maximum velocity.
+		// 0.63 (~ -4 dB) keeps a single voice loud enough not to feel weak
+		// but gives a dense chord serious headroom before any compression
+		// downstream has to engage.
+		out.gain.value = 0.63;
 		synth.connect(out); // mix synth's per-channel outputs into the single gain node
 		this.synth = synth;
 		this.output = out;
