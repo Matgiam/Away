@@ -362,9 +362,7 @@ function RejectModal({
 	return (
 		<div
 			className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/55"
-			onClick={(e) => {
-				if (e.target === e.currentTarget && !busy) onCancel();
-			}}
+
 		>
 			<div className="w-full max-w-md mx-4 rounded-2xl border border-white/10 bg-[#0d0620]/90 backdrop-blur-xl shadow-2xl overflow-hidden">
 				<div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">

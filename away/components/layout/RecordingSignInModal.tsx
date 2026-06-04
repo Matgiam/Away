@@ -37,9 +37,7 @@ export function RecordingSignInModal({ open, onClose }: RecordingSignInModalProp
 	return (
 		<div
 			className="fixed inset-0 z-[200] flex items-center justify-center backdrop-blur-sm bg-black/55"
-			onClick={(e) => {
-				if (e.target === e.currentTarget) onClose();
-			}}
+
 		>
 			<div className="w-full max-w-md mx-4 rounded-2xl border border-white/10 bg-[#0d0620]/95 backdrop-blur-xl shadow-2xl overflow-hidden">
 				<div className="flex items-center justify-between px-7 py-4 border-b border-white/5">
