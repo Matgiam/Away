@@ -17,6 +17,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import {
+	downloadUploadedAudio,
 	downloadUploadedMidi,
 	setUploadCommunitySubmission,
 	type UploadDifficulty,
@@ -49,6 +50,10 @@ export type CommunityMidiRow = {
 	// community library can be sub-categorized the same way as built-ins.
 	// Null = "Uncategorized".
 	category: SongCategoryKey | null;
+	// Source audio file (from transcription) — stored in the community bucket
+	// so anyone can hear the original recording alongside the MIDI playback.
+	audio_storage_path: string | null;
+	audio_file_name: string | null;
 };
 
 // UI shape — camelCase + a resolved submitter username.
@@ -69,6 +74,8 @@ export type CommunityMidi = {
 	createdAt: string;
 	reviewedAt: string | null;
 	category: SongCategoryKey | null;
+	audioStoragePath: string | null;
+	audioFileName: string | null;
 };
 
 const BUCKET = "community_midis";
@@ -109,6 +116,8 @@ function rowToMidi(row: CommunityMidiRow, submitterUsername: string | null = nul
 		createdAt: row.created_at,
 		reviewedAt: row.reviewed_at,
 		category: row.category ?? null,
+		audioStoragePath: row.audio_storage_path ?? null,
+		audioFileName: row.audio_file_name ?? null,
 	};
 }
 
@@ -153,6 +162,7 @@ export type SubmitParams = {
 	durationSeconds: number;
 	bpm: number;
 	category?: SongCategoryKey | null;
+	audioFile?: File;
 };
 
 // Upload to the community bucket + create the pending row. Same orphan-cleanup
@@ -177,6 +187,22 @@ export async function submitCommunityMidi(params: SubmitParams): Promise<Communi
 		.upload(storagePath, params.file, { contentType: "audio/midi", upsert: false });
 	if (storageError) throw storageError;
 
+	let audioStoragePath: string | null = null;
+	if (params.audioFile) {
+		const audioExt = (params.audioFile.name.match(/\.[a-z0-9]+$/i)?.[0] ?? ".mp3").toLowerCase();
+		audioStoragePath = `${user.id}/${fileId}${audioExt}`;
+		const { error: audioError } = await supabase.storage
+			.from(BUCKET)
+			.upload(audioStoragePath, params.audioFile, {
+				contentType: params.audioFile.type || "audio/mpeg",
+				upsert: false,
+			});
+		if (audioError) {
+			await supabase.storage.from(BUCKET).remove([storagePath]).catch(() => {});
+			throw audioError;
+		}
+	}
+
 	const { data, error: insertError } = await supabase
 		.from(TABLE)
 		.insert({
@@ -190,13 +216,17 @@ export async function submitCommunityMidi(params: SubmitParams): Promise<Communi
 			bpm: params.bpm,
 			status: "pending",
 			category: params.category ?? null,
+			audio_storage_path: audioStoragePath,
+			audio_file_name: params.audioFile?.name ?? null,
 		})
 		.select("*")
 		.single();
 
 	if (insertError) {
-		// Clean up the orphaned storage file.
 		await supabase.storage.from(BUCKET).remove([storagePath]).catch(() => {});
+		if (audioStoragePath) {
+			await supabase.storage.from(BUCKET).remove([audioStoragePath]).catch(() => {});
+		}
 		throw insertError;
 	}
 
@@ -216,6 +246,14 @@ export async function submitFromExistingUpload(
 	const blob = new Blob([buffer], { type: "audio/midi" });
 	const file = new File([blob], upload.fileName, { type: "audio/midi" });
 
+	// Pull the source audio too if it exists.
+	let audioFile: File | undefined;
+	if (upload.audioStoragePath) {
+		const audioBuffer = await downloadUploadedAudio(upload.audioStoragePath);
+		const audioBlob = new Blob([audioBuffer]);
+		audioFile = new File([audioBlob], upload.audioFileName || "audio.mp3");
+	}
+
 	const result = await submitCommunityMidi({
 		file,
 		title: overrides.title ?? upload.title,
@@ -226,6 +264,7 @@ export async function submitFromExistingUpload(
 		// Carry the upload's category through unless the publisher explicitly
 		// overrides it in the publish dialog (e.g. correcting before public release).
 		category: "category" in overrides ? overrides.category : upload.category,
+		audioFile,
 	});
 
 	// Best-effort link back to the private upload — failure is non-fatal.
@@ -256,13 +295,15 @@ export async function withdrawCommunitySubmission(communityId: string): Promise<
 
 	const { data: row } = await supabase
 		.from(TABLE)
-		.select("storage_path, status")
+		.select("storage_path, audio_storage_path, status")
 		.eq("id", rowId)
 		.maybeSingle();
 	if (!row) return;
 
-	const r = row as { storage_path: string; status: CommunityStatus };
-	await supabase.storage.from(BUCKET).remove([r.storage_path]).catch(() => {});
+	const r = row as { storage_path: string; audio_storage_path: string | null; status: CommunityStatus };
+	const paths = [r.storage_path];
+	if (r.audio_storage_path) paths.push(r.audio_storage_path);
+	await supabase.storage.from(BUCKET).remove(paths).catch(() => {});
 	const { error } = await supabase.from(TABLE).delete().eq("id", rowId);
 	if (error) throw error;
 }
@@ -353,6 +394,12 @@ export async function getCommunityMidi(communityId: string): Promise<CommunityMi
 // Approved bucket is public, so we can use the CDN URL directly — no signed URL
 // round-trip on every preview hover.
 export function getCommunityMidiPublicUrl(storagePath: string): string {
+	const supabase = createClient();
+	const { data } = supabase.storage.from(BUCKET).getPublicUrl(storagePath);
+	return data.publicUrl;
+}
+
+export function getCommunityAudioPublicUrl(storagePath: string): string {
 	const supabase = createClient();
 	const { data } = supabase.storage.from(BUCKET).getPublicUrl(storagePath);
 	return data.publicUrl;
@@ -544,14 +591,14 @@ export async function adminDeleteSubmission(communityId: string): Promise<void> 
 
 	const { data: row } = await supabase
 		.from(TABLE)
-		.select("storage_path")
+		.select("storage_path, audio_storage_path")
 		.eq("id", rowId)
 		.maybeSingle();
 	if (row) {
-		const path = (row as { storage_path: string }).storage_path;
-		// Storage delete is best-effort — even if the bucket is somehow already
-		// missing the object, we still want to clear the row below.
-		await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
+		const r = row as { storage_path: string; audio_storage_path: string | null };
+		const paths = [r.storage_path];
+		if (r.audio_storage_path) paths.push(r.audio_storage_path);
+		await supabase.storage.from(BUCKET).remove(paths).catch(() => {});
 	}
 
 	const { error } = await supabase.from(TABLE).delete().eq("id", rowId);

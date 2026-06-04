@@ -23,6 +23,7 @@ import { useAudioTrack } from "@/hooks/useAudioTrack";
 import { AudioTrackControl, usePersistedAudioPrefs } from "@/components/practice/AudioTrackControl";
 import {
 	downloadCommunityMidi,
+	getCommunityAudioPublicUrl,
 	getCommunityMidi,
 	incrementCommunityPlayCount,
 	isCommunityId,
@@ -230,6 +231,11 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 					});
 					buffer = await downloadCommunityMidi(meta.storagePath);
 					if (cancelled) return;
+					// Community bucket is public, so we use the CDN URL directly.
+					if (meta.audioStoragePath) {
+						const url = getCommunityAudioPublicUrl(meta.audioStoragePath);
+						if (!cancelled) setAudioUrl(url);
+					}
 					// Best-effort play_count bump. Fire-and-forget so the user can practice
 					// even if the RPC is unreachable.
 					incrementCommunityPlayCount(songId).catch(() => {});

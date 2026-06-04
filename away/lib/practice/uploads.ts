@@ -163,6 +163,13 @@ export async function downloadUploadedMidi(storagePath: string): Promise<ArrayBu
 	return await data.arrayBuffer();
 }
 
+export async function downloadUploadedAudio(storagePath: string): Promise<ArrayBuffer> {
+	const supabase = createClient();
+	const { data, error } = await supabase.storage.from(AUDIO_BUCKET).download(storagePath);
+	if (error) throw error;
+	return await data.arrayBuffer();
+}
+
 // midi_uploads is a private bucket, so we can't hand the storage path to a
 // raw fetch the way the community library does with its public bucket. Mint a
 // short-lived signed URL instead — useMidiPreview's internal cache keys by URL,
