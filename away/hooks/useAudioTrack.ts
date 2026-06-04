@@ -17,7 +17,7 @@
 
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // Browser timing isn't sample-accurate; ±150 ms drift is inaudible most of
 // the time but worth correcting before it becomes obvious.
@@ -50,33 +50,41 @@ export function useAudioTrack({
 	enabled,
 	volume,
 }: AudioTrackOptions) {
-	const audioRef = useRef<HTMLAudioElement | null>(null);
+	// Track the element via state, not just useRef, so effects that need to
+	// react to the audio actually attaching can depend on it. With a plain
+	// ref, the volume effect runs once at mount when `audioRef.current` is
+	// still null (the audio element hasn't been rendered yet because the
+	// signed URL is still being fetched), then never runs again because
+	// `volume` / `enabled` haven't changed — leaving the element at the
+	// browser default of 1.0 until the user touches the slider.
+	const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
+	const audioRef = useCallback((el: HTMLAudioElement | null) => {
+		setAudioEl(el);
+	}, []);
 
 	// Reset the playhead whenever the source URL changes — a fresh signed URL
 	// for the same upload would otherwise leak the previous offset in.
 	useEffect(() => {
-		const el = audioRef.current;
-		if (!el) return;
-		el.currentTime = 0;
-	}, [url]);
+		if (!audioEl) return;
+		audioEl.currentTime = 0;
+	}, [audioEl, url]);
 
 	// Volume / mute. Volume rides 0..1 inside the element; the mute toggle is
 	// a separate channel so flipping it doesn't blow away the user's slider
-	// position.
+	// position. `audioEl` in the deps guarantees we apply the values the
+	// instant the element mounts, not at the next slider movement.
 	useEffect(() => {
-		const el = audioRef.current;
-		if (!el) return;
-		el.volume = Math.max(0, Math.min(1, volume / 100));
-		el.muted = !enabled;
-	}, [volume, enabled]);
+		if (!audioEl) return;
+		audioEl.volume = Math.max(0, Math.min(1, volume / 100));
+		audioEl.muted = !enabled;
+	}, [audioEl, volume, enabled]);
 
 	// Playback rate. Browsers support 0.25–4× without pitch correction; the
 	// practice presets stay well within that.
 	useEffect(() => {
-		const el = audioRef.current;
-		if (!el) return;
-		el.playbackRate = speed;
-	}, [speed]);
+		if (!audioEl) return;
+		audioEl.playbackRate = speed;
+	}, [audioEl, speed]);
 
 	// Main sync effect. Re-runs whenever the practice state shifts (play/pause,
 	// seek, source change, lead-in tick). Inside, we:
@@ -85,18 +93,17 @@ export function useAudioTrack({
 	//   2. Resync audio.currentTime when it drifts past tolerance.
 	//   3. Mirror play/pause.
 	useEffect(() => {
-		const el = audioRef.current;
-		if (!el || !url) return;
+		if (!audioEl || !url) return;
 
 		if (currentTime < 0) {
-			if (!el.paused) el.pause();
-			if (el.currentTime !== 0) el.currentTime = 0;
+			if (!audioEl.paused) audioEl.pause();
+			if (audioEl.currentTime !== 0) audioEl.currentTime = 0;
 			return;
 		}
 
 		const target = Math.max(0, currentTime);
-		if (Math.abs(el.currentTime - target) > DRIFT_TOLERANCE_SECONDS) {
-			el.currentTime = target;
+		if (Math.abs(audioEl.currentTime - target) > DRIFT_TOLERANCE_SECONDS) {
+			audioEl.currentTime = target;
 		}
 
 		if (playing) {
@@ -105,23 +112,19 @@ export function useAudioTrack({
 			// reaches `playing=true` after a click, so the rejection path is
 			// effectively unreachable — but we still swallow it so it doesn't
 			// surface as an "Uncaught (in promise)" warning in dev.
-			if (el.paused) void el.play().catch(() => {});
+			if (audioEl.paused) void audioEl.play().catch(() => {});
 		} else {
-			if (!el.paused) el.pause();
+			if (!audioEl.paused) audioEl.pause();
 		}
-	}, [url, currentTime, playing]);
+	}, [audioEl, url, currentTime, playing]);
 
 	// On unmount, stop the audio so it doesn't keep playing after navigating
-	// away from the practice page. The ref is the source of truth at cleanup
-	// time — the warning about ref mutation doesn't apply here because we
-	// specifically want whichever element is currently mounted.
+	// away from the practice page.
 	useEffect(() => {
-		const ref = audioRef;
 		return () => {
-			const el = ref.current;
-			if (el && !el.paused) el.pause();
+			if (audioEl && !audioEl.paused) audioEl.pause();
 		};
-	}, []);
+	}, [audioEl]);
 
 	return audioRef;
 }

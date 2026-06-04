@@ -245,6 +245,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 				setMidi(parsed);
 				setMidiBuffer(buffer);
 				setLoadState("ready");
+				unlockAudio();
 			} catch (err) {
 				if (cancelled) return;
 				setError(err instanceof Error ? err.message : String(err));
@@ -257,7 +258,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 		return () => {
 			cancelled = true;
 		};
-	}, [songId, initialBuiltIn]);
+	}, [songId, initialBuiltIn, unlockAudio]);
 
 	const chords = useMemo<Chord[]>(() => (midi ? buildChords(midi.notes) : []), [midi]);
 

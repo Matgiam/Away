@@ -490,9 +490,10 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 
 	const handlePlayById = useCallback(
 		(id: string) => {
+			unlockAudio();
 			router.push(`/practice/play/${encodeURIComponent(id)}`);
 		},
-		[router],
+		[router, unlockAudio],
 	);
 
 	const handlePlayBuiltIn = (song: BuiltInSong) => handlePlayById(song.id);

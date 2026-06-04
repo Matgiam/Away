@@ -64,7 +64,10 @@ export function usePersistedAudioPrefs(): {
 	setVolume: (v: number) => void;
 } {
 	const [enabled, setEnabledState] = useState(true);
-	const [volume, setVolumeState] = useState(60);
+	// Default volume is intentionally quiet — the original audio is a
+	// guidance track, not the main thing the user wants to hear. They can
+	// raise it with the slider; localStorage remembers the choice.
+	const [volume, setVolumeState] = useState(15);
 	// Defer hydration to a ref so the initial render matches SSR (both start
 	// at the defaults above) and we only restore in the client.
 	const hydratedRef = useRef(false);
