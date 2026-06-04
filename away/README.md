@@ -7,13 +7,12 @@ with falling notes, and unlock achievements as you go.
 
 The repository contains two pieces:
 
-| Folder            | What it is                                                       |
-|-------------------|------------------------------------------------------------------|
-| `away/`           | The Next.js 15 / React 19 web app (the actual product)           |
-| `transkun-server/`| Optional Python service for higher-quality audio→MIDI            |
+| Folder              | What it is                                                                       |
+|---------------------|----------------------------------------------------------------------------------|
+| `away/`             | The Next.js 15 / React 19 web app (the actual product) — deployed to Vercel       |
+| `transcribe-server/`| Optional FastAPI service wrapping Transkun for high-quality audio→MIDI — Docker / Hugging Face Spaces ready |
 
-> `away/transcribe-server/` is the same Python service packaged for Hugging
-> Face Spaces. The Next.js app does **not** require either of them — when
+> The Next.js app does **not** require `transcribe-server/` — when
 > `NEXT_PUBLIC_TRANSCRIBE_API_URL` is unset, transcription falls back to
 > [@spotify/basic-pitch](https://www.npmjs.com/package/@spotify/basic-pitch)
 > running in the browser.
@@ -92,20 +91,29 @@ achievements, community MIDI uploads, transcription queue) is created by the
 SQL scripts in [`away/scripts/`](away/scripts/) — apply them in the Supabase
 SQL editor.
 
-### 2. Transkun server (optional)
+### 2. Transcription server (optional)
 
 Only needed if you want higher-quality audio→MIDI than Basic Pitch. See
-[`transkun-server/README.md`](transkun-server/README.md) for details. The
-short version:
+[`transcribe-server/README.md`](../transcribe-server/README.md) for details.
+The short version (local):
 
 ```bash
-cd transkun-server
+cd transcribe-server
 pip install -r requirements.txt
 uvicorn main:app --port 8000 --reload
 ```
 
-Then set `NEXT_PUBLIC_TRANSCRIBE_API_URL=http://localhost:8000` in
-`away/.env.local`.
+Or as a container — same folder, same code, packaged for Docker / Hugging
+Face Spaces:
+
+```bash
+cd transcribe-server
+docker build -t away-transcribe .
+docker run -p 8000:8000 -e ALLOWED_ORIGINS=http://localhost:3000 away-transcribe
+```
+
+Then set `NEXT_PUBLIC_TRANSCRIBE_API_URL=http://localhost:8000` (or the
+public URL of your Hugging Face Space) in `away/.env.local`.
 
 ---
 
@@ -186,7 +194,7 @@ is busy.
 - **Basic Pitch** (default, in-browser, TFJS). Model files live in
   `public/models/basic-pitch/`.
 - **Transkun** (optional). Sends the file to `NEXT_PUBLIC_TRANSCRIBE_API_URL`
-  and polls `/jobs/{id}` until done. The server is in `transkun-server/`.
+  and polls `/jobs/{id}` until done. The server lives in `transcribe-server/`.
 
 Both engines return a MIDI `ArrayBuffer` that the rest of the app handles the
 same way.
@@ -238,7 +246,7 @@ Everything below is installed from npm / PyPI under its declared licence
   [`away/scripts/sync-basic-pitch-model.mjs`](away/scripts/sync-basic-pitch-model.mjs).
 - **[Transkun](https://github.com/yujia-yan/Transkun)** — transformer + semi-CRF
   piano transcription model. Wrapped by the FastAPI service in
-  [`transkun-server/main.py`](transkun-server/main.py) and called by
+  [`transcribe-server/main.py`](../transcribe-server/main.py) and called by
   [`away/lib/practice/transcribeServer.ts`](away/lib/practice/transcribeServer.ts).
 - **[Tone.js](https://tonejs.github.io/)** — used for the master volume node
   and reverb in [`away/lib/audio.ts`](away/lib/audio.ts) and

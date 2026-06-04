@@ -28,9 +28,9 @@ type JobStatus = {
 	status: "queued" | "running" | "done" | "error";
 	message?: string;
 	error?: string | null;
-	// Newer server (transcribe-server/main.py) reports elapsedSeconds. Older
-	// server (transkun-server/main.py) reports a 0-100 progress number instead.
-	// We accept either so the client works against both.
+	// Newer server reports elapsedSeconds; older deployments may still report
+	// a 0-100 progress number instead. Both come from transcribe-server/main.py
+	// across versions — accept either so the client works against any deploy.
 	elapsedSeconds?: number;
 	progress?: number;
 };
