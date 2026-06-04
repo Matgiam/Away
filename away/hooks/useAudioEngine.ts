@@ -157,24 +157,38 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 	const sustainModeRef = useRef<"midi" | "always" | "off">("midi");
 
 	// Ghost-note suppression for matrix-scanned MIDI keyboards. When many keys
-	// are held simultaneously the hardware's row/column scanner can saturate
-	// and report velocity 127 for additional notes — we get a phantom hit
-	// that's wildly louder than what the user actually played. We maintain a
-	// rolling window of the last few velocities and, when a lot of keys are
-	// already down, clamp incoming velocities that spike far above the running
-	// median back to that median. Below the held-key threshold, every note
-	// passes through untouched so single accents at the start of a phrase
-	// still come through clean.
+	// are pressed simultaneously the keybed's row/column velocity sensor
+	// saturates and any *additional* key gets reported at velocity 127 — this
+	// is the "forearm cluster, the white key in between plays at max" symptom.
+	// We can't fix the hardware but we recognise the pattern in two layers:
+	//
+	//   1. Median outlier clamp — when several keys are already held, a new
+	//      velocity that spikes far above the running median is folded back
+	//      to the median.
+	//   2. Polyphony-graduated hard cap — independent of the median, the
+	//      ceiling on new note velocity drops as more keys stack up. Catches
+	//      the case where every reading from a saturated keybed is already
+	//      127 (median = 127, outlier check can't fire).
+	//
+	// Below the polyphony threshold neither layer engages, so normal playing
+	// is unaffected.
 	const recentVelocitiesRef = useRef<number[]>([]);
 	const RECENT_VELOCITY_WINDOW = 8;
-	// Number of currently-held notes at which we start trusting the median
-	// over the raw incoming velocity. Tuned for typical hardware: ghost notes
-	// usually appear at 10–14 simultaneous keys on cheap controllers.
-	const GHOST_HELD_THRESHOLD = 10;
+	// Held-note count at which suppression engages. 6 leaves single-hand
+	// chords completely alone; two-handed jazz voicings get one or two clean
+	// notes before suppression kicks in; a forearm cluster trips it instantly.
+	const GHOST_HELD_THRESHOLD = 6;
 	// How far above the median a new velocity has to spike before we treat it
-	// as a ghost. 30 is enough room for a normal accent but small enough to
-	// catch the 127 phantoms.
-	const GHOST_VELOCITY_DELTA = 30;
+	// as a ghost. 20 catches the typical velocity-127 phantom while still
+	// allowing a healthy accent.
+	const GHOST_VELOCITY_DELTA = 20;
+	// Hard cap defined as: cap = GHOST_CAP_AT_THRESHOLD - (extra held * slope),
+	// floored at GHOST_CAP_FLOOR. At threshold (6 held): 110. At 10 held: 98.
+	// At 16 held: 80. At 23+ held: 60. Catches the all-127 saturated case
+	// where the median doesn't help.
+	const GHOST_CAP_AT_THRESHOLD = 110;
+	const GHOST_CAP_SLOPE = 3;
+	const GHOST_CAP_FLOOR = 60;
 
 	const setMidiTranspose = useCallback((semitones: number) => {
 		midiTransposeRef.current = Math.max(-24, Math.min(24, Math.round(semitones)));
@@ -744,28 +758,46 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 										if (velocityModeRef.current === "fixed") {
 											finalVel = fixedVelocityRef.current;
 										} else {
-											// Ghost-note suppression for matrix-saturated
-											// controllers. Counts how many keys SELF is
-											// holding; above the threshold a velocity that
-											// jumps far above the running median is folded
-											// back to the median.
+											// Count keys SELF currently holds — both
+											// suppression layers below use this.
 											let selfHeldCount = 0;
 											for (const holders of noteHoldersRef.current.values()) {
 												if (holders.has(SELF)) selfHeldCount++;
 											}
 											let dynamicVel = vel;
 											const window = recentVelocitiesRef.current;
-											if (selfHeldCount >= GHOST_HELD_THRESHOLD && window.length >= 3) {
-												const sorted = [...window].sort((a, b) => a - b);
-												const median = sorted[Math.floor(sorted.length / 2)];
-												if (vel > median + GHOST_VELOCITY_DELTA) {
-													dynamicVel = median;
+
+											if (selfHeldCount >= GHOST_HELD_THRESHOLD) {
+												// Layer 1: outlier clamp. A new velocity
+												// far above the running median is almost
+												// certainly a saturated-keybed phantom and
+												// gets folded back to the median.
+												if (window.length >= 3) {
+													const sorted = [...window].sort((a, b) => a - b);
+													const median = sorted[Math.floor(sorted.length / 2)];
+													if (dynamicVel > median + GHOST_VELOCITY_DELTA) {
+														dynamicVel = median;
+													}
 												}
+												// Layer 2: polyphony-graduated hard cap.
+												// Even when the *whole* keybed reports 127
+												// (median is 127 too, so the outlier check
+												// can't fire), this pulls every new note
+												// under a ceiling that gets stricter as
+												// more keys are stacked — produces a
+												// uniform velocity cluster instead of
+												// random max-velocity spikes on whichever
+												// keys happened to register.
+												const overThreshold = selfHeldCount - GHOST_HELD_THRESHOLD;
+												const cap = Math.max(
+													GHOST_CAP_FLOOR,
+													GHOST_CAP_AT_THRESHOLD - overThreshold * GHOST_CAP_SLOPE,
+												);
+												if (dynamicVel > cap) dynamicVel = cap;
 											}
 											// Update the rolling window with the *original*
-											// velocity (pre-clamp) so a single suspected
-											// ghost can't drag the median down for future
-											// detection.
+											// velocity (pre-clamp) so one suspected ghost
+											// can't drag the median down for future checks.
 											window.push(vel);
 											if (window.length > RECENT_VELOCITY_WINDOW) window.shift();
 
