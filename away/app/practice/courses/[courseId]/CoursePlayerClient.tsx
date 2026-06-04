@@ -647,6 +647,15 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 	}, [handleNext, handlePrevious, state.completed]);
 
 	const backgroundAnimated = settings.backgroundAnimated && !settings.reducedMotion;
+
+	// Visualizer is for the user's own notes only — strip out anything from
+	// the course's auto-play paths (CourseDemoStage uses "course-demo",
+	// ImprovisationStage uses "course-backing"). See the Visualizer JSX
+	// comment for why this matters.
+	const selfNoteLines = useMemo(
+		() => noteLines.filter((n) => n.playerId === "self"),
+		[noteLines],
+	);
 	const canPrevious = stepIndex > 0;
 	const canNext = state.completed;
 	const isImprovStep = step?.type === "improvisation";
@@ -695,12 +704,8 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 				updateSetting={updateSetting}
 				onResetSettings={resetSettings}
 				extraControls={buildCourseControls({
-					onSelectCourse: () => router.push("/practice/courses"),
 					onReplayStep: handleReplayStep,
 					canReplay: true,
-					demoMode: hasDemo,
-					demoPlaying: demoState === "playing",
-					onDemo: replayDemo,
 				})}
 			/>
 
@@ -727,10 +732,17 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 					    behind the course content (which has its own absolute-
 					    positioned lane bars on top) so the trails are visible
 					    without competing for clicks. pointer-events:none lets the
-					    stage UI underneath stay interactive. */}
+					    stage UI underneath stay interactive.
+					    Filtered to playerId === "self" — the course's demo notes
+					    and improvisation backing track also flow through the
+					    audio engine and get added to noteLines (under playerIds
+					    "course-demo" and "course-backing"). Without the filter
+					    every demonstration note would leave a trail next to the
+					    user's, which is confusing — the lane bars from
+					    CourseFallingNotes already show the demo path. */}
 					<div className="absolute inset-0 pointer-events-none">
 						<Visualizer
-							noteLines={noteLines}
+							noteLines={selfNoteLines}
 							enabled={settings.visualizerEnabled}
 							fallSpeed={settings.noteFallSpeed}
 							cornerRadius={settings.noteCornerRadius}

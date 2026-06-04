@@ -14,27 +14,20 @@ import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
 import { useResponsiveNavSize } from "@/hooks/useResponsiveNavSize";
 
 interface CourseControlsConfig {
-	onSelectCourse: () => void;
 	onReplayStep: () => void;
 	canReplay: boolean;
-	demoMode?: boolean;
-	demoPlaying?: boolean;
-	onDemo?: () => void;
 }
 
 // Returns a flat list of square buttons for Navigation's right strip. Returned
 // as an array (not a wrapper) so they slot into the metronome-row grid the
 // same way buildPracticeControls() does.
+//
+// Currently surfaces only "Replay step". The earlier "Select course" (books)
+// and "Replay demo" (play) buttons were removed at user request — back-to-list
+// is reachable via the exit icon, and demos auto-play when each step opens
+// so a manual replay control was redundant.
 export function buildCourseControls(props: CourseControlsConfig): ReactNode[] {
-	const buttons: ReactNode[] = [
-		<SquareButton
-			key="select-course"
-			onClick={props.onSelectCourse}
-			active={false}
-			title="Back to course list"
-		>
-			<CoursesIcon />
-		</SquareButton>,
+	return [
 		<SquareButton
 			key="replay-step"
 			onClick={props.onReplayStep}
@@ -45,22 +38,6 @@ export function buildCourseControls(props: CourseControlsConfig): ReactNode[] {
 			<ReplayIcon />
 		</SquareButton>,
 	];
-
-	if (props.demoMode && props.onDemo) {
-		buttons.push(
-			<SquareButton
-				key="replay-demo"
-				onClick={props.onDemo}
-				active={!!props.demoPlaying}
-				title={props.demoPlaying ? "Demo playing…" : "Replay demo"}
-				indicatorOn={props.demoPlaying}
-			>
-				<PlayIcon />
-			</SquareButton>,
-		);
-	}
-
-	return buttons;
 }
 
 function SquareButton({
@@ -110,32 +87,12 @@ function SquareButton({
 	);
 }
 
-// "Back to course list" — books on a shelf, suggests "library of courses".
-function CoursesIcon() {
-	return (
-		<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none">
-			<rect x="3" y="4" width="4" height="16" rx="0.5" />
-			<rect x="9" y="4" width="4" height="16" rx="0.5" />
-			<path d="M16 4.8l3.8 1 -3 14.4 -3.8 -1z" />
-		</svg>
-	);
-}
-
 // "Replay step" — circular arrow restart.
 function ReplayIcon() {
 	return (
 		<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pointer-events-none">
 			<path d="M3 12a9 9 0 1 0 3-6.7" />
 			<polyline points="3 4 3 8 7 8" />
-		</svg>
-	);
-}
-
-// "Replay demo" — solid play triangle.
-function PlayIcon() {
-	return (
-		<svg width="26" height="26" viewBox="0 0 24 24" fill="white" className="pointer-events-none">
-			<path d="M8 5v14l11-7L8 5Z" />
 		</svg>
 	);
 }

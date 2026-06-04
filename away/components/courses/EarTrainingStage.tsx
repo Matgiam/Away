@@ -150,7 +150,7 @@ export function EarTrainingStage({
 					glassBgOpacity={playing ? 0.16 : 0.05}
 				>
 					<span className="text-white text-lg italic font-semibold tracking-wide">
-						{playing ? "Listening…" : solvedId ? "Play again" : "▶ Play again"}
+						{playing ? "Listening…" : solvedId ? "Play again" : "Play again"}
 					</span>
 				</DynamicLiquidGlass>
 			</button>

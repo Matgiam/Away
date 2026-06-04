@@ -58,10 +58,13 @@ export default function SettingsPage() {
 	};
 
 	const handleRetryMidi = () => {
-		connectMIDI(
-			() => {},
-			() => {},
-		);
+		// Use the engine's default handlers (playNote / stopNote / setSustain)
+		// — without them the device list refreshes but pressing a MIDI key
+		// after refresh does nothing because the registered listeners are
+		// no-ops, which is the "Refresh button doesn't work" bug users hit on
+		// the dedicated settings page (the in-app SettingsPanel works because
+		// its host page passes defaults).
+		connectMIDI();
 	};
 
 	const backgroundAnimated = settings.backgroundAnimated && !settings.reducedMotion;

@@ -1152,6 +1152,20 @@ export default function JamRoom() {
 				onUsernameChanged={(next) => {
 					if (profileTarget?.isMe) handleUsernameChange(next);
 				}}
+				onBeforeNavigateAway={async () => {
+					// Decrement the room counter (or delete the row if we were
+					// the last one in) BEFORE the browser navigates to the full
+					// profile page. The pagehide-based fallback can miss this
+					// when the browser puts the page into bfcache instead of
+					// unloading it, which leaves the room showing a phantom
+					// player. Untrack presence too so peers see us leave
+					// immediately rather than waiting for the WebSocket
+					// heartbeat to time us out.
+					try {
+						roomChannelRef.current?.untrack();
+					} catch {}
+					await safeDecrement();
+				}}
 			/>
 
 			<ChordDisplay heldMidis={localHeldMidis} enabled={settings.chordRecognizerEnabled} />

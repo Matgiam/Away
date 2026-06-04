@@ -42,6 +42,11 @@ interface ProfileModalProps {
 	incomingFriendshipId?: string | null;
 	pendingOutgoing?: boolean;
 	onUsernameChanged?: (next: string) => void;
+	// Hook for hosts that need to clean up before the user navigates away
+	// (the jam page passes this to decrement the room counter so a user
+	// clicking "Open full profile" doesn't leave the room thinking they're
+	// still in it). Awaited before the navigation actually happens.
+	onBeforeNavigateAway?: () => void | Promise<void>;
 }
 
 function formatTime(seconds: number): string {
@@ -62,6 +67,7 @@ export const ProfileModal = ({
 	incomingFriendshipId,
 	pendingOutgoing,
 	onUsernameChanged,
+	onBeforeNavigateAway,
 }: ProfileModalProps) => {
 	const [profile, setProfile] = useState<PublicProfile | null>(null);
 	const [loading, setLoading] = useState(false);
@@ -363,12 +369,28 @@ export const ProfileModal = ({
 							</section>
 
 							{isSelf && (
-								<a
-									href="/protected/profile"
+								<button
+									type="button"
+									onClick={async (e) => {
+										// Run host-supplied cleanup BEFORE navigation so we
+										// don't depend on `pagehide` (which the browser may
+										// skip when putting the page in bfcache, leaving the
+										// jam room counter / presence stuck). Await any async
+										// work — the keepalive fetch we fire from the jam
+										// page completes during the navigation regardless,
+										// but awaiting also makes the click feel atomic.
+										if (onBeforeNavigateAway) {
+											e.preventDefault();
+											try {
+												await onBeforeNavigateAway();
+											} catch {}
+										}
+										window.location.assign("/protected/profile");
+									}}
 									className="self-start text-white/50 hover:text-white text-sm italic transition-colors"
 								>
 									Open full profile page →
-								</a>
+								</button>
 							)}
 						</div>
 					)}

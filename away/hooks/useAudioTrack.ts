@@ -23,6 +23,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // the time but worth correcting before it becomes obvious.
 const DRIFT_TOLERANCE_SECONDS = 0.15;
 
+// Hard ceiling on what the slider can pump out of the <audio> element.
+// Mastered music files peak near 0 dBFS, while the spessasynth chain peaks
+// around -4 to -6 dBFS once the limiter and bus trim are in play — so a raw
+// 1:1 mapping (slider 100 → el.volume 1.0) makes the backing track *much*
+// louder than the synth even at low slider positions. Capping the slider's
+// top end at AUDIO_MAX_GAIN (0.25 ≈ -12 dB) brings the audio's max into the
+// same loudness ballpark as a piano chord, so the user can compare playing
+// vs. recording without the track drowning them out. Adjust here if your
+// uploads tend to be quieter or hotter.
+const AUDIO_MAX_GAIN = 0.25;
+
 export type AudioTrackOptions = {
 	/** Public/signed URL of the audio file. Null disables playback. */
 	url: string | null;
@@ -69,13 +80,17 @@ export function useAudioTrack({
 		audioEl.currentTime = 0;
 	}, [audioEl, url]);
 
-	// Volume / mute. Volume rides 0..1 inside the element; the mute toggle is
-	// a separate channel so flipping it doesn't blow away the user's slider
-	// position. `audioEl` in the deps guarantees we apply the values the
-	// instant the element mounts, not at the next slider movement.
+	// Volume / mute. The slider's 0..100 range is mapped *linearly* into
+	// 0..AUDIO_MAX_GAIN — that ceiling, rather than the raw 1.0 the audio
+	// element allows, is what keeps the backing track at the same perceived
+	// loudness as the synth chain at full volume. Mute is a separate channel
+	// from volume so flipping it doesn't blow away the user's slider position.
+	// `audioEl` in the deps guarantees we apply the values the instant the
+	// element mounts, not at the next slider movement.
 	useEffect(() => {
 		if (!audioEl) return;
-		audioEl.volume = Math.max(0, Math.min(1, volume / 100));
+		const slider = Math.max(0, Math.min(1, volume / 100));
+		audioEl.volume = slider * AUDIO_MAX_GAIN;
 		audioEl.muted = !enabled;
 	}, [audioEl, volume, enabled]);
 
