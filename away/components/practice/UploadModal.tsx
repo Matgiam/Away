@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { parseMidi } from "@/lib/practice/midiParser";
-import { prettifyFileName } from "@/lib/practice/songs";
+import { prettifyFileName, SONG_CATEGORIES, type SongCategoryKey } from "@/lib/practice/songs";
 import { saveUploadedSong, type UploadDifficulty } from "@/lib/practice/uploads";
 import { estimateDifficulty } from "@/lib/practice/difficulty";
 import {
@@ -18,6 +18,9 @@ export type PrefilledMidi = {
 	file: File;
 	fileName: string;
 	buffer: ArrayBuffer;
+	// When the MIDI came from audio transcription, the source audio rides along
+	// so the save step can persist it for sync playback in practice mode.
+	audioFile?: File;
 };
 
 interface UploadModalProps {
@@ -61,10 +64,17 @@ export function UploadModal({
 	const [pendingDuration, setPendingDuration] = useState(0);
 	const [pendingBpm, setPendingBpm] = useState(120);
 	const [pendingAutoDifficulty, setPendingAutoDifficulty] = useState<UploadDifficulty>("medium");
+	// Source audio carried from a completed transcription. When set, save() also
+	// uploads it to the audio_uploads bucket so practice mode can play it synced
+	// with the MIDI.
+	const [pendingAudioFile, setPendingAudioFile] = useState<File | null>(null);
 
 	const [title, setTitle] = useState("");
 	const [artist, setArtist] = useState("");
 	const [difficulty, setDifficulty] = useState<UploadDifficulty | "auto">("auto");
+	// Sub-category the new upload lands in. Null = "Uncategorized" — the user
+	// can leave it alone or pick something from the dropdown.
+	const [category, setCategory] = useState<SongCategoryKey | null>(null);
 
 	// Picked by the user before they drop a file. Defaults to the higher-quality
 	// engine when it's available, otherwise the fast browser one. The transcribe
@@ -81,9 +91,11 @@ export function UploadModal({
 		setPendingDuration(0);
 		setPendingBpm(120);
 		setPendingAutoDifficulty("medium");
+		setPendingAudioFile(null);
 		setTitle("");
 		setArtist("");
 		setDifficulty("auto");
+		setCategory(null);
 		setSelectedEngine(getDefaultTranscribeEngine());
 		if (inputRef.current) inputRef.current.value = "";
 	}, []);
@@ -116,6 +128,7 @@ export function UploadModal({
 		if (!open || !prefilledMidi) return;
 		if (pendingFile) return;
 		consumeMidiBuffer(prefilledMidi.file, prefilledMidi.fileName, prefilledMidi.buffer);
+		setPendingAudioFile(prefilledMidi.audioFile ?? null);
 	}, [open, prefilledMidi, pendingFile, consumeMidiBuffer]);
 
 	const handleMidiFile = useCallback(
@@ -180,6 +193,8 @@ export function UploadModal({
 				difficulty: finalDifficulty,
 				durationSeconds: pendingDuration,
 				bpm: pendingBpm,
+				audioFile: pendingAudioFile ?? undefined,
+				category,
 			});
 			onUploaded(meta.id);
 			onClose();
@@ -187,7 +202,7 @@ export function UploadModal({
 			setError(e instanceof Error ? e.message : "Failed to save upload.");
 			setStage("form");
 		}
-	}, [pendingFile, pendingDuration, pendingBpm, pendingAutoDifficulty, title, artist, difficulty, onUploaded, onClose]);
+	}, [pendingFile, pendingAudioFile, pendingDuration, pendingBpm, pendingAutoDifficulty, title, artist, difficulty, category, onUploaded, onClose]);
 
 	if (!open) return null;
 
@@ -279,6 +294,30 @@ export function UploadModal({
 												}`}
 											>
 												{label}
+											</button>
+										);
+									})}
+								</div>
+							</div>
+
+							<div>
+								<label className="block text-[10px] uppercase tracking-widest text-white/40 mb-2">Category</label>
+								{/* Category is optional — leaving it on "Uncategorized" puts the
+								    song into a dedicated bucket the user can browse later. They
+								    can re-categorize from the inline badge on the song row. */}
+								<div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+									{[{ key: null as SongCategoryKey | null, label: "Uncategorized" }, ...SONG_CATEGORIES.map((c) => ({ key: c.key as SongCategoryKey | null, label: c.label }))].map((c) => {
+										const isActive = c.key === category;
+										return (
+											<button
+												key={c.label}
+												type="button"
+												onClick={() => setCategory(c.key)}
+												className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
+													isActive ? "border-white/30 bg-white/10 text-white" : "border-white/10 bg-white/5 text-white/55 hover:text-white/80"
+												}`}
+											>
+												{c.label}
 											</button>
 										);
 									})}

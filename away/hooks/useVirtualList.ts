@@ -29,6 +29,8 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
+type ContainerRef = (el: HTMLDivElement | null) => void;
+
 export interface VirtualListOptions {
 	itemCount: number;
 	// Height of one row, in pixels.
@@ -45,7 +47,13 @@ export interface VirtualListOptions {
 }
 
 export interface VirtualListResult {
-	containerRef: React.RefObject<HTMLDivElement | null>;
+	// Callback ref. Works the same as a RefObject in JSX (`ref={containerRef}`)
+	// but, because it's a function, React invokes it each time the underlying
+	// DOM node attaches or detaches — which is what triggers the measurement
+	// effect. A plain useRef object wouldn't, which is why late-attaching
+	// containers (early-return loading states) used to render only `overscan`
+	// rows: containerHeight stayed at 0.
+	containerRef: ContainerRef;
 	onScroll: (event: React.UIEvent<HTMLDivElement>) => void;
 	// Height of the inner spacer needed to make the scrollbar accurate.
 	totalHeight: number;
@@ -69,24 +77,35 @@ export function useVirtualList({
 	onEndReached,
 	endReachedThreshold = 250,
 }: VirtualListOptions): VirtualListResult {
-	const containerRef = useRef<HTMLDivElement | null>(null);
+	// Track the container *element* in state, not just a ref, so the layout
+	// effect below can depend on it and re-run the moment React attaches the
+	// node. Plain useRef wouldn't trigger a re-render on attach, so a
+	// "loading… then content" pattern (CommunityView, UploadsView while
+	// fetching) would skip the measurement and leave containerHeight at 0.
+	const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null);
 	const [scrollTop, setScrollTop] = useState(0);
 	const [containerHeight, setContainerHeight] = useState(0);
 	// Track last "fired" state so we don't repeatedly fire onEndReached at the bottom.
 	const endReachedFiredRef = useRef(false);
 	const lastItemCountRef = useRef(itemCount);
 
+	// Stable callback ref. Stays identical across renders so React doesn't
+	// detach/reattach on every parent re-render.
+	const containerRef = useCallback<ContainerRef>((el) => {
+		setContainerEl(el);
+	}, []);
+
 	// Row stride = height of one row + the gap below it.
 	const rowStride = itemHeight + gap;
 	// Trailing gap is removed so the spacer doesn't add phantom scroll past the last row.
 	const totalHeight = itemCount === 0 ? 0 : itemCount * rowStride - gap;
 
-	// Measure the container on mount and on resize. useLayoutEffect to avoid a
-	// flash of "everything rendered" before the window math kicks in.
+	// Measure the container on attach and on resize. The dep on `containerEl`
+	// is what makes this fire the moment the element appears, including the
+	// case where the consumer initially returned a loading placeholder.
 	useLayoutEffect(() => {
-		const el = containerRef.current;
-		if (!el) return;
-		setContainerHeight(el.clientHeight);
+		if (!containerEl) return;
+		setContainerHeight(containerEl.clientHeight);
 		// ResizeObserver is widely supported; falls back gracefully if missing.
 		if (typeof ResizeObserver === "undefined") return;
 		const ro = new ResizeObserver((entries) => {
@@ -94,9 +113,9 @@ export function useVirtualList({
 				setContainerHeight(entry.contentRect.height);
 			}
 		});
-		ro.observe(el);
+		ro.observe(containerEl);
 		return () => ro.disconnect();
-	}, []);
+	}, [containerEl]);
 
 	// Simple scroll handler — just records the offset; window math runs on render.
 	const onScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {

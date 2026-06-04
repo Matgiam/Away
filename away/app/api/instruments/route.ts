@@ -20,7 +20,7 @@ const FOLDER_TO_CATEGORY: Record<string, string> = {
 	bass: "Bass",
 	strings: "Strings",
 	choirs: "Choirs",
-	"pitched percussion": "Percussion",
+	percussion: "Percussion",
 	winds: "Winds",
 	"synth pads": "Synth",
 };

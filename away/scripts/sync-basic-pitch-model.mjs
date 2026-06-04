@@ -22,7 +22,7 @@ if (!existsSync(src)) {
 
 mkdirSync(dest, { recursive: true });
 
-let copied = 0;
+let copied = 0;	
 for (const name of readdirSync(src)) {
 	const from = join(src, name);
 	const to = join(dest, name);

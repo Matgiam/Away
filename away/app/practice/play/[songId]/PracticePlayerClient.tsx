@@ -18,7 +18,9 @@ import { parseMidi, type ParsedMidi, type ParsedNote } from "@/lib/practice/midi
 import { buildChords, chordIndexForTime, type Chord } from "@/lib/practice/chords";
 import { buildHandAssignment, type Hand } from "@/lib/practice/hands";
 import type { BuiltInSong } from "@/lib/practice/songs";
-import { downloadUploadedMidi, getUploadedSongMeta, isUploadId } from "@/lib/practice/uploads";
+import { downloadUploadedMidi, getUploadedAudioSignedUrl, getUploadedSongMeta, isUploadId } from "@/lib/practice/uploads";
+import { useAudioTrack } from "@/hooks/useAudioTrack";
+import { AudioTrackControl, usePersistedAudioPrefs } from "@/components/practice/AudioTrackControl";
 import {
 	downloadCommunityMidi,
 	getCommunityMidi,
@@ -127,6 +129,11 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 
 	const [loadState, setLoadState] = useState<LoadState>("loading");
 	const [error, setError] = useState<string | null>(null);
+	// Signed URL of the source audio. Only set when this song is an upload
+	// that was created via audio→MIDI transcription AND the user opted to keep
+	// the source. Null disables the sync-playback control entirely.
+	const [audioUrl, setAudioUrl] = useState<string | null>(null);
+
 	const [midi, setMidi] = useState<ParsedMidi | null>(null);
 	// We keep the raw MIDI bytes around so the "Export MIDI" button in the HUD
 	// can save the original file without re-downloading. Small (a few hundred KB
@@ -187,6 +194,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 		let cancelled = false;
 		setLoadState("loading");
 		setError(null);
+		setAudioUrl(null);
 
 		const load = async () => {
 			try {
@@ -202,6 +210,15 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 					});
 					buffer = await downloadUploadedMidi(meta.storagePath);
 					if (cancelled) return;
+					// Best-effort signed URL for the source audio. A failure here just
+					// hides the sync control — the MIDI still plays normally.
+					if (meta.audioStoragePath) {
+						getUploadedAudioSignedUrl(meta.audioStoragePath)
+							.then((url) => {
+								if (!cancelled) setAudioUrl(url);
+							})
+							.catch(() => {});
+					}
 				} else if (isCommunityId(songId)) {
 					const meta = await getCommunityMidi(songId);
 					if (!meta) throw new Error("This community MIDI was not found or has not been approved.");
@@ -691,6 +708,24 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 			? `${descriptor.title} - ${descriptor.subcategoryLabel}`
 			: descriptor.title;
 
+	// Sync the original audio (when present) to the MIDI playhead. Pref state
+	// is persisted across sessions so the user's mute/volume choices stick.
+	//
+	// When the auto-pause gate engages (autoPause mode + waiting for the user
+	// to play the next chord), the MIDI playhead freezes. We mirror that into
+	// the audio by treating the gate-paused state as `playing: false`, so the
+	// audio doesn't drift ahead while the user is figuring out the chord.
+	const audioPrefs = usePersistedAudioPrefs();
+	const audioAdvancing = playing && !(autoPause && waitingChord !== null);
+	const audioRef = useAudioTrack({
+		url: audioUrl,
+		currentTime,
+		playing: audioAdvancing,
+		speed,
+		enabled: audioPrefs.enabled,
+		volume: audioPrefs.volume,
+	});
+
 	return (
 		<div className="h-[var(--app-h,100dvh)] w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative">
 			<SilkBackground
@@ -802,6 +837,19 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 				placement={1}
 				label="song"
 			/>
+
+			{audioUrl && (
+				<>
+					<AudioTrackControl
+						enabled={audioPrefs.enabled}
+						onEnabledChange={audioPrefs.setEnabled}
+						volume={audioPrefs.volume}
+						onVolumeChange={audioPrefs.setVolume}
+					/>
+					{/* preload="auto" so the first play() doesn't stall on a long fetch. */}
+					<audio ref={audioRef} src={audioUrl} preload="auto" className="hidden" />
+				</>
+			)}
 
 			<RecordingSignInModal open={recordingNeedsLogin} onClose={dismissRecordingLogin} />
 		</div>

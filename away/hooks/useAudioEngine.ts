@@ -525,9 +525,14 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 		if (!engine) throw new Error("Audio not initialized");
 		if (engine.hasFont(key)) return;
 
+		// Drum kits live in Percussion and have "Kit" in the name; pitched
+		// percussion (Kalimba, Xylophone, Celesta, …) shares the category but
+		// must NOT be flagged as drums.
+		const preferDrums = inst.category === "Percussion" && /\bkit\b/i.test(inst.name);
+
 		setLoadingSoundfont(key);
 		try {
-			await engine.loadFont(key, inst.url);
+			await engine.loadFont(key, inst.url, preferDrums);
 			setLoadedSoundfonts((prev) => (prev.includes(key) ? prev : [...prev, key]));
 		} finally {
 			setLoadingSoundfont((prev) => (prev === key ? null : prev));
@@ -731,7 +736,8 @@ export const useAudioEngine = (pianoKeys: PianoKey[], setNoteLines: React.Dispat
 			if (startInst) {
 				setLoadingSoundfont(startKey);
 				try {
-					await engine.loadFont(startKey, startInst.url);
+					const preferDrums = startInst.category === "Percussion" && /\bkit\b/i.test(startInst.name);
+					await engine.loadFont(startKey, startInst.url, preferDrums);
 					engine.selectFontOnChannel(SELF_CHANNEL, startKey);
 					setLoadedSoundfonts([startKey]);
 					setCurrentSoundfont(startKey);

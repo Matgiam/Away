@@ -49,6 +49,8 @@ type FontEntry = {
 	bankOffset: number;
 	/** The preset we'll auto-select when this font is targeted on a channel. */
 	defaultPreset: PresetAddress;
+	/** True when the chosen preset is a drum kit — channel must be flipped to drum mode. */
+	isDrum: boolean;
 };
 
 // Stable string key for a preset — used to diff the preset list before/after
@@ -111,11 +113,16 @@ export class SpessaSynthEngine {
 	// Idempotent. If the font is already loaded, returns immediately. If a
 	// load is in flight for the same key, returns the existing promise so two
 	// callers don't double-fetch the same SoundFont blob.
-	async loadFont(key: string, url: string): Promise<void> {
+	//
+	// `preferDrums` flips the default-preset picker: drum-kit soundfonts often
+	// also ship a melodic bank, and the non-drum heuristic would route the
+	// channel to that instead of the kit. Callers that know the font is a kit
+	// (by category/filename) pass true so the kit's drum preset wins.
+	async loadFont(key: string, url: string, preferDrums = false): Promise<void> {
 		if (this.fonts.has(key)) return;
 		const existing = this.inflightLoads.get(key);
 		if (existing) return existing;
-		const promise = this.doLoadFont(key, url);
+		const promise = this.doLoadFont(key, url, preferDrums);
 		this.inflightLoads.set(key, promise);
 		try {
 			await promise;
@@ -129,7 +136,7 @@ export class SpessaSynthEngine {
 	// the worklet's preset-list-change event, picks a default preset, and
 	// then re-applies every channel's intended font (see the big comment in
 	// the file header for why).
-	private async doLoadFont(key: string, url: string): Promise<void> {
+	private async doLoadFont(key: string, url: string, preferDrums: boolean): Promise<void> {
 		const synth = this.synth;
 		if (!synth) throw new Error("Engine not initialized");
 
@@ -160,10 +167,15 @@ export class SpessaSynthEngine {
 		// What did THIS bank add?
 		const added = list.filter((p) => !before.has(presetKey(p)));
 		// Single-instrument SFs typically expose one preset; pick the first non-drum
-		// for melodic banks, otherwise fall back to anything we got.
-		const chosen = added.find((p) => !p.isDrum) ?? added[0] ?? list[0];
+		// for melodic banks, otherwise fall back to anything we got. For drum-kit
+		// fonts the caller flips preferDrums so the kit's drum preset wins over
+		// any incidental melodic bank shipped in the same SF.
+		const chosen = preferDrums
+			? added.find((p) => p.isDrum) ?? added[0] ?? list[0]
+			: added.find((p) => !p.isDrum) ?? added[0] ?? list[0];
 		this.fonts.set(key, {
 			bankOffset,
+			isDrum: chosen?.isDrum ?? false,
 			defaultPreset: chosen
 				? { bankMSB: chosen.bankMSB, bankLSB: chosen.bankLSB, program: chosen.program, isDrum: chosen.isDrum }
 				: { bankMSB: bankOffset, bankLSB: 0, program: 0, isDrum: false }, // safe fallback
@@ -242,6 +254,12 @@ export class SpessaSynthEngine {
 		// by re-applying every tracked channel's font right after the bank
 		// is added — see the loop at the end of that function.
 		if (this.channelFont.get(channel) === key) return true;
+		// Flip drum mode on the channel BEFORE bank/program so the worklet
+		// resolves the bank against the drum bank table for drum kits, and
+		// the melodic table for everything else. Without this, drum kits
+		// other than Standard fail to make sound — the bank-select lands in
+		// the melodic side of the worklet's preset map and finds nothing.
+		this.synth.midiChannels[channel]?.setDrums(entry.isDrum);
 		const { bankMSB, bankLSB, program } = entry.defaultPreset;
 		// CC0 = Bank Select MSB, CC32 = Bank Select LSB, then ProgramChange finalizes.
 		this.synth.controllerChange(channel, 0, bankMSB);

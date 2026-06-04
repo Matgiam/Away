@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
 import { PreviewButton, type PreviewButtonState } from "@/components/practice/PreviewButton";
+import {
+	CategoryFilterPills,
+	type SubCategoryFilter,
+} from "@/components/practice/CategoryFilterPills";
+import { CategoryEditorBadge } from "@/components/practice/CategoryEditorBadge";
 import { useAudioEngineContext } from "@/components/providers/AudioEngineProvider";
 import { useMidiPreview } from "@/hooks/useMidiPreview";
 import { useVirtualList } from "@/hooks/useVirtualList";
@@ -32,6 +37,10 @@ interface CommunityViewProps {
 	onPlay: (id: string) => void;
 	onAddedChanged: () => void;
 	onLoadMore: () => void;
+	// Sub-category filter for the community list. Reset triggers a refetch
+	// because the parent passes the filter to the server query.
+	activeCategory: SubCategoryFilter;
+	onActiveCategoryChange: (next: SubCategoryFilter) => void;
 }
 
 const PREVIEW_SECONDS = 50;
@@ -51,6 +60,8 @@ export function CommunityView({
 	onPlay,
 	onAddedChanged,
 	onLoadMore,
+	activeCategory,
+	onActiveCategoryChange,
 }: CommunityViewProps) {
 	const preview = useMidiPreview();
 	const { unlockAudio } = useAudioEngineContext();
@@ -156,23 +167,41 @@ export function CommunityView({
 		);
 	}
 
+	// Pill row is rendered above every non-signed-out state so the filter is
+	// reachable even when the current bucket is empty. Otherwise a user who
+	// lands on "Anime" with no anime songs would be stuck with no way out.
+	const filterPills = (
+		<div className="mb-4">
+			<CategoryFilterPills active={activeCategory} onChange={onActiveCategoryChange} />
+		</div>
+	);
+
 	if (loading && midis.length === 0) {
 		return (
-			<div className="flex h-full w-full items-center justify-center text-white/50 italic">
-				Loading community library…
+			<div className="h-full w-full flex flex-col">
+				{filterPills}
+				<div className="flex flex-1 items-center justify-center text-white/50 italic">
+					Loading community library…
+				</div>
 			</div>
 		);
 	}
 
 	if (midis.length === 0) {
 		return (
-			<div className="flex h-full w-full items-center justify-center">
-				<div className="flex flex-col items-center text-center px-10 py-12 rounded-2xl border-2 border-dashed border-white/15 max-w-[520px]">
-					<p className="text-white text-lg italic font-semibold mb-1">No community MIDIs yet</p>
-					<p className="text-white/55 text-sm">
-						Be the first to publish! Upload a MIDI under Custom, then hit{" "}
-						<span className="text-white/85">Publish</span> on it.
-					</p>
+			<div className="h-full w-full flex flex-col">
+				{filterPills}
+				<div className="flex flex-1 items-center justify-center">
+					<div className="flex flex-col items-center text-center px-10 py-12 rounded-2xl border-2 border-dashed border-white/15 max-w-[520px]">
+						<p className="text-white text-lg italic font-semibold mb-1">
+							{activeCategory ? "Nothing here yet" : "No community MIDIs yet"}
+						</p>
+						<p className="text-white/55 text-sm">
+							{activeCategory
+								? "No songs in this category yet. Try a different filter."
+								: <>Be the first to publish! Upload a MIDI under Custom, then hit <span className="text-white/85">Publish</span> on it.</>}
+						</p>
+					</div>
 				</div>
 			</div>
 		);
@@ -184,6 +213,7 @@ export function CommunityView({
 			onScroll={onScroll}
 			className="practice-song-list h-full w-full overflow-y-auto pr-4"
 		>
+			{filterPills}
 			<div style={{ position: "relative", height: totalHeight }}>
 				{visibleIndices.map((absoluteIndex) => {
 					const top = offsetForIndex(absoluteIndex);
@@ -283,6 +313,9 @@ export function CommunityView({
 									</div>
 
 									<div className="flex items-center gap-3 shrink-0 ml-4">
+										{/* Publisher-set category — read-only here. Owners can change
+										    it later from their Custom view if it's their own publish. */}
+										<CategoryEditorBadge value={midi.category} readOnly />
 										<DifficultyBadge difficulty={midi.difficulty} />
 
 										<button

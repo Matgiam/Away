@@ -12,10 +12,12 @@ import { UploadsView, type CustomRow } from "./UploadsView";
 import { CommunityView } from "./CommunityView";
 import { PublishToCommunityModal } from "./PublishToCommunityModal";
 import { useTranscriptionContext } from "@/components/providers/TranscriptionProvider";
-import type { BuiltInSong } from "@/lib/practice/songs";
+import type { BuiltInSong, SongCategoryKey } from "@/lib/practice/songs";
+import type { SubCategoryFilter } from "@/components/practice/CategoryFilterPills";
 import {
 	deleteUploadedSong,
 	listUploadedSongs,
+	updateUploadedSongMeta,
 	type UploadedSongMeta,
 } from "@/lib/practice/uploads";
 import {
@@ -111,6 +113,12 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 	const [communityHasMore, setCommunityHasMore] = useState(false);
 	const [communityLoadingMore, setCommunityLoadingMore] = useState(false);
 
+	// Sub-category filters for Custom and Community. null = "All".
+	// Custom is client-side (small list per user); Community is server-side
+	// (refetches when this changes, see fetchCommunityFirstPage call below).
+	const [customCategory, setCustomCategory] = useState<SubCategoryFilter>(null);
+	const [communityCategory, setCommunityCategory] = useState<SubCategoryFilter>(null);
+
 	// Debounced version of `search` — community queries fire against the server,
 	// so we don't want to spam Supabase on every keystroke.
 	const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -147,6 +155,7 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 			file: transcription.state.midiFile,
 			fileName: transcription.state.midiFile.name,
 			buffer: transcription.state.midiBuffer,
+			audioFile: transcription.state.audioFile,
 		});
 		setUploadModalOpen(true);
 		transcription.consumePendingFinalize();
@@ -187,28 +196,42 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 		}
 	}, []);
 
-	const fetchCommunityFirstPage = useCallback(async (searchTerm: string) => {
-		const token = ++communityFetchTokenRef.current;
-		setCommunityLoading(true);
-		try {
-			const page = await listApprovedCommunityMidis({
-				offset: 0,
-				limit: COMMUNITY_PAGE_SIZE,
-				search: searchTerm,
-			});
-			if (communityFetchTokenRef.current !== token) return;
-			setCommunityMidis(page.items);
-			setCommunityHasMore(page.hasMore);
-		} catch {
-			if (communityFetchTokenRef.current !== token) return;
-			setCommunityMidis([]);
-			setCommunityHasMore(false);
-		} finally {
-			if (communityFetchTokenRef.current === token) {
-				setCommunityLoading(false);
+	// Translate the UI filter into the server query param. null on the UI side
+	// means "All" (no filter), so we send undefined to the API.
+	const categoryParam = useCallback(
+		(filter: SubCategoryFilter): SongCategoryKey | "uncategorized" | undefined => {
+			if (filter === null) return undefined;
+			return filter;
+		},
+		[],
+	);
+
+	const fetchCommunityFirstPage = useCallback(
+		async (searchTerm: string, filter: SubCategoryFilter) => {
+			const token = ++communityFetchTokenRef.current;
+			setCommunityLoading(true);
+			try {
+				const page = await listApprovedCommunityMidis({
+					offset: 0,
+					limit: COMMUNITY_PAGE_SIZE,
+					search: searchTerm,
+					category: categoryParam(filter),
+				});
+				if (communityFetchTokenRef.current !== token) return;
+				setCommunityMidis(page.items);
+				setCommunityHasMore(page.hasMore);
+			} catch {
+				if (communityFetchTokenRef.current !== token) return;
+				setCommunityMidis([]);
+				setCommunityHasMore(false);
+			} finally {
+				if (communityFetchTokenRef.current === token) {
+					setCommunityLoading(false);
+				}
 			}
-		}
-	}, []);
+		},
+		[categoryParam],
+	);
 
 	const loadMoreCommunity = useCallback(async () => {
 		if (communityLoadingMore || !communityHasMore) return;
@@ -219,9 +242,10 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 				offset: communityMidis.length,
 				limit: COMMUNITY_PAGE_SIZE,
 				search: debouncedSearch,
+				category: categoryParam(communityCategory),
 			});
-			// Drop result if the user refetched (e.g., changed search) while we
-			// were in flight.
+			// Drop result if the user refetched (e.g., changed search or category)
+			// while we were in flight.
 			if (communityFetchTokenRef.current !== token) return;
 			setCommunityMidis((prev) => prev.concat(page.items));
 			setCommunityHasMore(page.hasMore);
@@ -230,7 +254,55 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 		} finally {
 			setCommunityLoadingMore(false);
 		}
-	}, [communityHasMore, communityLoadingMore, communityMidis.length, debouncedSearch]);
+	}, [communityHasMore, communityLoadingMore, communityMidis.length, debouncedSearch, communityCategory, categoryParam]);
+
+	// Owner changes a row's category from the inline badge. Optimistic update
+	// of the local list so the filter pills react instantly; on DB failure we
+	// roll back to the previous value so the chip reflects what's actually in
+	// the database. Supabase errors don't serialize through default
+	// console.error output ({} appears in the console), so we unpack the
+	// useful fields explicitly.
+	const handleChangeUploadCategory = useCallback(
+		async (uploadId: string, category: SongCategoryKey | null) => {
+			let previousCategory: SongCategoryKey | null = null;
+			setUploads((prev) =>
+				prev.map((u) => {
+					if (u.id !== uploadId) return u;
+					previousCategory = u.category;
+					return { ...u, category };
+				}),
+			);
+			try {
+				await updateUploadedSongMeta(uploadId, { category });
+			} catch (err) {
+				// Roll back the optimistic update so the badge matches the DB state.
+				setUploads((prev) =>
+					prev.map((u) => (u.id === uploadId ? { ...u, category: previousCategory } : u)),
+				);
+				// Supabase PostgrestError carries { message, code, details, hint }
+				// but none of those are own-enumerable, so JSON.stringify renders
+				// "{}". Pluck them by hand for an actually readable log line.
+				const e = err as { message?: string; code?: string; details?: string; hint?: string } | undefined;
+				console.error(
+					"Failed to update upload category:",
+					e?.message ?? String(err),
+					e?.code ? `[code ${e.code}]` : "",
+					e?.details ?? "",
+					e?.hint ?? "",
+				);
+				if (e?.code === "42703" || /column .* does not exist/i.test(e?.message ?? "")) {
+					// Most likely cause: the user hasn't run the
+					// `add_song_categories.sql` migration in their Supabase
+					// project. Surface it loudly so they know what to fix.
+					alert(
+						"The `category` column is missing on user_song_uploads. " +
+							"Run away/scripts/sql/add_song_categories.sql in your Supabase SQL editor to add it.",
+					);
+				}
+			}
+		},
+		[],
+	);
 
 	useEffect(() => {
 		if (typeof window === "undefined") return;
@@ -256,7 +328,7 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 			setAuthChecked(true);
 			if (data.user) {
 				refreshCustomRows();
-				fetchCommunityFirstPage("");
+				fetchCommunityFirstPage("", null);
 			} else {
 				setUploads([]);
 				setMySubmissions([]);
@@ -273,7 +345,7 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 			setUserId(nextId);
 			if (nextId) {
 				refreshCustomRows();
-				fetchCommunityFirstPage("");
+				fetchCommunityFirstPage("", null);
 			} else {
 				setUploads([]);
 				setMySubmissions([]);
@@ -296,14 +368,15 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 		return () => clearTimeout(timer);
 	}, [search]);
 
-	// Re-fetch the community first page when the search term settles. Skipped
-	// while the user is on a non-community category, but we still refetch the
-	// first time they switch back (the effect re-runs on category change too).
+	// Re-fetch the community first page when the search term OR sub-category
+	// filter settles. Skipped while the user is on a non-community category,
+	// but the effect re-runs on category change too so switching back picks
+	// up the latest filter.
 	useEffect(() => {
 		if (!userId) return;
 		if (category !== "community") return;
-		fetchCommunityFirstPage(debouncedSearch);
-	}, [userId, category, debouncedSearch, fetchCommunityFirstPage]);
+		fetchCommunityFirstPage(debouncedSearch, communityCategory);
+	}, [userId, category, debouncedSearch, communityCategory, fetchCommunityFirstPage]);
 
 	// Built-in songs filtered by category + search. "all" skips the category
 	// filter so every built-in song is included regardless of its category.
@@ -547,6 +620,9 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 								onUploadClick={() => setUploadModalOpen(true)}
 								onPublish={handleOpenPublish}
 								onRemoveCommunity={handleRemoveCommunity}
+								activeCategory={customCategory}
+								onActiveCategoryChange={setCustomCategory}
+								onUploadCategoryChange={handleChangeUploadCategory}
 							/>
 						) : isCommunity ? (
 							<CommunityView
@@ -562,6 +638,8 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 								onPlay={handlePlayById}
 								onAddedChanged={refreshCustomRows}
 								onLoadMore={loadMoreCommunity}
+								activeCategory={communityCategory}
+								onActiveCategoryChange={setCommunityCategory}
 							/>
 						) : (
 							<SongList

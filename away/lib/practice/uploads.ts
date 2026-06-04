@@ -15,6 +15,7 @@
 // ============================================================================
 
 import { createClient } from "@/lib/supabase/client";
+import type { SongCategoryKey } from "./songs";
 
 export type UploadDifficulty = "easy" | "medium" | "hard";
 
@@ -33,6 +34,13 @@ export type UploadedSongRow = {
 	play_count: number;
 	created_at: string;
 	community_submission_id: string | null;
+	// Both nullable — only set when the upload came from audio transcription
+	// and the user kept the source audio for sync playback.
+	audio_storage_path: string | null;
+	audio_file_name: string | null;
+	// Sub-category within the user's Custom library. Null = "Uncategorized".
+	// Constrained at the DB layer to the SongCategoryKey enum.
+	category: SongCategoryKey | null;
 };
 
 // camelCase view used by the UI.
@@ -47,9 +55,13 @@ export type UploadedSongMeta = {
 	storagePath: string;
 	createdAt: string;
 	communitySubmissionId: string | null;
+	audioStoragePath: string | null;
+	audioFileName: string | null;
+	category: SongCategoryKey | null;
 };
 
 const BUCKET = "midi_uploads";
+const AUDIO_BUCKET = "audio_uploads";
 const TABLE = "user_song_uploads";
 // Public ids carry this prefix so callers can route "u:…" vs "c:…" vs
 // built-in song ids through the right loader without a DB lookup.
@@ -83,6 +95,9 @@ function rowToMeta(row: UploadedSongRow): UploadedSongMeta {
 		storagePath: row.storage_path,
 		createdAt: row.created_at,
 		communitySubmissionId: row.community_submission_id ?? null,
+		audioStoragePath: row.audio_storage_path ?? null,
+		audioFileName: row.audio_file_name ?? null,
+		category: row.category ?? null,
 	};
 }
 
@@ -165,7 +180,24 @@ export async function getUploadedSongSignedUrl(
 	return data.signedUrl;
 }
 
-// Args required to save a new upload (storage + DB).
+// Mint a short-lived signed URL for streaming the original audio (private bucket).
+// Used by the practice player to drive the sync-playback HTMLAudioElement.
+export async function getUploadedAudioSignedUrl(
+	storagePath: string,
+	expiresInSeconds = 3600,
+): Promise<string> {
+	const supabase = createClient();
+	const { data, error } = await supabase.storage
+		.from(AUDIO_BUCKET)
+		.createSignedUrl(storagePath, expiresInSeconds);
+	if (error) throw error;
+	if (!data?.signedUrl) throw new Error("Failed to sign audio URL");
+	return data.signedUrl;
+}
+
+// Args required to save a new upload (storage + DB). When the upload came from
+// audio→MIDI transcription, `audioFile` carries the original source so we can
+// store it alongside for sync playback.
 export type SaveUploadParams = {
 	file: File;
 	title: string;
@@ -173,11 +205,15 @@ export type SaveUploadParams = {
 	difficulty: UploadDifficulty;
 	durationSeconds: number;
 	bpm: number;
+	audioFile?: File;
+	// Null saves the upload as "Uncategorized". Owners can change it later via
+	// updateUploadedSongMeta. Validated at the DB by a CHECK constraint.
+	category?: SongCategoryKey | null;
 };
 
-// Upload the file to storage, then insert the metadata row. If the row insert
-// fails we clean up the orphaned storage file so the user can retry without
-// hitting "name already taken".
+// Upload the MIDI (and optional source audio) to storage, then insert the
+// metadata row. If anything in the chain fails we clean up the partial state
+// so the user can retry without hitting "name already taken".
 export async function saveUploadedSong(params: SaveUploadParams): Promise<UploadedSongMeta> {
 	const supabase = createClient();
 	const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -195,7 +231,7 @@ export async function saveUploadedSong(params: SaveUploadParams): Promise<Upload
 	const ext = extMatch ? extMatch[0].toLowerCase() : ".mid";
 	const storagePath = `${user.id}/${fileId}${ext}`;
 
-	// Step 1: storage upload.
+	// Step 1: MIDI upload.
 	const { error: storageError } = await supabase.storage
 		.from(BUCKET)
 		.upload(storagePath, params.file, {
@@ -204,7 +240,26 @@ export async function saveUploadedSong(params: SaveUploadParams): Promise<Upload
 		});
 	if (storageError) throw storageError;
 
-	// Step 2: metadata insert.
+	// Step 2 (optional): source audio upload. Same fileId so the two files
+	// share a stem and can be cleaned up together. Failure rolls back the
+	// MIDI upload so the row never lands with a half-saved pair.
+	let audioStoragePath: string | null = null;
+	if (params.audioFile) {
+		const audioExt = (params.audioFile.name.match(/\.[a-z0-9]+$/i)?.[0] ?? ".mp3").toLowerCase();
+		audioStoragePath = `${user.id}/${fileId}${audioExt}`;
+		const { error: audioError } = await supabase.storage
+			.from(AUDIO_BUCKET)
+			.upload(audioStoragePath, params.audioFile, {
+				contentType: params.audioFile.type || "audio/mpeg",
+				upsert: false,
+			});
+		if (audioError) {
+			await supabase.storage.from(BUCKET).remove([storagePath]).catch(() => {});
+			throw audioError;
+		}
+	}
+
+	// Step 3: metadata insert.
 	const { data, error: insertError } = await supabase
 		.from(TABLE)
 		.insert({
@@ -216,13 +271,19 @@ export async function saveUploadedSong(params: SaveUploadParams): Promise<Upload
 			file_name: params.file.name,
 			duration_seconds: params.durationSeconds,
 			bpm: params.bpm,
+			audio_storage_path: audioStoragePath,
+			audio_file_name: params.audioFile?.name ?? null,
+			category: params.category ?? null,
 		})
 		.select("*")
 		.single();
 
 	if (insertError) {
-		// Roll back the storage upload so the bucket doesn't accumulate orphans.
+		// Roll back both storage uploads so the buckets don't accumulate orphans.
 		await supabase.storage.from(BUCKET).remove([storagePath]).catch(() => {});
+		if (audioStoragePath) {
+			await supabase.storage.from(AUDIO_BUCKET).remove([audioStoragePath]).catch(() => {});
+		}
 		throw insertError;
 	}
 
@@ -230,32 +291,41 @@ export async function saveUploadedSong(params: SaveUploadParams): Promise<Upload
 }
 
 // Delete both halves of an upload. Storage first so a row never points at a
-// stale path; if the storage delete fails we don't drop the row.
+// stale path; if the storage delete fails we don't drop the row. The source
+// audio (if any) is removed best-effort — failing here doesn't block the rest
+// of the delete because an orphan audio file is recoverable but a dangling row
+// is the user-visible bug.
 export async function deleteUploadedSong(uploadId: string): Promise<void> {
 	const supabase = createClient();
 	const rowId = rowIdFromUploadId(uploadId);
 
 	const { data: row, error: fetchError } = await supabase
 		.from(TABLE)
-		.select("storage_path")
+		.select("storage_path, audio_storage_path")
 		.eq("id", rowId)
 		.maybeSingle();
 	if (fetchError) throw fetchError;
 	if (!row) return; // already gone — treat as success
 
-	const storagePath = (row as { storage_path: string }).storage_path;
+	const { storage_path: storagePath, audio_storage_path: audioStoragePath } =
+		row as { storage_path: string; audio_storage_path: string | null };
 	const { error: storageError } = await supabase.storage.from(BUCKET).remove([storagePath]);
 	if (storageError) throw storageError;
+
+	if (audioStoragePath) {
+		await supabase.storage.from(AUDIO_BUCKET).remove([audioStoragePath]).catch(() => {});
+	}
 
 	const { error: deleteError } = await supabase.from(TABLE).delete().eq("id", rowId);
 	if (deleteError) throw deleteError;
 }
 
 // Partial update — only sends fields the caller specifies. No-op if `patch`
-// has nothing meaningful in it (saves a round-trip).
+// has nothing meaningful in it (saves a round-trip). `category` accepts null
+// explicitly so callers can reset a row back to "Uncategorized".
 export async function updateUploadedSongMeta(
 	uploadId: string,
-	patch: Partial<Pick<UploadedSongMeta, "title" | "artist" | "difficulty">>,
+	patch: Partial<Pick<UploadedSongMeta, "title" | "artist" | "difficulty" | "category">>,
 ): Promise<void> {
 	const supabase = createClient();
 	const rowId = rowIdFromUploadId(uploadId);
@@ -263,6 +333,9 @@ export async function updateUploadedSongMeta(
 	if (typeof patch.title === "string") update.title = patch.title;
 	if (typeof patch.artist === "string") update.artist = patch.artist;
 	if (patch.difficulty) update.difficulty = patch.difficulty;
+	// Hit the key check explicitly — `patch.category === null` is a real value
+	// that means "clear it", and a truthy check would silently drop it.
+	if ("category" in patch) update.category = patch.category ?? null;
 	if (Object.keys(update).length === 0) return;
 	const { error } = await supabase.from(TABLE).update(update).eq("id", rowId);
 	if (error) throw error;

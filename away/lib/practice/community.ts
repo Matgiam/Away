@@ -22,6 +22,7 @@ import {
 	type UploadDifficulty,
 	type UploadedSongMeta,
 } from "./uploads";
+import type { SongCategoryKey } from "./songs";
 
 // Review state machine: submissions land as "pending" and get one of the
 // other two states after admin review.
@@ -44,6 +45,10 @@ export type CommunityMidiRow = {
 	review_note: string | null;
 	play_count: number;
 	created_at: string;
+	// Carried over from the source private upload at publish time so the
+	// community library can be sub-categorized the same way as built-ins.
+	// Null = "Uncategorized".
+	category: SongCategoryKey | null;
 };
 
 // UI shape — camelCase + a resolved submitter username.
@@ -63,6 +68,7 @@ export type CommunityMidi = {
 	playCount: number;
 	createdAt: string;
 	reviewedAt: string | null;
+	category: SongCategoryKey | null;
 };
 
 const BUCKET = "community_midis";
@@ -102,6 +108,7 @@ function rowToMidi(row: CommunityMidiRow, submitterUsername: string | null = nul
 		playCount: row.play_count,
 		createdAt: row.created_at,
 		reviewedAt: row.reviewed_at,
+		category: row.category ?? null,
 	};
 }
 
@@ -145,6 +152,7 @@ export type SubmitParams = {
 	difficulty: UploadDifficulty;
 	durationSeconds: number;
 	bpm: number;
+	category?: SongCategoryKey | null;
 };
 
 // Upload to the community bucket + create the pending row. Same orphan-cleanup
@@ -181,6 +189,7 @@ export async function submitCommunityMidi(params: SubmitParams): Promise<Communi
 			duration_seconds: params.durationSeconds,
 			bpm: params.bpm,
 			status: "pending",
+			category: params.category ?? null,
 		})
 		.select("*")
 		.single();
@@ -200,7 +209,7 @@ export async function submitCommunityMidi(params: SubmitParams): Promise<Communi
 // back onto the private upload so the UI can show "Pending" / "Approved" badges.
 export async function submitFromExistingUpload(
 	upload: UploadedSongMeta,
-	overrides: { title?: string; artist?: string; difficulty?: UploadDifficulty },
+	overrides: { title?: string; artist?: string; difficulty?: UploadDifficulty; category?: SongCategoryKey | null },
 ): Promise<CommunityMidi> {
 	// Pull the original MIDI bytes from the private bucket.
 	const buffer = await downloadUploadedMidi(upload.storagePath);
@@ -214,6 +223,9 @@ export async function submitFromExistingUpload(
 		difficulty: overrides.difficulty ?? upload.difficulty,
 		durationSeconds: upload.durationSeconds,
 		bpm: upload.bpm,
+		// Carry the upload's category through unless the publisher explicitly
+		// overrides it in the publish dialog (e.g. correcting before public release).
+		category: "category" in overrides ? overrides.category : upload.category,
 	});
 
 	// Best-effort link back to the private upload — failure is non-fatal.
@@ -268,6 +280,10 @@ export type CommunityListParams = {
 	// returns up to `limit` rows in one shot; pagination is disabled for searches
 	// because users expect to see *all* matches at once.
 	search?: string;
+	// Sub-category filter for the per-category tabs in the Community view.
+	// "uncategorized" means rows whose `category` column is null; any
+	// SongCategoryKey filters by an exact match; undefined means no filter.
+	category?: SongCategoryKey | "uncategorized";
 };
 
 export type CommunityListPage = {
@@ -296,6 +312,12 @@ export async function listApprovedCommunityMidis(
 	if (term) {
 		// PostgREST .or(): "title.ilike.%foo%,artist.ilike.%foo%" → title OR artist.
 		query = query.or(`title.ilike.%${term}%,artist.ilike.%${term}%`);
+	}
+
+	if (params.category === "uncategorized") {
+		query = query.is("category", null);
+	} else if (params.category) {
+		query = query.eq("category", params.category);
 	}
 
 	query = query

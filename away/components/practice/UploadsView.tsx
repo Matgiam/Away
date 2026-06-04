@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DynamicLiquidGlass } from "@/components/effects/DynamicLiquidglass";
 import { PreviewButton, type PreviewButtonState } from "@/components/practice/PreviewButton";
+import {
+	CategoryFilterPills,
+	type SubCategoryFilter,
+} from "@/components/practice/CategoryFilterPills";
+import { CategoryEditorBadge } from "@/components/practice/CategoryEditorBadge";
 import { useAudioEngineContext } from "@/components/providers/AudioEngineProvider";
 import { useMidiPreview } from "@/hooks/useMidiPreview";
 import { useVirtualList } from "@/hooks/useVirtualList";
@@ -18,6 +23,7 @@ import {
 	type UploadDifficulty,
 	type UploadedSongMeta,
 } from "@/lib/practice/uploads";
+import type { SongCategoryKey } from "@/lib/practice/songs";
 
 const PREVIEW_SECONDS = 50;
 
@@ -49,6 +55,13 @@ interface UploadsViewProps {
 	onUploadClick: () => void;
 	onPublish: (upload: UploadedSongMeta) => void;
 	onRemoveCommunity: (communityId: string) => void;
+	// Sub-category filter state lives in the parent so it can be persisted
+	// alongside the main `category` selection.
+	activeCategory: SubCategoryFilter;
+	onActiveCategoryChange: (next: SubCategoryFilter) => void;
+	// Called when the owner changes a row's category via the inline badge.
+	// The parent both persists it to the DB and updates its local row state.
+	onUploadCategoryChange: (uploadId: string, category: SongCategoryKey | null) => void;
 }
 
 const ROW_HEIGHT = 76;
@@ -89,6 +102,9 @@ export function UploadsView({
 	onUploadClick,
 	onPublish,
 	onRemoveCommunity,
+	activeCategory,
+	onActiveCategoryChange,
+	onUploadCategoryChange,
 }: UploadsViewProps) {
 	const preview = useMidiPreview();
 	const { unlockAudio } = useAudioEngineContext();
@@ -161,9 +177,39 @@ export function UploadsView({
 		}
 	}, []);
 
+	// One source of truth for "which category does this row belong to". Both
+	// upload-kind (owner-set) and community-kind (publisher-set) carry a
+	// `category` field; null means "Uncategorized".
+	const categoryOf = useCallback(
+		(row: CustomRow): SongCategoryKey | null =>
+			row.kind === "upload" ? row.upload.category : row.community.category,
+		[],
+	);
+
+	// Filter pass — runs whenever rows or the active filter changes. The
+	// resulting list drives the virtualizer below, so changing filter snaps
+	// the scrollbar to the new content range.
+	const filteredRows = useMemo(() => {
+		if (activeCategory === null) return rows;
+		if (activeCategory === "uncategorized") return rows.filter((r) => categoryOf(r) === null);
+		return rows.filter((r) => categoryOf(r) === activeCategory);
+	}, [rows, activeCategory, categoryOf]);
+
+	// Counts per filter bucket — shown as small badges in the pill row so the
+	// user can see how many rows live in each before clicking.
+	const categoryCounts = useMemo(() => {
+		const out: Partial<Record<string, number>> = { all: rows.length, uncategorized: 0 };
+		for (const r of rows) {
+			const c = categoryOf(r);
+			if (c === null) out.uncategorized = (out.uncategorized ?? 0) + 1;
+			else out[c] = (out[c] ?? 0) + 1;
+		}
+		return out;
+	}, [rows, categoryOf]);
+
 	const { containerRef, onScroll, totalHeight, startIndex, endIndex, offsetForIndex } =
 		useVirtualList({
-			itemCount: rows.length,
+			itemCount: filteredRows.length,
 			itemHeight: ROW_HEIGHT,
 			gap: ROW_GAP,
 			overscan: 4,
@@ -240,6 +286,16 @@ export function UploadsView({
 			onScroll={onScroll}
 			className="practice-song-list h-full w-full overflow-y-auto pr-4"
 		>
+			{/* Sub-category filter row — keeps Custom internally categorized so the
+			    list stays browsable even with dozens of uploads. */}
+			<div className="mb-4">
+				<CategoryFilterPills
+					active={activeCategory}
+					onChange={onActiveCategoryChange}
+					counts={categoryCounts}
+				/>
+			</div>
+
 			<button
 				type="button"
 				onClick={onUploadClick}
@@ -270,7 +326,7 @@ export function UploadsView({
 
 			<div style={{ position: "relative", height: totalHeight }}>
 				{visibleIndices.map((absoluteIndex) => {
-					const row = rows[absoluteIndex];
+					const row = filteredRows[absoluteIndex];
 					if (!row) return null;
 					const top = offsetForIndex(absoluteIndex);
 					const isSelected = row.id === selectedId;
@@ -336,6 +392,17 @@ export function UploadsView({
 									</div>
 									<div className="flex items-center gap-3 shrink-0 ml-4">
 										{isCompleted && <CompletedTick />}
+										{/* Upload-kind rows let the owner edit the category inline.
+										    Community-kind rows show the publisher's category as a
+										    read-only chip so the user can still see where it lives. */}
+										{row.kind === "upload" ? (
+											<CategoryEditorBadge
+												value={row.upload.category}
+												onChange={(next) => onUploadCategoryChange(row.upload.id, next)}
+											/>
+										) : (
+											<CategoryEditorBadge value={row.community.category} readOnly />
+										)}
 										<DifficultyBadge difficulty={difficultyOf(row)} />
 
 										{row.kind === "upload" && (!row.submission || row.submission.status === "rejected") && (

@@ -38,6 +38,9 @@ export type BackgroundTranscribeState =
 			engine: TranscribeEngine;
 			midiFile: File;
 			midiBuffer: ArrayBuffer;
+			// The user's original audio. Kept around so the finalize step can save
+			// it alongside the MIDI for sync playback in practice mode.
+			audioFile: File;
 	  }
 	| {
 			phase: "error";
@@ -107,6 +110,10 @@ export function useBackgroundTranscription(): BackgroundTranscribeControls {
 					engine,
 					midiFile,
 					midiBuffer,
+					// Stash the source audio so the finalize step can persist it for
+					// sync playback. The File object holds bytes in memory, so it
+					// stays valid until the state moves off "done".
+					audioFile: file,
 				});
 			} catch (err) {
 				if (controller.signal.aborted) return;
