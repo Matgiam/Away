@@ -25,7 +25,7 @@ export default function PracticeClient({ initialSongs }: PracticeClientProps) {
 				animated={backgroundAnimated}
 			/>
 			<BackButton />
-			<div className="absolute inset-0 z-10">
+			<div className="absolute inset-0">
 				<PracticeMenu initialSongs={initialSongs} />
 			</div>
 		</div>

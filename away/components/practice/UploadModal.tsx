@@ -207,7 +207,7 @@ export function UploadModal({
 	if (!open) return null;
 
 	return (
-		<div className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/55">
+		<div className="absolute inset-0 z-1500 flex items-center justify-center backdrop-blur-sm bg-black/55">
 			<div className="w-full max-w-xl mx-4 rounded-2xl border border-white/10 bg-[#0d0620]/90 backdrop-blur-xl shadow-2xl overflow-hidden">
 				<div className="flex items-center justify-between px-8 py-5 border-b border-white/5">
 					<h2 className="text-xl font-semibold italic text-white/90">Import MIDI</h2>
