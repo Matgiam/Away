@@ -39,6 +39,10 @@ export type ParsedMidi = {
 	durationSeconds: number;
 	ppq: number;             // pulses per quarter note (from the header)
 	initialTempoBpm: number; // tempo at tick 0
+	// True iff the file itself contained at least one tempo meta event. When
+	// false, `initialTempoBpm` is the SMF default (120) and the caller may want
+	// to let the user pick a real tempo.
+	tempoDetected: boolean;
 	trackCount: number;
 };
 
@@ -246,6 +250,7 @@ export function parseMidi(buffer: ArrayBuffer): ParsedMidi {
 
 	// --- Build the tick → seconds converter ---
 	tempoChanges.sort((a, b) => a.tick - b.tick);
+	const tempoDetected = tempoChanges.length > 0;
 	// SMF spec: if no tempo is set, default to 120 BPM (500_000 µs/quarter).
 	if (tempoChanges.length === 0 || tempoChanges[0].tick !== 0) {
 		tempoChanges.unshift({ tick: 0, microsPerQuarter: 500000 });
@@ -316,8 +321,55 @@ export function parseMidi(buffer: ArrayBuffer): ParsedMidi {
 		durationSeconds,
 		ppq,
 		initialTempoBpm,
+		tempoDetected,
 		trackCount: tracks,
 	};
+}
+
+// Bakes an initial tempo meta event (FF 51 03) into the first MTrk chunk so the
+// file is self-contained for every consumer of `parseMidi`. Used by the upload
+// flow when the dropped file has no tempo events and the user picked a BPM
+// manually — we'd rather rewrite the bytes once than thread a tempo override
+// through every playback path.
+export function injectInitialTempo(buffer: ArrayBuffer, bpm: number): ArrayBuffer {
+	const safeBpm = Math.max(20, Math.min(400, Math.round(bpm)));
+	const microsPerQuarter = Math.round(60_000_000 / safeBpm);
+
+	const view = new DataView(buffer);
+	if (view.getUint32(0) !== HEADER_CHUNK) throw new Error("Not a MIDI file");
+	const headerLength = view.getUint32(4);
+
+	// Find the first MTrk after the header. Some files have padding bytes
+	// between MThd and the first MTrk, so we scan one byte at a time.
+	let trackHeaderStart = 8 + headerLength;
+	while (trackHeaderStart < view.byteLength - 8) {
+		if (view.getUint32(trackHeaderStart) === TRACK_CHUNK) break;
+		trackHeaderStart++;
+	}
+	if (trackHeaderStart >= view.byteLength - 8) throw new Error("No track in MIDI file");
+
+	const trackLength = view.getUint32(trackHeaderStart + 4);
+	const trackDataStart = trackHeaderStart + 8;
+
+	// VLQ(0) + meta header (FF 51 03) + 3-byte microsPerQuarter (big-endian).
+	const tempoBytes = new Uint8Array([
+		0x00,
+		0xff,
+		0x51,
+		0x03,
+		(microsPerQuarter >> 16) & 0xff,
+		(microsPerQuarter >> 8) & 0xff,
+		microsPerQuarter & 0xff,
+	]);
+
+	const original = new Uint8Array(buffer);
+	const out = new Uint8Array(buffer.byteLength + tempoBytes.length);
+	out.set(original.subarray(0, trackDataStart), 0);
+	out.set(tempoBytes, trackDataStart);
+	out.set(original.subarray(trackDataStart), trackDataStart + tempoBytes.length);
+
+	new DataView(out.buffer).setUint32(trackHeaderStart + 4, trackLength + tempoBytes.length);
+	return out.buffer;
 }
 
 // Helper used by both the running-status note-off path and the explicit

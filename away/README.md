@@ -328,5 +328,14 @@ relies on.
 - [MDN — SVG Filter Primitives](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/filter)
 - [React Three Fiber documentation](https://docs.pmnd.rs/react-three-fiber/getting-started/introduction)
 
+### Claude conversations
+
+Shared chats with Claude that were used while building the project:
+
+- <https://claude.ai/share/133b8c4b-284e-417f-a920-f759892c9052>
+- <https://claude.ai/share/a69d6213-632f-4e57-8b58-a905f18fb4e5>
+
+The remaining conversations were not shared publicly and are exported as
+markdown files in [`away/Conversaties Claude/`](away/Conversaties Claude/).
 
 ---

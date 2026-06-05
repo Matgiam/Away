@@ -2,7 +2,8 @@
 // useWebRTC.ts
 // ----------------------------------------------------------------------------
 // Peer-to-peer WebRTC layer for the multiplayer jam. Owns one RTCPeerConnection
-// per remote peer + a "piano-notes" RTCDataChannel for note transport.
+// per remote peer + a "piano-notes" RTCDataChannel that carries both note-on /
+// note-off events and sustain-pedal events.
 //
 // Why peer-to-peer instead of Supabase Realtime: notes happen *fast* and need
 // low latency. Pushing every note through Supabase would queue them behind
@@ -11,7 +12,9 @@
 //
 // The signaling (offers / answers / ICE candidates) still goes through
 // Supabase's broadcast channel — that lives in `app/jam/[roomId]/page.tsx`,
-// which calls into this hook's `initiate/handle*` methods.
+// which calls into this hook's `initiate/handle*` methods. Supabase therefore
+// only facilitates the signaling and presence layers; the actual musical
+// payload never touches the server once the data channel is open.
 //
 // Uses the MDN "Perfect Negotiation" pattern to handle simultaneous offers:
 // the peer with the lower id is "impolite" (its offer wins on collision),
@@ -44,7 +47,19 @@ type PeerInfo = {
 
 // Callback signature for received notes. velocity is 0..127; isNoteOn === false
 // means note-off (velocity is meaningless in that case but we keep the shape uniform).
-export type ReceivedNoteHandler = (peerId: string, note: number, velocity: number, isNoteOn: boolean) => void;
+// soundfont rides along on every note so the receiver renders with the sender's
+// instrument even if the dedicated "soundfont-change" presence event raced.
+export type ReceivedNoteHandler = (
+	peerId: string,
+	note: number,
+	velocity: number,
+	isNoteOn: boolean,
+	soundfont?: string,
+) => void;
+
+// Sustain-pedal event from a peer. soundfont is forwarded so the receiver can
+// load it before applying the pedal state if it hasn't been seen yet.
+export type ReceivedSustainHandler = (peerId: string, active: boolean, soundfont?: string) => void;
 
 // Google's public STUN server. STUN punches through symmetric NATs in the
 // common case; rooms behind very restrictive corporate firewalls would need
@@ -53,19 +68,27 @@ const ICE_CONFIG: RTCConfiguration = {
 	iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
 };
 
-export function useWebRTC(myId: string, onReceiveNote: ReceivedNoteHandler) {
+export function useWebRTC(
+	myId: string,
+	onReceiveNote: ReceivedNoteHandler,
+	onReceiveSustain: ReceivedSustainHandler,
+) {
 	// Map keyed by remote peer id. Mutated directly — not React state, because
 	// we don't want to trigger re-renders on every signaling event.
 	const peersRef = useRef<Map<string, PeerInfo>>(new Map());
 	// Connected set IS React state so the UI can show online indicators per peer.
 	const [connectedPeers, setConnectedPeers] = useState<Set<string>>(new Set());
 
-	// Mirror the latest onReceiveNote into a ref so the per-message handler
-	// (which closes over it) sees fresh values without re-binding the channel.
+	// Mirror the latest callbacks into refs so the per-message handler (which
+	// closes over them) sees fresh values without re-binding the channel.
 	const onReceiveNoteRef = useRef(onReceiveNote);
 	useEffect(() => {
 		onReceiveNoteRef.current = onReceiveNote;
 	}, [onReceiveNote]);
+	const onReceiveSustainRef = useRef(onReceiveSustain);
+	useEffect(() => {
+		onReceiveSustainRef.current = onReceiveSustain;
+	}, [onReceiveSustain]);
 
 	// Helper to toggle a peer in the connected set immutably.
 	const markConnected = useCallback((peerId: string, connected: boolean) => {
@@ -90,7 +113,9 @@ export function useWebRTC(myId: string, onReceiveNote: ReceivedNoteHandler) {
 				try {
 					const data = JSON.parse(event.data);
 					if (data.type === "midi") {
-						onReceiveNoteRef.current(peerId, data.note, data.velocity, data.isNoteOn);
+						onReceiveNoteRef.current(peerId, data.note, data.velocity, data.isNoteOn, data.soundfont);
+					} else if (data.type === "sustain") {
+						onReceiveSustainRef.current(peerId, !!data.active, data.soundfont);
 					}
 				} catch {}
 			};
@@ -231,9 +256,29 @@ export function useWebRTC(myId: string, onReceiveNote: ReceivedNoteHandler) {
 	}, []);
 
 	// Send a single note to every connected peer. Fire-and-forget — closed
-	// channels are silently skipped (the peer presumably left).
-	const broadcastNote = useCallback((note: number, velocity: number, isNoteOn: boolean) => {
-		const msg = JSON.stringify({ type: "midi", note, velocity, isNoteOn });
+	// channels are silently skipped (the peer presumably left). soundfont
+	// is included so the receiver can render with the exact instrument the
+	// sender is using, even if our presence-level "soundfont-change" event
+	// hasn't reached them yet (or arrives out of order).
+	const broadcastNote = useCallback(
+		(note: number, velocity: number, isNoteOn: boolean, soundfont?: string) => {
+			const msg = JSON.stringify({ type: "midi", note, velocity, isNoteOn, soundfont });
+			peersRef.current.forEach((peer) => {
+				if (peer.dc?.readyState === "open") {
+					try {
+						peer.dc.send(msg);
+					} catch {}
+				}
+			});
+		},
+		[],
+	);
+
+	// Same fire-and-forget pattern for the sustain pedal. We carry the
+	// sender's soundfont alongside so the receiver can ensure that
+	// instrument is loaded before applying pedal state.
+	const broadcastSustain = useCallback((active: boolean, soundfont?: string) => {
+		const msg = JSON.stringify({ type: "sustain", active, soundfont });
 		peersRef.current.forEach((peer) => {
 			if (peer.dc?.readyState === "open") {
 				try {
@@ -271,6 +316,7 @@ export function useWebRTC(myId: string, onReceiveNote: ReceivedNoteHandler) {
 		handleCandidate,
 		removePeer,
 		broadcastNote,
+		broadcastSustain,
 		hasPeer,
 		knownPeerIds,
 		connectedPeers,
