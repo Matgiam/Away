@@ -47,6 +47,14 @@
 	width: calc(100vw / var(--app-scale, 1));
 	transform: translateX(-50%);
 }
+.stage-full-bleed {
+	position: fixed;
+	left: 50%;
+	top: 50%;
+	width: calc(100vw / var(--app-scale, 1));
+	height: calc(100vh / var(--app-scale, 1));
+	transform: translate(-50%, -50%);
+}
 
 /* React Three Fiber sizes its <canvas> from the container's
    getBoundingClientRect, which is the *scaled* size inside .app-stage — so

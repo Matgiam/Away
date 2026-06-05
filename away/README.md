@@ -24,8 +24,9 @@ The repository contains two pieces:
 - **Free play** (`/`) — 88-key piano with computer-keyboard input, Web MIDI
   device support, soundfont picker, sustain pedal, octave shift, reverb.
 - **Practice** (`/practice`) — falling-note view driven by a MIDI file. Either
-  pick a song from the catalog or upload your own MIDI / audio file (audio
-  files are automatically transcribed to MIDI).
+  pick a song from the catalog, upload your own MIDI / audio file (audio
+  files are automatically transcribed to MIDI), or download MIDIs from
+  [bitmidi.com](https://bitmidi.com/).
 - **Multiplayer jams** (`/multiplayer`, `/jam/[roomId]`) — create or join a
   room. Notes are exchanged peer-to-peer over WebRTC data channels so latency
   is low; presence, chat, and room state go through Supabase Realtime.
@@ -305,9 +306,10 @@ relies on.
   into folders (`keyboards`, `guitars`, `bass`, …) is what
   [`app/api/instruments/route.ts`](away/app/api/instruments/route.ts) reads at
   runtime to populate the soundfont picker.
-- **MIDI files** under [`away/public/midi/`](away/public/midi/) — public-domain
-  classical pieces and community-uploaded songs (uploads also live in Supabase
-  Storage; only a small bundled catalog ships in the repo).
+- **MIDI files** under [`away/public/midi/`](away/public/midi/) — sourced from
+  [bitmidi.com](https://bitmidi.com/) (public-domain classical pieces and
+  community-uploaded songs; uploads also live in Supabase Storage; only a
+  small bundled catalog ships in the repo).
 - **Icons** under [`away/public/icons/`](away/public/icons/) — custom icons /
   badges drawn for the project.
 
@@ -327,6 +329,7 @@ relies on.
 - [MDN — Screen Capture API](https://developer.mozilla.org/en-US/docs/Web/API/Screen_Capture_API)
 - [MDN — SVG Filter Primitives](https://developer.mozilla.org/en-US/docs/Web/SVG/Element/filter)
 - [React Three Fiber documentation](https://docs.pmnd.rs/react-three-fiber/getting-started/introduction)
+- [bitmidi.com](https://bitmidi.com/) — MIDI file source
 
 ### Claude conversations
 

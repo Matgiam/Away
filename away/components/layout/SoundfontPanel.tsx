@@ -67,7 +67,7 @@ export const SoundfontPanel = ({
 
 	return (
 		<div
-			className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm pb-40"
+			className="fixed inset-0 z-[100] flex items-center justify-center stage-full-bleed bg-black/60 backdrop-blur-sm pb-40"
 			onClick={onClose}
 		>
 			<div

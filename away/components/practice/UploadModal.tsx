@@ -44,7 +44,14 @@ type Source = "midi" | "audio";
 const MAX_MIDI_BYTES = 10 * 1024 * 1024;
 const AUDIO_ACCEPT = AUDIO_EXTENSIONS.join(",") + ",audio/*";
 
-export function UploadModal({ open, onClose, onUploaded, signedIn, onStartTranscription, prefilledMidi }: UploadModalProps) {
+export function UploadModal({
+	open,
+	onClose,
+	onUploaded,
+	signedIn,
+	onStartTranscription,
+	prefilledMidi,
+}: UploadModalProps) {
 	const inputRef = useRef<HTMLInputElement>(null);
 
 	const [source, setSource] = useState<Source>("midi");
@@ -218,26 +225,12 @@ export function UploadModal({ open, onClose, onUploaded, signedIn, onStartTransc
 			setError(e instanceof Error ? e.message : "Failed to save upload.");
 			setStage("form");
 		}
-	}, [
-		pendingFile,
-		pendingBuffer,
-		pendingAudioFile,
-		pendingDuration,
-		pendingBpm,
-		detectedBpm,
-		pendingAutoDifficulty,
-		title,
-		artist,
-		difficulty,
-		category,
-		onUploaded,
-		onClose,
-	]);
+	}, [pendingFile, pendingBuffer, pendingAudioFile, pendingDuration, pendingBpm, detectedBpm, pendingAutoDifficulty, title, artist, difficulty, category, onUploaded, onClose]);
 
 	if (!open) return null;
 
 	return (
-		<div className="absolute inset-0 z-1500 flex items-center justify-center	">
+		<div className="stage-full-bleed z-[1500] flex items-center justify-center backdrop-blur-sm bg-black/55">
 			<div className="w-full max-w-xl mx-4 rounded-2xl border border-white/10 bg-[#0d0620]/90 backdrop-blur-xl shadow-2xl overflow-hidden">
 				<div className="flex items-center justify-between px-8 py-5 border-b border-white/5">
 					<h2 className="text-xl font-semibold italic text-white/90">Import MIDI</h2>
@@ -331,10 +324,7 @@ export function UploadModal({ open, onClose, onUploaded, signedIn, onStartTransc
 								    song into a dedicated bucket the user can browse later. They
 								    can re-categorize from the inline badge on the song row. */}
 								<div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-									{[
-										{ key: null as SongCategoryKey | null, label: "Uncategorized" },
-										...SONG_CATEGORIES.map((c) => ({ key: c.key as SongCategoryKey | null, label: c.label })),
-									].map((c) => {
+									{[{ key: null as SongCategoryKey | null, label: "Uncategorized" }, ...SONG_CATEGORIES.map((c) => ({ key: c.key as SongCategoryKey | null, label: c.label }))].map((c) => {
 										const isActive = c.key === category;
 										return (
 											<button
