@@ -568,19 +568,17 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 
 	return (
 		<div className="h-full w-full">
-			{/* All sizing uses min(vw, fixed-px) so the page scales down on smaller
-		    laptops (1366, etc.) but caps at the 1920px reference on bigger
-		    monitors — they render the same composition as a 1080p screen
-		    instead of stretching everything to absurd sizes. */}
+			{/* Authored at the 1920×1080 reference; the global app stage scales the
+		    whole page uniformly to fit any screen (see lib/appScale.ts). */}
 		<div
 			className="mx-auto h-full flex flex-col"
 			style={{
-				maxWidth: "min(62.5vw, 1200px)",
-				gap: "min(2.5vw, 48px)",
-				paddingLeft: "min(0.1vw, 2px)",
-				paddingRight: "min(0.1vw, 2px)",
-				paddingTop: "min(2.5vw, 48px)",
-				paddingBottom: "min(2.5vw, 48px)",
+				maxWidth: "1200px",
+				gap: "48px",
+				paddingLeft: "2px",
+				paddingRight: "2px",
+				paddingTop: "48px",
+				paddingBottom: "48px",
 			}}
 		>
 				<header className="flex items-start justify-between gap-12">
@@ -593,8 +591,8 @@ export function PracticeMenu({ initialSongs }: PracticeMenuProps) {
 				<div
 					className="grid flex-1 min-h-0"
 					style={{
-						gridTemplateColumns: "min(15.6vw, 300px) 1fr",
-						columnGap: "min(5vw, 96px)",
+						gridTemplateColumns: "300px 1fr",
+						columnGap: "96px",
 					}}
 				>
 					<div className="flex flex-col items-start gap-7">

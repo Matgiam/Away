@@ -19,6 +19,7 @@ import { PlayerList } from "@/components/multiplayer/PlayerList";
 import { ProfileModal } from "@/components/layout/ProfileModal";
 import type { ChatMessage } from "@/hooks/useChat";
 import { sendRoomMessage } from "@/lib/messages";
+import { BASE_W, BASE_H, getAppScale } from "@/lib/appScale";
 import { useFriends } from "@/hooks/useFriends";
 import { acceptFriendRequest, removeFriendship, sendFriendRequest, updateMyUsername } from "@/lib/friends";
 import {
@@ -223,16 +224,21 @@ export default function JamRoom() {
 	useEffect(() => {
 		const updateChatPos = () => {
 			if (!chatAnchorRef.current) return;
+			// getBoundingClientRect reports real-viewport (already-scaled) pixels,
+			// but the inline top/right/height below are interpreted in stage pixels
+			// (the panel lives inside the scaled stage). Divide by the stage scale
+			// to convert, and use the fixed stage dimensions for the viewport edges.
+			const scale = getAppScale();
 			const rect = chatAnchorRef.current.getBoundingClientRect();
-			const top = rect.bottom + 12;
+			const top = rect.bottom / scale + 12;
 			// Reserve enough space at the bottom for the piano (150px) plus a small gap,
 			// so the chat input never gets covered by the keys.
 			const PIANO_RESERVED = 170;
-			const available = Math.max(220, window.innerHeight - top - PIANO_RESERVED);
-			const height = Math.min(window.innerHeight * 0.53, available);
+			const available = Math.max(220, BASE_H - top - PIANO_RESERVED);
+			const height = Math.min(BASE_H * 0.53, available);
 			setChatPos({
 				top,
-				right: Math.max(12, window.innerWidth - rect.right),
+				right: Math.max(12, BASE_W - rect.right / scale),
 				height,
 			});
 		};
@@ -1024,7 +1030,7 @@ export default function JamRoom() {
 	const backgroundAnimated = settings.backgroundAnimated && !settings.reducedMotion;
 
 	return (
-		<div className="h-[var(--app-h,100dvh)] w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative" onClick={handleClick}>
+		<div className="h-full w-full text-gray-200 overflow-hidden flex relative" onClick={handleClick}>
 			<SilkBackground color={settings.backgroundColor} scale={1} noiseIntensity={1.3} speed={3} rotation={270} animated={backgroundAnimated} />
 
 			<Navigation
@@ -1072,28 +1078,30 @@ export default function JamRoom() {
 				hideMetronome
 			/>
 
-			<div className="absolute inset-0 flex flex-col pb-[150px]">
-				<div className="absolute top-6 left-8 z-50">
-					<PlayerList
-						players={players}
-						canAddFriend={isLoggedIn}
-						pendingFriendIds={combinedPendingIds}
-						incomingRequestByUserId={incomingRequestByUserId}
-						onAddFriend={handleAddFriend}
-						onAcceptFriend={handleAcceptFriend}
-						onDeclineFriend={handleDeclineFriend}
-						onViewProfile={handleViewProfile}
-						soundfonts={soundfonts}
-						currentSoundfont={currentSoundfont}
-						onCopySoundfont={selectSoundfont}
-						mutedIds={mutedIds}
-						onToggleMute={handleToggleMute}
-						myNoteColor={noteColor}
-						onMyNoteColorChange={setNoteColor}
-						onSaveMyNoteColor={handleSaveNoteColor}
-						myNoteColorDirty={noteColorDirty}
-					/>
-				</div>
+			{/* HUD stays in the letterboxed stage (top-left of the design page). */}
+			<div className="absolute top-6 left-8 z-50">
+				<PlayerList
+					players={players}
+					canAddFriend={isLoggedIn}
+					pendingFriendIds={combinedPendingIds}
+					incomingRequestByUserId={incomingRequestByUserId}
+					onAddFriend={handleAddFriend}
+					onAcceptFriend={handleAcceptFriend}
+					onDeclineFriend={handleDeclineFriend}
+					onViewProfile={handleViewProfile}
+					soundfonts={soundfonts}
+					currentSoundfont={currentSoundfont}
+					onCopySoundfont={selectSoundfont}
+					mutedIds={mutedIds}
+					onToggleMute={handleToggleMute}
+					myNoteColor={noteColor}
+					onMyNoteColorChange={setNoteColor}
+					onSaveMyNoteColor={handleSaveNoteColor}
+					myNoteColorDirty={noteColorDirty}
+				/>
+			</div>
+			{/* Notes + piano break out to the full viewport width (see .stage-full-bleed-x). */}
+			<div className="stage-full-bleed-x top-0 bottom-0 flex flex-col pb-[150px]" style={{ zIndex: 0 }}>
 				<Visualizer
 					noteLines={noteLines}
 					enabled={settings.visualizerEnabled}
@@ -1101,7 +1109,7 @@ export default function JamRoom() {
 					cornerRadius={settings.noteCornerRadius}
 				/>
 			</div>
-			<div className="fixed bottom-0 left-0 right-0 z-20">
+			<div className="stage-full-bleed-x bottom-0 z-20">
 				<Piano
 					pianoKeys={pianoKeys}
 					showKeys={showKeys}

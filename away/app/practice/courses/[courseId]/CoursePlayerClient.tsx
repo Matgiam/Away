@@ -663,7 +663,7 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 	const hasDemo = step ? deriveDemo(step) !== null || step.type === "demo-sequence" : false;
 
 	return (
-		<div className="h-[var(--app-h,100dvh)] w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative">
+		<div className="h-full w-full text-gray-200 overflow-hidden flex relative">
 			<SilkBackground
 				color={settings.backgroundColor}
 				scale={1}
@@ -725,7 +725,7 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 				onNext={handleNext}
 			/>
 
-			<div className="absolute inset-0 z-10 flex flex-col pb-[150px] pt-72">
+			<div className="stage-full-bleed-x top-0 bottom-0 flex flex-col pb-[150px] pt-72" style={{ zIndex: 10 }}>
 				<div className="relative flex-1 min-h-0">
 					{/* User's own note trails — same canvas-based Visualizer that
 					    runs in solo / multiplayer / regular-practice modes. Sits
@@ -780,7 +780,7 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 				</div>
 			</div>
 
-			<div className="fixed bottom-0 left-0 right-0 z-20">
+			<div className="stage-full-bleed-x bottom-0 z-20">
 				<Piano
 					pianoKeys={pianoKeys}
 					showKeys={true}

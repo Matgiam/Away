@@ -14,7 +14,8 @@
 
 "use client";
 
-import { useEffect, useRef, useMemo, forwardRef } from "react";
+import { useEffect, useRef, useMemo, useState, forwardRef } from "react";
+import { createPortal } from "react-dom";
 import { Canvas as ThreeCanvas, useFrame, useThree } from "@react-three/fiber";
 import { Color, Mesh, ShaderMaterial } from "three";
 
@@ -127,6 +128,13 @@ export const SilkBackground: React.FC<SilkProps> = ({
   animated = true,
 }) => {
   const meshRef = useRef<Mesh>(null);
+  // The background renders into the full-viewport layer that lives *outside*
+  // the scaled stage (see app/layout.tsx), so the silk bleeds edge-to-edge
+  // across the whole screen instead of being clipped to the letterboxed stage.
+  const [bgLayer, setBgLayer] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setBgLayer(document.getElementById("app-bg-layer"));
+  }, []);
 
   const uniforms = useMemo<SilkUniforms>(
     () => ({
@@ -140,9 +148,12 @@ export const SilkBackground: React.FC<SilkProps> = ({
     [speed, scale, noiseIntensity, color, rotation],
   );
 
-  return (
-    <ThreeCanvas dpr={[1, 1.5]} frameloop={animated ? "always" : "demand"} style={{ position: "absolute", top: 0, left: 0, zIndex: 0, width: "100%", height: "100%" }}>
+  if (!bgLayer) return null;
+
+  return createPortal(
+    <ThreeCanvas className="silk-bg" dpr={[1, 1.5]} frameloop={animated ? "always" : "demand"} style={{ position: "absolute", inset: 0, zIndex: 0, width: "100%", height: "100%" }}>
       <SilkPlane ref={meshRef} uniforms={uniforms} animated={animated} />
-    </ThreeCanvas>
+    </ThreeCanvas>,
+    bgLayer,
   );
 };

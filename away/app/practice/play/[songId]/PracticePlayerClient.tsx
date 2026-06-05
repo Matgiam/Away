@@ -734,7 +734,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 	});
 
 	return (
-		<div className="h-[var(--app-h,100dvh)] w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative">
+		<div className="h-full w-full text-gray-200 overflow-hidden flex relative">
 			<SilkBackground
 				color={settings.backgroundColor}
 				scale={1}
@@ -811,7 +811,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 				}}
 			/>
 
-			<div className="absolute inset-0 z-10 flex flex-col pb-[150px] pt-44">
+			<div className="stage-full-bleed-x top-0 bottom-0 flex flex-col pb-[150px] pt-44" style={{ zIndex: 10 }}>
 				<div className="relative flex-1 min-h-0">
 					<FallingNotes
 						notes={visibleNotes}
@@ -826,7 +826,7 @@ export default function PracticePlayerClient({ songId, initialBuiltIn }: Practic
 				</div>
 			</div>
 
-			<div className="fixed bottom-0 left-0 right-0 z-20">
+			<div className="stage-full-bleed-x bottom-0 z-20">
 				<Piano
 					pianoKeys={pianoKeys}
 					showKeys={true}

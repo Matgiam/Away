@@ -1,5 +1,64 @@
 @import "tailwindcss";
 
+/* ── App scaling stage ───────────────────────────────────────────────────
+   The entire UI is authored at a fixed 1920×1080 reference and uniformly
+   scaled to fit the viewport, so every PC sees an identical layout (with
+   letterbox bars on non-16:9 screens). `--app-scale` is set pre-hydration by
+   the inline script in app/layout.tsx and kept in sync on resize. See
+   lib/appScale.ts for the JS side. */
+.app-viewport {
+	position: fixed;
+	inset: 0;
+	overflow: hidden;
+	background: #050505;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+/* Full-viewport layer that sits *behind* the scaled stage. Page backgrounds
+   (the silk shader) portal into here so they bleed edge-to-edge across the
+   whole screen — including the letterbox bars — while the interactive UI
+   stays inside the fixed, letterboxed stage. */
+.app-bg-layer {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	pointer-events: none;
+}
+.app-stage {
+	position: relative;
+	z-index: 1;
+	width: 2020px;
+	height: 1080px;
+	flex: 0 0 auto;
+	transform: scale(var(--app-scale, 1));
+	transform-origin: center center;
+}
+
+/* Lets the piano and falling-notes break out of the letterboxed stage to fill
+   the full viewport width, while the rest of the page stays letterboxed. These
+   elements are position:fixed, so their containing block is the (transformed)
+   stage and they aren't clipped by the page's overflow:hidden. We size them to
+   100vw ÷ scale in stage units; the stage transform then scales that back to a
+   true 100vw, centred on screen. Pair with Tailwind top-0 / bottom-0 / z-*. */
+.stage-full-bleed-x {
+	position: fixed;
+	left: 50%;
+	width: calc(100vw / var(--app-scale, 1));
+	transform: translateX(-50%);
+}
+
+/* React Three Fiber sizes its <canvas> from the container's
+   getBoundingClientRect, which is the *scaled* size inside .app-stage — so
+   Three writes a too-small inline px size on the canvas and it only covers
+   the top-left corner. Force it to fill its container; the WebGL resolution
+   still tracks the measured size, and the shader plane fills the view, so
+   this just stretches the (correct-aspect) output to cover the stage. */
+.silk-bg canvas {
+	width: 100% !important;
+	height: 100% !important;
+}
+
 .myPiano {
 	position: relative;
 	z-index: 1000;

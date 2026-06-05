@@ -169,12 +169,12 @@ export function CoursesMenu({ courses }: CoursesMenuProps) {
 			<div
 				className="mx-auto h-full flex flex-col"
 				style={{
-					maxWidth: "min(62.5vw, 1200px)",
-					gap: "min(2.5vw, 48px)",
-					paddingLeft: "min(0.1vw, 2px)",
-					paddingRight: "min(0.1vw, 2px)",
-					paddingTop: "min(2.5vw, 48px)",
-					paddingBottom: "min(2.5vw, 48px)",
+					maxWidth: "1200px",
+					gap: "48px",
+					paddingLeft: "2px",
+					paddingRight: "2px",
+					paddingTop: "48px",
+					paddingBottom: "48px",
 				}}
 			>
 				<header className="flex items-start justify-between gap-12">
@@ -187,8 +187,8 @@ export function CoursesMenu({ courses }: CoursesMenuProps) {
 				<div
 					className="grid flex-1 min-h-0"
 					style={{
-						gridTemplateColumns: "min(15.6vw, 300px) 1fr",
-						columnGap: "min(5vw, 96px)",
+						gridTemplateColumns: "300px 1fr",
+						columnGap: "96px",
 					}}
 				>
 					<div className="flex flex-col items-start gap-7">

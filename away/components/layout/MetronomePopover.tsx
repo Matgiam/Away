@@ -9,6 +9,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { BASE_W, getAppScale } from "@/lib/appScale";
 
 interface MetronomePopoverProps {
 	open: boolean;
@@ -68,8 +69,13 @@ export function MetronomePopover({
 	if (!open) return null;
 
 	const popWidth = 320;
-	const top = anchorRect ? anchorRect.bottom + 10 : 100;
-	const right = anchorRect ? Math.max(16, window.innerWidth - anchorRect.right) : 16;
+	// anchorRect is a real-viewport (already-scaled) DOMRect, but this popover is
+	// fixed-positioned inside the scaled stage, so its top/right are interpreted
+	// in stage pixels. Divide by the stage scale to convert and use the fixed
+	// stage width for the right edge.
+	const scale = getAppScale();
+	const top = anchorRect ? anchorRect.bottom / scale + 10 : 100;
+	const right = anchorRect ? Math.max(16, BASE_W - anchorRect.right / scale) : 16;
 
 	return (
 		<div

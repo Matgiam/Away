@@ -18,7 +18,7 @@ export default function MultiplayerLobby() {
 	const backgroundAnimated = settings.backgroundAnimated && !settings.reducedMotion;
 
 	return (
-		<div className="h-[var(--app-h,100dvh)] w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative">
+		<div className="h-full w-full text-gray-200 overflow-hidden flex relative">
 			<SilkBackground color={settings.backgroundColor} scale={0.8} noiseIntensity={1.3} speed={3} rotation={180} animated={backgroundAnimated} />
 			<BackButton />
 			<div className="absolute inset-0 z-10 flex flex-col mt-30">

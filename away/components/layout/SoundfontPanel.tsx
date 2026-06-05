@@ -73,7 +73,7 @@ export const SoundfontPanel = ({
 			<div
 				onClick={(e) => e.stopPropagation()}
 				className="w-full max-w-5xl mx-4 rounded-2xl border border-white/10 bg-[#0a0118]/95 backdrop-blur-xl shadow-2xl overflow-hidden flex"
-				style={{ height: "80vh", maxHeight: "650px" }}
+				style={{ height: "650px" }}
 			>
 				<aside className="w-64 shrink-0 border-r border-white/10 px-8 py-10 flex flex-col">
 					<h2 className="text-white text-4xl font-light italic mb-14">Soundfont</h2>

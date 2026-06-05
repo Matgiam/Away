@@ -46,7 +46,7 @@ export function CourseStepCard({
 	// at a consistent position — only difference is the layout becomes side-by-side.
 	const cardHeight = image ? 320 : 220;
 	return (
-		<div className="pointer-events-none absolute top-7 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2 select-none w-[min(960px,92vw)]">
+		<div className="pointer-events-none absolute top-7 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2 select-none w-[960px]">
 			<div className="text-white text-2xl font-bold italic tracking-wide drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)] mb-1">
 				{courseTitle}
 			</div>

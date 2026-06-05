@@ -185,7 +185,7 @@ export const ProfileModal = ({
 			<div
 				onClick={(e) => e.stopPropagation()}
 				className="w-full max-w-5xl mx-4 rounded-2xl border border-white/10 bg-[#0a0118]/95 backdrop-blur-xl shadow-2xl overflow-hidden flex flex-col"
-				style={{ height: "80vh", maxHeight: "650px" }}
+				style={{ height: "650px" }}
 			>
 				<button
 					onClick={onClose}

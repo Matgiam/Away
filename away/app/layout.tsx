@@ -53,21 +53,32 @@ export default function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){function s(){var h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight;document.documentElement.style.setProperty('--app-h',h+'px');}s();window.addEventListener('resize',s);if(window.visualViewport){window.visualViewport.addEventListener('resize',s);window.visualViewport.addEventListener('scroll',s);}})();`,
+            __html: `(function(){function s(){var vv=window.visualViewport;var h=(vv&&vv.height)||window.innerHeight;var w=(vv&&vv.width)||window.innerWidth;var d=document.documentElement;d.style.setProperty('--app-h',h+'px');d.style.setProperty('--app-scale',String(Math.min(w/1920,h/1080)));}s();window.addEventListener('resize',s);if(window.visualViewport){window.visualViewport.addEventListener('resize',s);window.visualViewport.addEventListener('scroll',s);}})();`,
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full">
         <PresenceProvider>
           <AudioEngineProvider>
             <TranscriptionProvider>
-              <TimeTracker />
-              <SessionStatsSync />
-              <AchievementBannerHost />
-              <RecordingSavedBannerHost />
-              <NavigationIndicator />
-              <LatencyOverlay />
-              {children}
+              {/* Everything lives inside the fixed-size, uniformly-scaled stage
+                  so the layout is identical on every screen. Global hosts go
+                  inside too, so their fixed-positioned overlays/modals share
+                  the stage coordinate system and scale with the rest. */}
+              <div className="app-viewport">
+                {/* Full-bleed background layer (silk shader portals in here),
+                    rendered behind the stage so it covers the letterbox bars. */}
+                <div id="app-bg-layer" className="app-bg-layer" />
+                <div id="app-stage" className="app-stage">
+                  <TimeTracker />
+                  <SessionStatsSync />
+                  <AchievementBannerHost />
+                  <RecordingSavedBannerHost />
+                  <NavigationIndicator />
+                  <LatencyOverlay />
+                  {children}
+                </div>
+              </div>
             </TranscriptionProvider>
           </AudioEngineProvider>
         </PresenceProvider>

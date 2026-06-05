@@ -49,7 +49,7 @@ export default function RoomList({ filter, setFilter, filteredRooms, setShowCrea
 			</div>
 			<div
 				className="w-full max-w-6xl flex flex-col gap-4 relative custom-scrollbar"
-				style={{ maxHeight: "65vh", overflowY: "auto", padding: "10px", paddingRight: "15px" }}
+				style={{ maxHeight: "702px", overflowY: "auto", padding: "10px", paddingRight: "15px" }}
 			>
 				{filteredRooms.length === 0 ? (
 					<div className="flex flex-col items-center justify-center py-20 text-white">

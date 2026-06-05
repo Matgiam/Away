@@ -162,7 +162,7 @@ export default function HomeClient() {
 	const backgroundAnimated = settings.backgroundAnimated && !settings.reducedMotion;
 
 	return (
-		<div className="h-[var(--app-h,100dvh)] w-screen bg-[#050505] text-gray-200 overflow-hidden flex relative">
+		<div className="h-full w-full text-gray-200 overflow-hidden flex relative">
 			{showHomeScreen ? (
 				<>
 					<SilkBackground color={settings.backgroundColor} scale={0.8} noiseIntensity={1.3} speed={3} rotation={180} animated={backgroundAnimated} />
@@ -212,38 +212,40 @@ export default function HomeClient() {
 			) : (
 				<>
 					<SilkBackground color={settings.backgroundColor} scale={1} noiseIntensity={1.3} speed={3} rotation={270} animated={backgroundAnimated} />
-					<div className="absolute inset-0 z-10 flex flex-col pb-[150px]">
-						<Navigation
-							onLogout={() => setShowHomeScreen(true)}
-							onToggleRecord={recordingState === "recording" ? stopRecording : startRecording}
-							recordingState={recordingState}
-							recordingCountdown={recordingCountdown}
-							midiDevices={midiDevices}
-							midiError={midiError}
-							onRetryMidi={() => connectMIDI()}
-							soundfonts={soundfonts}
-							currentSoundfont={currentSoundfont}
-							loadedSoundfonts={loadedSoundfonts}
-							loadingSoundfont={loadingSoundfont}
-							onSelectSoundfont={selectSoundfont}
-							masterVolume={masterVolume}
-							onMasterVolumeChange={setMasterVolume}
-							username={username}
-							onUsernameChange={handleUsernameChange}
-							noteColor={noteColor}
-							onNoteColorChange={setNoteColor}
-							keyboardInputEnabled={keyboardInputEnabled}
-							onKeyboardInputEnabledChange={setKeyboardInputEnabled}
-							keybinds={keybinds}
-							onKeybindsChange={setKeybinds}
-							keybindBaseMidi={keybindBaseMidi}
-							onKeybindBaseMidiChange={setKeybindBaseMidi}
-							keybindPreset={keybindPreset}
-							onKeybindPresetChange={setKeybindPreset}
-							settings={settings}
-							updateSetting={updateSetting}
-							onResetSettings={resetSettings}
-						/>
+					{/* HUD stays in the letterboxed stage; it self-positions (top-right). */}
+					<Navigation
+						onLogout={() => setShowHomeScreen(true)}
+						onToggleRecord={recordingState === "recording" ? stopRecording : startRecording}
+						recordingState={recordingState}
+						recordingCountdown={recordingCountdown}
+						midiDevices={midiDevices}
+						midiError={midiError}
+						onRetryMidi={() => connectMIDI()}
+						soundfonts={soundfonts}
+						currentSoundfont={currentSoundfont}
+						loadedSoundfonts={loadedSoundfonts}
+						loadingSoundfont={loadingSoundfont}
+						onSelectSoundfont={selectSoundfont}
+						masterVolume={masterVolume}
+						onMasterVolumeChange={setMasterVolume}
+						username={username}
+						onUsernameChange={handleUsernameChange}
+						noteColor={noteColor}
+						onNoteColorChange={setNoteColor}
+						keyboardInputEnabled={keyboardInputEnabled}
+						onKeyboardInputEnabledChange={setKeyboardInputEnabled}
+						keybinds={keybinds}
+						onKeybindsChange={setKeybinds}
+						keybindBaseMidi={keybindBaseMidi}
+						onKeybindBaseMidiChange={setKeybindBaseMidi}
+						keybindPreset={keybindPreset}
+						onKeybindPresetChange={setKeybindPreset}
+						settings={settings}
+						updateSetting={updateSetting}
+						onResetSettings={resetSettings}
+					/>
+					{/* Notes + piano break out to the full viewport width (see .stage-full-bleed-x). */}
+					<div className="stage-full-bleed-x top-0 bottom-0 flex flex-col pb-[150px]" style={{ zIndex: 10 }}>
 						<Visualizer
 							noteLines={noteLines}
 							enabled={settings.visualizerEnabled}
@@ -251,7 +253,7 @@ export default function HomeClient() {
 							cornerRadius={settings.noteCornerRadius}
 						/>
 					</div>
-					<div className="fixed bottom-0 left-0 right-0 z-20">
+					<div className="stage-full-bleed-x bottom-0 z-20">
 						<Piano
 							pianoKeys={pianoKeys}
 							showKeys={showKeys}

@@ -70,7 +70,7 @@ export default function SettingsPage() {
 	const backgroundAnimated = settings.backgroundAnimated && !settings.reducedMotion;
 
 	return (
-		<div className="h-[var(--app-h,100dvh)] w-screen bg-[#050505] text-gray-200 overflow-hidden relative">
+		<div className="h-full w-full text-gray-200 overflow-hidden relative">
 			<SilkBackground color={settings.backgroundColor} scale={0.8} noiseIntensity={1.3} speed={3} rotation={180} animated={backgroundAnimated} />
 			<BackButton />
 			<SettingsPanel

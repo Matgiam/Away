@@ -48,9 +48,9 @@ function RecordingViewer({ recording, onClose, onDelete }: { recording: Recordin
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
-      <div className="relative max-w-[90vw] max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+      <div className="relative max-w-[1728px] max-h-[972px] flex flex-col" onClick={(e) => e.stopPropagation()}>
         {recording.url ? (
-          <video src={recording.url} controls autoPlay className="max-w-full max-h-[80vh] rounded-2xl shadow-2xl" />
+          <video src={recording.url} controls autoPlay className="max-w-full max-h-[864px] rounded-2xl shadow-2xl" />
         ) : (
           <p className="text-white/50">Video unavailable</p>
         )}
