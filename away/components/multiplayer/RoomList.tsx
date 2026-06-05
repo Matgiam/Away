@@ -42,7 +42,7 @@ export default function RoomList({ filter, setFilter, filteredRooms, setShowCrea
 				<div className="flex gap-2">
 					{(["public", "private", "friends"] as const).map((type) => (
 						<button key={type} onClick={() => setFilter(type)} className="hover:scale-110 transition-transform ">
-							<AccessIcon type={type} />
+							<AccessIcon type={type} active={filter === type} />
 						</button>
 					))}
 				</div>

@@ -80,6 +80,14 @@ export const Visualizer: React.FC<VisualizerProps> = ({
 		// the canvas instead of lingering.
 		const MAX_HELD_MS = 10000;
 		const FADE_MS = 1500;
+		// Released notes get pruned by useAudioEngine ~5s after their endTime.
+		// Without a visible fade, slow fall speeds can leave the trail still
+		// on-screen at pruning time and the rectangle pops out abruptly.
+		// Fade alpha from 1 → 0 over the last RELEASED_FADE_MS before pruning
+		// so the disappearance is always gradual instead of a hard cut.
+		const RELEASED_PRUNE_MS = 5000;
+		const RELEASED_FADE_MS = 1500;
+		const RELEASED_FADE_START_MS = RELEASED_PRUNE_MS - RELEASED_FADE_MS;
 
 		const draw = () => {
 			const width = canvas.offsetWidth;
@@ -108,6 +116,11 @@ export const Visualizer: React.FC<VisualizerProps> = ({
 				let alpha = 1;
 				if (note.endTime !== null) {
 					effectiveEndTime = note.endTime;
+					const releasedMs = now - note.endTime;
+					if (releasedMs > RELEASED_FADE_START_MS) {
+						alpha = Math.max(0, 1 - (releasedMs - RELEASED_FADE_START_MS) / RELEASED_FADE_MS);
+						if (alpha === 0) continue;
+					}
 				} else {
 					const heldMs = now - note.startTime;
 					if (heldMs <= MAX_HELD_MS) {
