@@ -368,12 +368,11 @@ export default function JamRoom() {
 		// Belt-and-suspenders: @supabase/realtime-js doesn't reliably emit a
 		// presence event when an existing key re-tracks with new metadata, so
 		// peers' player lists go stale on soundfont/color/badge changes (the
-		// audio still works because every WebRTC note message carries the
-		// soundfont in its payload, but the hover tooltip reads
-		// `players[].soundfont`, which only updates on presence events).
-		// Mirror the track payload as a broadcast — broadcasts always fire —
-		// so the receiving side gets the change immediately regardless of
-		// presence behaviour.
+		// audio still works because piano-note broadcasts carry the soundfont
+		// in every payload, but the hover tooltip reads `players[].soundfont`,
+		// which only updates on presence events). Mirror the track payload as
+		// a broadcast — broadcasts always fire — so the receiving side gets
+		// the change immediately regardless of presence behaviour.
 		channel.send({
 			type: "broadcast",
 			event: "player-meta",
@@ -551,24 +550,6 @@ export default function JamRoom() {
 			const noteColorHex = showPlayerColorsRef.current ? player?.noteColorHex : noteColorRef.current;
 			const soundfontKey = soundfontFromPayload ?? player?.soundfont;
 			if (soundfontKey) ensureSoundfontLoaded(soundfontKey);
-			// Every note carries the sender's current soundfont, so use it as a
-			// reliable fallback to keep the player-list popover in sync with
-			// what's actually playing. The dedicated "soundfont-change" /
-			// "player-meta" events can race with the presence channel on first
-			// connect or after reconnects — this ensures we never display a
-			// stale soundfont while audio is already playing the new one.
-			if (soundfontFromPayload) {
-				setPlayers((prev) => {
-					let changed = false;
-					const next = prev.map((p) => {
-						if (p.id !== peerId) return p;
-						if (p.soundfont === soundfontFromPayload) return p;
-						changed = true;
-						return { ...p, soundfont: soundfontFromPayload };
-					});
-					return changed ? next : prev;
-				});
-			}
 			if (isNoteOn) {
 				playNote(note, velocity, peerId, colorIndex, noteColorHex, soundfontKey);
 			} else {
@@ -578,56 +559,35 @@ export default function JamRoom() {
 		[playNote, stopNote, ensureSoundfontLoaded],
 	);
 
-	const onReceivePeerSustain = useCallback(
-		(peerId: string, active: boolean, soundfontFromPayload?: string) => {
-			// Mirror the mute filter from onReceivePeerNote — without this, a
-			// muted peer holding sustain would keep their channel pedaling
-			// indefinitely (audio is muted but the engine state would still be on).
-			if (mutedIdsRef.current.has(peerId)) return;
-			const peer = playersRef.current.find((p) => p.id === peerId);
-			const sf = soundfontFromPayload ?? peer?.soundfont;
-			if (sf) ensureSoundfontLoaded(sf);
-			setPeerSustain(peerId, active, sf);
-		},
-		[setPeerSustain, ensureSoundfontLoaded],
+	const { initiateConnection, handleOffer, handleAnswer, handleCandidate, removePeer, hasPeer, knownPeerIds } = useWebRTC(
+		myTempId.current,
+		onReceivePeerNote,
 	);
-
-	const {
-		initiateConnection,
-		handleOffer,
-		handleAnswer,
-		handleCandidate,
-		removePeer,
-		broadcastNote,
-		broadcastSustain,
-		hasPeer,
-		knownPeerIds,
-	} = useWebRTC(myTempId.current, onReceivePeerNote, onReceivePeerSustain);
 
 	const handleLocalPlay = useCallback(
 		(note: number, velocity: number = 127) => {
 			playNote(note, velocity, "self");
-			broadcastNote(note, velocity, true, currentSoundfontRef.current);
+			broadcastNoteSupabaseRef.current(note, velocity, true);
 			incrementTotalNotes();
 			checkAndUnlockAchievements();
 		},
-		[playNote, broadcastNote],
+		[playNote],
 	);
 
 	const handleLocalStop = useCallback(
 		(note: number) => {
 			stopNote(note, "self");
-			broadcastNote(note, 0, false, currentSoundfontRef.current);
+			broadcastNoteSupabaseRef.current(note, 0, false);
 		},
-		[stopNote, broadcastNote],
+		[stopNote],
 	);
 
 	const handleLocalSustain = useCallback(
 		(active: boolean) => {
 			setSustain(active);
-			broadcastSustain(active, currentSoundfontRef.current);
+			broadcastSustainSupabaseRef.current(active);
 		},
-		[setSustain, broadcastSustain],
+		[setSustain],
 	);
 
 	useKeyboardInput({
@@ -697,7 +657,10 @@ export default function JamRoom() {
 	const handleLocalPlayRef = useRef(handleLocalPlay);
 	const handleLocalStopRef = useRef(handleLocalStop);
 	const connectMIDIRef = useRef(connectMIDI);
+	const broadcastNoteSupabaseRef = useRef<(note: number, velocity: number, isNoteOn: boolean) => void>(() => {});
+	const broadcastSustainSupabaseRef = useRef<(active: boolean) => void>(() => {});
 	const ensureSoundfontLoadedRef = useRef(ensureSoundfontLoaded);
+	const setPeerSustainRef = useRef(setPeerSustain);
 	const handleLocalSustainRef = useRef(handleLocalSustain);
 
 	useEffect(() => {
@@ -736,6 +699,9 @@ export default function JamRoom() {
 	useEffect(() => {
 		ensureSoundfontLoadedRef.current = ensureSoundfontLoaded;
 	}, [ensureSoundfontLoaded]);
+	useEffect(() => {
+		setPeerSustainRef.current = setPeerSustain;
+	}, [setPeerSustain]);
 	useEffect(() => {
 		handleLocalSustainRef.current = handleLocalSustain;
 	}, [handleLocalSustain]);
@@ -780,6 +746,69 @@ export default function JamRoom() {
 			} else if (payload.type === "candidate") {
 				await handleCandidateRef.current(senderId, payload.candidate);
 			}
+		});
+
+		broadcastNoteSupabaseRef.current = (note: number, velocity: number, isNoteOn: boolean) => {
+			room.send({
+				type: "broadcast",
+				event: "piano-note",
+				payload: {
+					senderId: myTempId.current,
+					note,
+					velocity,
+					isNoteOn,
+					soundfont: currentSoundfontRef.current,
+				},
+			});
+		};
+
+		broadcastSustainSupabaseRef.current = (active: boolean) => {
+			room.send({
+				type: "broadcast",
+				event: "piano-sustain",
+				payload: {
+					senderId: myTempId.current,
+					active,
+					soundfont: currentSoundfontRef.current,
+				},
+			});
+		};
+
+		room.on("broadcast", { event: "piano-note" }, ({ payload }) => {
+			if (payload.senderId === myTempId.current) return;
+			// Every piano-note payload carries the sender's current soundfont,
+			// so use it as a reliable fallback to keep the player-list popover
+			// in sync with what's actually playing. The dedicated
+			// "soundfont-change" / "player-meta" events can race with the
+			// presence channel on first connect or after reconnects — this
+			// ensures we never display a stale soundfont while audio is
+			// already playing the new one.
+			if (payload.soundfont) {
+				setPlayers((prev) => {
+					let changed = false;
+					const next = prev.map((p) => {
+						if (p.id !== payload.senderId) return p;
+						if (p.soundfont === payload.soundfont) return p;
+						changed = true;
+						return { ...p, soundfont: payload.soundfont };
+					});
+					return changed ? next : prev;
+				});
+			}
+			onReceivePeerNote(payload.senderId, payload.note, payload.velocity, payload.isNoteOn, payload.soundfont);
+		});
+
+		room.on("broadcast", { event: "piano-sustain" }, ({ payload }) => {
+			if (payload.senderId === myTempId.current) return;
+			// Mirror the mute filter from onReceivePeerNote — without this, a
+			// muted peer holding sustain would keep their channel pedaling
+			// indefinitely (audio is muted but the engine state would still
+			// be on).
+			if (mutedIdsRef.current.has(payload.senderId)) return;
+			const peer = playersRef.current.find((p) => p.id === payload.senderId);
+			const sf = (payload.soundfont as string | undefined) ?? peer?.soundfont;
+			if (sf) ensureSoundfontLoadedRef.current(sf);
+			setPeerSustainRef.current(payload.senderId, !!payload.active, sf);
 		});
 
 		room.on("broadcast", { event: "soundfont-change" }, ({ payload }) => {

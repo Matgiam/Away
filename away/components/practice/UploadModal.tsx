@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { parseMidi } from "@/lib/practice/midiParser";
+import { injectInitialTempo, parseMidi } from "@/lib/practice/midiParser";
 import { prettifyFileName, SONG_CATEGORIES, type SongCategoryKey } from "@/lib/practice/songs";
 import { saveUploadedSong, type UploadDifficulty } from "@/lib/practice/uploads";
 import { estimateDifficulty } from "@/lib/practice/difficulty";
@@ -60,9 +60,13 @@ export function UploadModal({
 	const [dragOver, setDragOver] = useState(false);
 
 	const [pendingFile, setPendingFile] = useState<File | null>(null);
+	const [pendingBuffer, setPendingBuffer] = useState<ArrayBuffer | null>(null);
 	const [pendingFileName, setPendingFileName] = useState("");
 	const [pendingDuration, setPendingDuration] = useState(0);
 	const [pendingBpm, setPendingBpm] = useState(120);
+	// Original tempo extracted from the file (or null when the file had none).
+	// Used to label the input and decide whether to rewrite the MIDI on save.
+	const [detectedBpm, setDetectedBpm] = useState<number | null>(null);
 	const [pendingAutoDifficulty, setPendingAutoDifficulty] = useState<UploadDifficulty>("medium");
 	// Source audio carried from a completed transcription. When set, save() also
 	// uploads it to the audio_uploads bucket so practice mode can play it synced
@@ -87,9 +91,11 @@ export function UploadModal({
 		setError(null);
 		setDragOver(false);
 		setPendingFile(null);
+		setPendingBuffer(null);
 		setPendingFileName("");
 		setPendingDuration(0);
 		setPendingBpm(120);
+		setDetectedBpm(null);
 		setPendingAutoDifficulty("medium");
 		setPendingAudioFile(null);
 		setTitle("");
@@ -110,9 +116,11 @@ export function UploadModal({
 		const parsed = parseMidi(buffer);
 		const guessed = prettifyFileName(fileName);
 		setPendingFile(file);
+		setPendingBuffer(buffer);
 		setPendingFileName(fileName);
 		setPendingDuration(parsed.durationSeconds);
 		setPendingBpm(parsed.initialTempoBpm);
+		setDetectedBpm(parsed.tempoDetected ? parsed.initialTempoBpm : null);
 		setPendingAutoDifficulty(estimateDifficulty(parsed));
 		setTitle(guessed.title);
 		setArtist(guessed.artist ?? "");
@@ -186,12 +194,27 @@ export function UploadModal({
 		setStage("saving");
 		setError(null);
 		try {
+			// If the user changed the BPM (either because the file had none or
+			// because they overrode the file's tempo), bake the chosen tempo
+			// into the buffer so playback uses it everywhere — DB metadata
+			// alone wouldn't affect the falling-notes timing.
+			let fileToSave = pendingFile;
+			let durationToSave = pendingDuration;
+			if (pendingBuffer && pendingBpm !== detectedBpm) {
+				const patchedBuffer = injectInitialTempo(pendingBuffer, pendingBpm);
+				fileToSave = new File([patchedBuffer], pendingFile.name, {
+					type: pendingFile.type || "audio/midi",
+				});
+				// Re-parse so the stored duration matches the actual playback
+				// timing under the chosen tempo.
+				durationToSave = parseMidi(patchedBuffer).durationSeconds;
+			}
 			const meta = await saveUploadedSong({
-				file: pendingFile,
+				file: fileToSave,
 				title: title.trim() || "Untitled",
 				artist: artist.trim(),
 				difficulty: finalDifficulty,
-				durationSeconds: pendingDuration,
+				durationSeconds: durationToSave,
 				bpm: pendingBpm,
 				audioFile: pendingAudioFile ?? undefined,
 				category,
@@ -202,7 +225,7 @@ export function UploadModal({
 			setError(e instanceof Error ? e.message : "Failed to save upload.");
 			setStage("form");
 		}
-	}, [pendingFile, pendingAudioFile, pendingDuration, pendingBpm, pendingAutoDifficulty, title, artist, difficulty, category, onUploaded, onClose]);
+	}, [pendingFile, pendingBuffer, pendingAudioFile, pendingDuration, pendingBpm, detectedBpm, pendingAutoDifficulty, title, artist, difficulty, category, onUploaded, onClose]);
 
 	if (!open) return null;
 
@@ -325,8 +348,55 @@ export function UploadModal({
 									<div className="text-white/80 tabular-nums mt-1">{formatDuration(pendingDuration)}</div>
 								</div>
 								<div>
-									<div className="uppercase tracking-widest text-[10px] text-white/35">Tempo</div>
-									<div className="text-white/80 tabular-nums mt-1">{pendingBpm} BPM</div>
+									<div className="uppercase tracking-widest text-[10px] text-white/35">
+										Tempo
+										<span className="ml-2 normal-case tracking-normal text-white/35">
+											{detectedBpm === null
+												? "· not in file, pick one"
+												: pendingBpm === detectedBpm
+													? `· from file (${detectedBpm})`
+													: `· overriding ${detectedBpm}`}
+										</span>
+									</div>
+									<div className="mt-1 inline-flex items-center gap-2">
+										<button
+											type="button"
+											onClick={() => setPendingBpm((b) => Math.max(20, b - 1))}
+											className="w-7 h-7 rounded-md border border-white/15 text-white/70 hover:text-white hover:bg-white/5 transition-colors leading-none"
+											aria-label="Decrease BPM"
+										>
+											−
+										</button>
+										<input
+											type="number"
+											min={20}
+											max={300}
+											value={pendingBpm}
+											onChange={(e) => {
+												const v = Number(e.target.value);
+												if (Number.isFinite(v)) setPendingBpm(Math.max(20, Math.min(300, Math.round(v))));
+											}}
+											className="w-16 text-center bg-white/5 border border-white/10 rounded-md px-2 py-1 text-white tabular-nums outline-none focus:border-white/30"
+										/>
+										<span className="text-white/55">BPM</span>
+										<button
+											type="button"
+											onClick={() => setPendingBpm((b) => Math.min(300, b + 1))}
+											className="w-7 h-7 rounded-md border border-white/15 text-white/70 hover:text-white hover:bg-white/5 transition-colors leading-none"
+											aria-label="Increase BPM"
+										>
+											+
+										</button>
+										{detectedBpm !== null && pendingBpm !== detectedBpm && (
+											<button
+												type="button"
+												onClick={() => setPendingBpm(detectedBpm)}
+												className="ml-1 text-[10px] uppercase tracking-widest text-white/45 hover:text-white/80 transition-colors"
+											>
+												Reset
+											</button>
+										)}
+									</div>
 								</div>
 							</div>
 
