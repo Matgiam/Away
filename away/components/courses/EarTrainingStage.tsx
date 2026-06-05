@@ -199,7 +199,7 @@ export function EarTrainingStage({
 
 			{solvedId && (
 				<p className="text-emerald-200/80 text-sm italic tracking-wide">
-					Nice — press <span className="font-semibold">Next</span> to continue.
+					Nice, press <span className="font-semibold">Next</span> to continue.
 				</p>
 			)}
 		</div>

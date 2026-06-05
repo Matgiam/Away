@@ -350,7 +350,7 @@ export const ProfileModal = ({
 											return (
 												<div
 													key={ach.id}
-													title={isUnlocked ? `${ach.name} — ${ach.description}` : `Locked — ${ach.description}`}
+													title={isUnlocked ? `${ach.name}, ${ach.description}` : `Locked, ${ach.description}`}
 													className={`aspect-square rounded-xl border flex items-center justify-center ${
 														isUnlocked
 															? "border-white/15 bg-white/[0.05]"

@@ -284,7 +284,7 @@ export const Navigation = ({
 							onContextMenu={handleMetronomeContextMenu}
 							className="cursor-pointer relative transition-transform duration-150 ease-out hover:scale-105"
 							style={{ pointerEvents: "auto" }}
-							title={`Metronome — click to ${metronomeEnabled ? "mute" : "play"} · right-click for BPM`}
+							title={`Metronome, click to ${metronomeEnabled ? "mute" : "play"} · right-click for BPM`}
 						>
 							<DynamicLiquidGlass
 								width={navSize.button}

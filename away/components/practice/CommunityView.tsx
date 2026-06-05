@@ -328,7 +328,7 @@ export function CommunityView({
 											disabled={busyId === midi.id || isOwnSong}
 											title={
 												isOwnSong
-													? "You published this song — it's already in your Custom uploads"
+													? "You published this song, it's already in your Custom uploads"
 													: isAdded
 														? "Remove from your Custom songs"
 														: "Add to your Custom songs"

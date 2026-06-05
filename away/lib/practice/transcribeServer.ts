@@ -94,7 +94,7 @@ export async function transcribeAudioToMidiServer(
 				onProgress({
 					phase: "model",
 					progress: 2,
-					message: "Your turn — preparing upload…",
+					message: "Your turn, preparing upload…",
 				});
 				return;
 			}
@@ -103,7 +103,7 @@ export async function transcribeAudioToMidiServer(
 			onProgress({
 				phase: "model",
 				progress: 1,
-				message: `Queued — ${ahead} ${peopleWord} ahead of you (${activeCount} transcribing now)`,
+				message: `Queued, ${ahead} ${peopleWord} ahead of you (${activeCount} transcribing now)`,
 			});
 		},
 		signal,
@@ -184,7 +184,7 @@ export async function transcribeAudioToMidiServer(
 			const phase = status.status === "queued" ? "decode" : "transcribe";
 			const message =
 				status.status === "queued"
-					? "Queued — waiting for a slot…"
+					? "Queued, waiting for a slot…"
 					: elapsedLabel
 						? `Transkun is transcribing… (${elapsedLabel} · this takes a few minutes)`
 						: "Transkun is transcribing… (this takes a few minutes)";

@@ -109,7 +109,7 @@ export async function waitForTranscribeSlot(
 		while (true) {
 			if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 			if (Date.now() - start > MAX_WAIT_MS) {
-				throw new Error("Queue wait exceeded 30 min — the server may be down.");
+				throw new Error("Queue wait exceeded 30 min, the server may be down.");
 			}
 
 			const cutoff = staleCutoffISO();

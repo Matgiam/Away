@@ -347,7 +347,7 @@ export const SettingsPanel = ({
 							</div>
 
 							<SectionHeader>Audio</SectionHeader>
-							<SettingFull label={`Master volume — ${masterVolume}%`}>
+							<SettingFull label={`Master volume, ${masterVolume}%`}>
 								<SpeakerIcon muted={masterVolume === 0} />
 								<Slider value={masterVolume} min={0} max={100} onChange={onMasterVolumeChange} />
 							</SettingFull>
@@ -437,7 +437,7 @@ export const SettingsPanel = ({
 					{activeTab === "Audio" && (
 						<div className="flex flex-col gap-4 max-w-2xl pt-4 pb-8">
 							<SectionHeader>Mix</SectionHeader>
-							<SettingFull label={`Reverb — ${settings.reverbWet}%`} hint="Add space to your sound. Subtle by default.">
+							<SettingFull label={`Reverb, ${settings.reverbWet}%`} hint="Add space to your sound. Subtle by default.">
 								<Slider value={settings.reverbWet} min={0} max={100} onChange={(v) => updateSetting("reverbWet", v)} />
 							</SettingFull>
 
@@ -456,7 +456,7 @@ export const SettingsPanel = ({
 								/>
 							</SettingRow>
 							{settings.velocityMode === "fixed" && (
-								<SettingFull label={`Fixed velocity — ${settings.fixedVelocity}`}>
+								<SettingFull label={`Fixed velocity, ${settings.fixedVelocity}`}>
 									<Slider value={settings.fixedVelocity} min={1} max={127} onChange={(v) => updateSetting("fixedVelocity", v)} />
 								</SettingFull>
 							)}
@@ -525,7 +525,7 @@ export const SettingsPanel = ({
 
 							<SectionHeader>Input</SectionHeader>
 							<SettingFull
-								label={`Global transpose — ${settings.globalTranspose > 0 ? "+" : ""}${settings.globalTranspose} semitones`}
+								label={`Global transpose, ${settings.globalTranspose > 0 ? "+" : ""}${settings.globalTranspose} semitones`}
 								hint="Shift every incoming MIDI note up or down. Useful for matching your hardware to the song."
 							>
 								<Slider value={settings.globalTranspose} min={-12} max={12} onChange={(v) => updateSetting("globalTranspose", v)} />
@@ -554,7 +554,7 @@ export const SettingsPanel = ({
 						<div className="flex flex-col gap-4 max-w-2xl pt-4 pb-8">
 							<SectionHeader>Note color</SectionHeader>
 							<p className="text-white/40 text-xs leading-relaxed">
-								Pick any color for white-key notes — black-key notes use the same color a shade darker.
+								Pick any color for white-key notes, black-key notes use the same color a shade darker.
 							</p>
 							<div className="pt-1 flex flex-col gap-3">
 								<ColorPicker value={noteColor} onChange={onNoteColorChange} />
@@ -612,10 +612,10 @@ export const SettingsPanel = ({
 									onChange={(v) => updateSetting("visualizerEnabled", v)}
 								/>
 							</SettingRow>
-							<SettingFull label={`Fall speed — ${settings.noteFallSpeed}`}>
+							<SettingFull label={`Fall speed, ${settings.noteFallSpeed}`}>
 								<Slider value={settings.noteFallSpeed} min={5} max={120} onChange={(v) => updateSetting("noteFallSpeed", v)} />
 							</SettingFull>
-							<SettingFull label={`Corner radius — ${settings.noteCornerRadius}px`}>
+							<SettingFull label={`Corner radius, ${settings.noteCornerRadius}px`}>
 								<Slider value={settings.noteCornerRadius} min={0} max={16} onChange={(v) => updateSetting("noteCornerRadius", v)} />
 							</SettingFull>
 

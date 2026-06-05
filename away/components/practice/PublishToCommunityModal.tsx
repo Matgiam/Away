@@ -62,7 +62,7 @@ export function PublishToCommunityModal({
 	if (!open || !upload) return null;
 
 	return (
-		<div className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/55">
+		<div className="absolute inset-0 z-50 flex items-center justify-center stage-full-bleed backdrop-blur-sm bg-black/55">
 			<div className="w-full max-w-xl mx-4 rounded-2xl border border-white/10 bg-[#0d0620]/90 backdrop-blur-xl shadow-2xl overflow-hidden">
 				<div className="flex items-center justify-between px-8 py-5 border-b border-white/5">
 					<h2 className="text-xl font-semibold italic text-white/90">Publish to community</h2>
@@ -139,7 +139,7 @@ export function PublishToCommunityModal({
 						</div>
 
 						<div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-white/55 italic">
-							You will receive no email — just check back in the practice menu. If the review
+							You will receive no email, just check back in the practice menu. If the review
 							gets rejected, you&apos;ll see the reason here next to the file.
 						</div>
 

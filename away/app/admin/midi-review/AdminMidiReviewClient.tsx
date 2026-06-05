@@ -377,7 +377,7 @@ function RejectModal({
 				</div>
 				<div className="px-6 py-5">
 					<label className="block text-[10px] uppercase tracking-widest text-white/40 mb-2">
-						Reason (shown to the submitter — optional)
+						Reason (shown to the submitter, optional)
 					</label>
 					<textarea
 						value={note}

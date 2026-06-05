@@ -429,16 +429,16 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 		}
 		switch (step.type) {
 			case "play-note":
-				return `Now you try — press ${midiToLetter(step.midi).replace("#", "♯")}`;
+				return `Now you try: press ${midiToLetter(step.midi).replace("#", "♯")}`;
 			case "play-any-of": {
 				const hitsNeeded = step.hitsNeeded ?? 1;
-				return `Now you try — ${state.hitMidis.size} / ${hitsNeeded}`;
+				return `Now you try: ${state.hitMidis.size} / ${hitsNeeded}`;
 			}
 			case "play-chord":
-				return `Now you try — hold ${step.chordName ?? "the chord"} together`;
+				return `Now you try: hold ${step.chordName ?? "the chord"} together`;
 			case "play-sequence": {
 				const total = step.sequence.length;
-				return `Now you try — note ${Math.min(state.sequenceCursor + 1, total)} / ${total}`;
+				return `Now you try: note ${Math.min(state.sequenceCursor + 1, total)} / ${total}`;
 			}
 			case "demo-sequence":
 				return state.demoPlayed ? "Demo played" : "Listen…";

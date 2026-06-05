@@ -5,7 +5,7 @@
 // truth for everything the user sees under Practice → Courses.
 //
 // Structure:
-//   * Top-level export is `COURSES_LIST: Course[]` — every course defined in
+//   * Top-level export is `COURSES_LIST: Course[]`, every course defined in
 //     this file, in display order, grouped by category.
 //   * Each `Course` contains a sequence of `CourseStep`s (see ./types.ts) that
 //     the player UI in `components/courses/` renders one at a time.
@@ -18,7 +18,7 @@
 //   * Most steps describe their own demo via the discriminated-union fields
 //     (chord, sequence, etc.); only DemoSequenceStep needs explicit timing.
 //   * The TOTAL_COURSES constant in `lib/achievements.ts` must match the count
-//     in this file — bumping the catalog without updating that const breaks
+//     in this file, bumping the catalog without updating that const breaks
 //     the "Finish every course" achievement.
 //
 // The file is mostly declarative data; the runtime logic lives in the course
@@ -112,7 +112,7 @@ const COURSES_LIST: Course[] = [
 				highlightAccent: ALL_CS,
 				allowedMidis: ALL_CS,
 				image: "/courses/note-c.svg",
-				imageAlt: "C — sits just before the group of 2 black keys",
+				imageAlt: "C, sits just before the group of 2 black keys",
 			},
 			{
 				id: "4",
@@ -122,7 +122,7 @@ const COURSES_LIST: Course[] = [
 				highlightAccent: ALL_DS,
 				allowedMidis: ALL_DS,
 				image: "/courses/note-d.svg",
-				imageAlt: "D — between the 2 black keys",
+				imageAlt: "D, between the 2 black keys",
 			},
 			{
 				id: "5",
@@ -132,7 +132,7 @@ const COURSES_LIST: Course[] = [
 				highlightAccent: ALL_ES,
 				allowedMidis: ALL_ES,
 				image: "/courses/note-e.svg",
-				imageAlt: "E — just after the 2 black keys",
+				imageAlt: "E, just after the 2 black keys",
 			},
 			{
 				id: "6",
@@ -142,7 +142,7 @@ const COURSES_LIST: Course[] = [
 				highlightAccent: ALL_FS,
 				allowedMidis: ALL_FS,
 				image: "/courses/note-f.svg",
-				imageAlt: "F — sits just before the group of 3 black keys",
+				imageAlt: "F, sits just before the group of 3 black keys",
 			},
 			{
 				id: "7",
@@ -152,7 +152,7 @@ const COURSES_LIST: Course[] = [
 				highlightAccent: ALL_GS,
 				allowedMidis: ALL_GS,
 				image: "/courses/note-g.svg",
-				imageAlt: "G — between the first 2 black keys of the group of 3",
+				imageAlt: "G, between the first 2 black keys of the group of 3",
 			},
 			{
 				id: "8",
@@ -162,7 +162,7 @@ const COURSES_LIST: Course[] = [
 				highlightAccent: ALL_AS,
 				allowedMidis: ALL_AS,
 				image: "/courses/note-a.svg",
-				imageAlt: "A — between the last 2 black keys of the group of 3",
+				imageAlt: "A, between the last 2 black keys of the group of 3",
 			},
 			{
 				id: "9",
@@ -172,7 +172,7 @@ const COURSES_LIST: Course[] = [
 				highlightAccent: ALL_BS,
 				allowedMidis: ALL_BS,
 				image: "/courses/note-b.svg",
-				imageAlt: "B — the last white key before C returns",
+				imageAlt: "B, the last white key before C returns",
 			},
 			{
 				id: "10",
@@ -225,7 +225,7 @@ const COURSES_LIST: Course[] = [
 				body: "Each repeat of the pattern is one octave. The same letter shows up every octave.",
 				highlightAccent: ALL_CS,
 				image: "/courses/octave-pattern.svg",
-				imageAlt: "Octaves marked — each C starts a new octave",
+				imageAlt: "Octaves marked, each C starts a new octave",
 			},
 			{
 				id: "3",
@@ -250,7 +250,7 @@ const COURSES_LIST: Course[] = [
 				id: "5",
 				type: "text",
 				title: "Black keys = sharps and flats",
-				body: "Each black key has TWO names — a sharp (♯) of the white key below, and a flat (♭) of the white key above. C♯ and D♭ are the same key.",
+				body: "Each black key has TWO names, a sharp (♯) of the white key below, and a flat (♭) of the white key above. C♯ and D♭ are the same key.",
 				highlightAccent: [C_SHARP_4],
 				image: "/courses/black-keys-sharps-flats.svg",
 				imageAlt: "All five black keys in one octave with both their sharp and flat names",
@@ -286,7 +286,7 @@ const COURSES_LIST: Course[] = [
 		title: "Finger Numbers",
 		description: "1 to 5, thumb to pinky.",
 		estimatedMinutes: 3,
-		summary: ["Thumb = 1, pinky = 5 — same on both hands", "Played C D E with fingers 1-2-3", "Walked all 5 fingers up and down"],
+		summary: ["Thumb = 1, pinky = 5, same on both hands", "Played C D E with fingers 1-2-3", "Walked all 5 fingers up and down"],
 		steps: [
 			{
 				id: "1",
@@ -348,7 +348,7 @@ const COURSES_LIST: Course[] = [
 				body: "Right thumb on middle C. Other fingers fall on D E F G.",
 				highlightKeys: C_POSITION_RH,
 				image: "/courses/c-position-rh.svg",
-				imageAlt: "Right hand C position — thumb (1) on C, pinky (5) on G",
+				imageAlt: "Right hand C position, thumb (1) on C, pinky (5) on G",
 			},
 			{
 				id: "2",
@@ -359,7 +359,7 @@ const COURSES_LIST: Course[] = [
 				sequenceLabels: ["1", "2", "3", "4", "5"],
 				highlightKeys: C_POSITION_RH,
 				image: "/courses/c-position-rh.svg",
-				imageAlt: "Right hand C position — thumb (1) on C, pinky (5) on G",
+				imageAlt: "Right hand C position, thumb (1) on C, pinky (5) on G",
 			},
 			{
 				id: "3",
@@ -370,7 +370,7 @@ const COURSES_LIST: Course[] = [
 				sequenceLabels: ["5", "4", "3", "2", "1"],
 				highlightKeys: C_POSITION_RH,
 				image: "/courses/c-position-rh.svg",
-				imageAlt: "Right hand C position — thumb (1) on C, pinky (5) on G",
+				imageAlt: "Right hand C position, thumb (1) on C, pinky (5) on G",
 			},
 			{
 				id: "4",
@@ -381,7 +381,7 @@ const COURSES_LIST: Course[] = [
 				sequenceLabels: ["1", "3", "5"],
 				highlightKeys: [60, 64, 67],
 				image: "/courses/c-position-rh.svg",
-				imageAlt: "Right hand C position — thumb (1) on C, pinky (5) on G",
+				imageAlt: "Right hand C position, thumb (1) on C, pinky (5) on G",
 			},
 		],
 	},
@@ -394,7 +394,7 @@ const COURSES_LIST: Course[] = [
 		description: "Same five keys, an octave lower.",
 		estimatedMinutes: 3,
 		summary: [
-			"Left pinky on C3, thumb on G3 — one octave below the right hand",
+			"Left pinky on C3, thumb on G3, one octave below the right hand",
 			"Walked the same five notes with the left hand",
 			"Played a left-hand C major chord",
 		],
@@ -406,7 +406,7 @@ const COURSES_LIST: Course[] = [
 				body: "Left pinky on C3, thumb on G3. Same five-note shape as the right hand.",
 				highlightKeys: C_POSITION_LH,
 				image: "/courses/c-position-lh.svg",
-				imageAlt: "Left hand C position — pinky (5) on C, thumb (1) on G",
+				imageAlt: "Left hand C position, pinky (5) on C, thumb (1) on G",
 			},
 			{
 				id: "2",
@@ -417,7 +417,7 @@ const COURSES_LIST: Course[] = [
 				sequenceLabels: ["5", "4", "3", "2", "1"],
 				highlightKeys: C_POSITION_LH,
 				image: "/courses/c-position-lh.svg",
-				imageAlt: "Left hand C position — pinky (5) on C, thumb (1) on G",
+				imageAlt: "Left hand C position, pinky (5) on C, thumb (1) on G",
 			},
 			{
 				id: "3",
@@ -428,7 +428,7 @@ const COURSES_LIST: Course[] = [
 				sequenceLabels: ["1", "2", "3", "4", "5"],
 				highlightKeys: C_POSITION_LH,
 				image: "/courses/c-position-lh.svg",
-				imageAlt: "Left hand C position — pinky (5) on C, thumb (1) on G",
+				imageAlt: "Left hand C position, pinky (5) on C, thumb (1) on G",
 			},
 			{
 				id: "4",
@@ -439,7 +439,7 @@ const COURSES_LIST: Course[] = [
 				chordName: "C (LH)",
 				highlightKeys: [48, 52, 55],
 				image: "/courses/c-position-lh.svg",
-				imageAlt: "Left hand C position — pinky (5) on C, thumb (1) on G",
+				imageAlt: "Left hand C position, pinky (5) on C, thumb (1) on G",
 			},
 		],
 	},
@@ -449,11 +449,11 @@ const COURSES_LIST: Course[] = [
 		id: "intro-mary-had-a-little-lamb",
 		category: "intro",
 		title: "Your First Song",
-		description: "Mary Had a Little Lamb — right hand only.",
+		description: "Mary Had a Little Lamb, right hand only.",
 		estimatedMinutes: 4,
 		summary: [
 			"Played 'Mary Had a Little Lamb' on the piano",
-			"The whole song fits inside C position — 5 keys",
+			"The whole song fits inside C position, 5 keys",
 			"Combined three short phrases into a real tune",
 		],
 		steps: [
@@ -464,7 +464,7 @@ const COURSES_LIST: Course[] = [
 				body: "Thumb on middle C. The whole song uses just these 5 keys.",
 				highlightKeys: C_POSITION_RH,
 				image: "/courses/c-position-rh.svg",
-				imageAlt: "Right hand C position — Mary uses only these 5 keys",
+				imageAlt: "Right hand C position, Mary uses only these 5 keys",
 			},
 			{
 				id: "2",
@@ -476,7 +476,7 @@ const COURSES_LIST: Course[] = [
 				highlightKeys: C_POSITION_RH,
 				bpm: 70,
 				image: "/courses/mary-melody.svg",
-				imageAlt: "Use only C, D, E — press in order: E D C D E E E (F and G are NOT used)",
+				imageAlt: "Use only C, D, E, press in order: E D C D E E E (F and G are NOT used)",
 			},
 			{
 				id: "3",
@@ -488,7 +488,7 @@ const COURSES_LIST: Course[] = [
 				highlightKeys: C_POSITION_RH,
 				bpm: 70,
 				image: "/courses/mary-phrase-2.svg",
-				imageAlt: "Now G joins in — press in order: D D D E G G (F is still skipped)",
+				imageAlt: "Now G joins in, press in order: D D D E G G (F is still skipped)",
 			},
 			{
 				id: "4",
@@ -500,7 +500,7 @@ const COURSES_LIST: Course[] = [
 				highlightKeys: C_POSITION_RH,
 				bpm: 70,
 				image: "/courses/mary-melody.svg",
-				imageAlt: "Back to C, D, E — sequence: E D C D E E E E D D E D C",
+				imageAlt: "Back to C, D, E, sequence: E D C D E E E E D D E D C",
 			},
 			{
 				id: "5",
@@ -508,7 +508,7 @@ const COURSES_LIST: Course[] = [
 				title: "You played a song!",
 				body: "5 keys, one hand, real music. Now let's try the whole thing at once.",
 				image: "/courses/c-position-rh.svg",
-				imageAlt: "Right hand C position — Mary uses only these 5 keys",
+				imageAlt: "Right hand C position, Mary uses only these 5 keys",
 			},
 			{
 				id: "6",
@@ -547,7 +547,7 @@ const COURSES_LIST: Course[] = [
 				highlightKeys: C_POSITION_RH,
 				bpm: 70,
 				image: "/courses/c-position-rh.svg",
-				imageAlt: "All 5 C-position keys — the whole song lives here",
+				imageAlt: "All 5 C-position keys, the whole song lives here",
 			},
 		],
 	},
@@ -557,9 +557,9 @@ const COURSES_LIST: Course[] = [
 		id: "scales-g-major",
 		category: "scales",
 		title: "G Major Scale",
-		description: "One black key — F♯.",
+		description: "One black key, F♯.",
 		estimatedMinutes: 3,
-		summary: ["G major scale: G A B C D E F♯ G", "One black key — F♯ — replaces F", "Played the scale up and back down"],
+		summary: ["G major scale: G A B C D E F♯ G", "One black key, F♯, replaces F", "Played the scale up and back down"],
 		steps: [
 			{
 				id: "1",
@@ -568,7 +568,7 @@ const COURSES_LIST: Course[] = [
 				body: "G A B C D E F♯ G. Just one black key: F♯.",
 				highlightKeys: G_MAJOR_SCALE,
 				image: "/courses/g-major-scale.svg",
-				imageAlt: "G major scale highlighted on the keyboard — F♯ is the one black key",
+				imageAlt: "G major scale highlighted on the keyboard, F♯ is the one black key",
 			},
 			{
 				id: "2",
@@ -578,7 +578,7 @@ const COURSES_LIST: Course[] = [
 				midi: 66,
 				highlightKeys: [66],
 				image: "/courses/g-major-scale.svg",
-				imageAlt: "G major scale highlighted on the keyboard — F♯ is the one black key",
+				imageAlt: "G major scale highlighted on the keyboard, F♯ is the one black key",
 			},
 			{
 				id: "3",
@@ -589,7 +589,7 @@ const COURSES_LIST: Course[] = [
 				sequenceLabels: ["G", "A", "B", "C", "D", "E", "F♯", "G"],
 				highlightKeys: G_MAJOR_SCALE,
 				image: "/courses/g-major-scale.svg",
-				imageAlt: "G major scale highlighted on the keyboard — F♯ is the one black key",
+				imageAlt: "G major scale highlighted on the keyboard, F♯ is the one black key",
 			},
 			{
 				id: "4",
@@ -600,7 +600,7 @@ const COURSES_LIST: Course[] = [
 				sequenceLabels: ["G", "F♯", "E", "D", "C", "B", "A", "G"],
 				highlightKeys: G_MAJOR_SCALE,
 				image: "/courses/g-major-scale.svg",
-				imageAlt: "G major scale highlighted on the keyboard — F♯ is the one black key",
+				imageAlt: "G major scale highlighted on the keyboard, F♯ is the one black key",
 			},
 		],
 	},
@@ -610,9 +610,9 @@ const COURSES_LIST: Course[] = [
 		id: "scales-f-major",
 		category: "scales",
 		title: "F Major Scale",
-		description: "One black key — B♭.",
+		description: "One black key, B♭.",
 		estimatedMinutes: 3,
-		summary: ["F major scale: F G A B♭ C D E F", "One black key — B♭ — replaces B", "Played the scale up and back down"],
+		summary: ["F major scale: F G A B♭ C D E F", "One black key, B♭, replaces B", "Played the scale up and back down"],
 		steps: [
 			{
 				id: "1",
@@ -621,7 +621,7 @@ const COURSES_LIST: Course[] = [
 				body: "F G A B♭ C D E F. The black key is B♭.",
 				highlightKeys: F_MAJOR_SCALE,
 				image: "/courses/f-major-scale.svg",
-				imageAlt: "F major scale highlighted — B♭ is the one black key",
+				imageAlt: "F major scale highlighted, B♭ is the one black key",
 			},
 			{
 				id: "2",
@@ -631,7 +631,7 @@ const COURSES_LIST: Course[] = [
 				midi: 58,
 				highlightKeys: [58],
 				image: "/courses/f-major-scale.svg",
-				imageAlt: "F major scale highlighted — B♭ is the one black key",
+				imageAlt: "F major scale highlighted, B♭ is the one black key",
 			},
 			{
 				id: "3",
@@ -642,7 +642,7 @@ const COURSES_LIST: Course[] = [
 				sequenceLabels: ["F", "G", "A", "B♭", "C", "D", "E", "F"],
 				highlightKeys: F_MAJOR_SCALE,
 				image: "/courses/f-major-scale.svg",
-				imageAlt: "F major scale highlighted — B♭ is the one black key",
+				imageAlt: "F major scale highlighted, B♭ is the one black key",
 			},
 			{
 				id: "4",
@@ -653,7 +653,7 @@ const COURSES_LIST: Course[] = [
 				sequenceLabels: ["F", "E", "D", "C", "B♭", "A", "G", "F"],
 				highlightKeys: F_MAJOR_SCALE,
 				image: "/courses/f-major-scale.svg",
-				imageAlt: "F major scale highlighted — B♭ is the one black key",
+				imageAlt: "F major scale highlighted, B♭ is the one black key",
 			},
 		],
 	},
@@ -663,7 +663,7 @@ const COURSES_LIST: Course[] = [
 		id: "scales-a-minor",
 		category: "scales",
 		title: "A Minor Scale",
-		description: "All white keys — but sounds sad.",
+		description: "All white keys, but sounds sad.",
 		estimatedMinutes: 3,
 		summary: ["A minor uses the same 7 white keys as C major", "Starting on A gives a sad mood instead of happy", "Played the A minor chord (A C E)"],
 		steps: [
@@ -671,10 +671,10 @@ const COURSES_LIST: Course[] = [
 				id: "1",
 				type: "text",
 				title: "Same keys, different start",
-				body: "All white keys from A to A. Same notes as C major — sounds sad.",
+				body: "All white keys from A to A. Same notes as C major, sounds sad.",
 				highlightKeys: A_NATURAL_MINOR_SCALE,
 				image: "/courses/a-minor-scale.svg",
-				imageAlt: "A natural minor scale — all white keys from A to A, W-H-W-W-H-W-W pattern",
+				imageAlt: "A natural minor scale, all white keys from A to A, W-H-W-W-H-W-W pattern",
 			},
 			{
 				id: "2",
@@ -685,18 +685,18 @@ const COURSES_LIST: Course[] = [
 				sequenceLabels: ["A", "B", "C", "D", "E", "F", "G", "A"],
 				highlightKeys: A_NATURAL_MINOR_SCALE,
 				image: "/courses/a-minor-scale.svg",
-				imageAlt: "A minor uses the same 7 white keys — starting on A gives a sad mood",
+				imageAlt: "A minor uses the same 7 white keys, starting on A gives a sad mood",
 			},
 			{
 				id: "3",
 				type: "play-chord",
 				title: "A minor chord",
-				body: "A, C, E together. Listen — dark and sad.",
+				body: "A, C, E together. Listen, dark and sad.",
 				midis: A_MINOR,
 				chordName: "Am",
 				highlightKeys: A_MINOR,
 				image: "/courses/a-minor-scale.svg",
-				imageAlt: "A minor uses the same 7 white keys — starting on A gives a sad mood",
+				imageAlt: "A minor uses the same 7 white keys, starting on A gives a sad mood",
 			},
 			{
 				id: "4",
@@ -704,7 +704,7 @@ const COURSES_LIST: Course[] = [
 				title: "Major or minor?",
 				body: "Start on C: happy. Start on A: sad. Same 7 white keys.",
 				image: "/courses/a-minor-scale.svg",
-				imageAlt: "A minor uses the same 7 white keys — starting on A gives a sad mood",
+				imageAlt: "A minor uses the same 7 white keys, starting on A gives a sad mood",
 			},
 		],
 	},
@@ -729,7 +729,7 @@ const COURSES_LIST: Course[] = [
 				body: "C D E G A. We dropped the F and B from the major scale.",
 				highlightKeys: C_MAJOR_PENTATONIC,
 				image: "/courses/pentatonic-scale.svg",
-				imageAlt: "C major pentatonic — C D E G A (F and B dimmed out)",
+				imageAlt: "C major pentatonic, C D E G A (F and B dimmed out)",
 			},
 			{
 				id: "2",
@@ -740,18 +740,18 @@ const COURSES_LIST: Course[] = [
 				sequenceLabels: ["C", "D", "E", "G", "A", "C"],
 				highlightKeys: C_MAJOR_PENTATONIC,
 				image: "/courses/pentatonic-scale.svg",
-				imageAlt: "C major pentatonic — C D E G A (F and B dimmed out)",
+				imageAlt: "C major pentatonic, C D E G A (F and B dimmed out)",
 			},
 			{
 				id: "3",
 				type: "play-any-of",
-				title: "Free play — 8 keys",
+				title: "Free play, 8 keys",
 				body: "Mash any of the highlighted keys. Anything works.",
 				allowedMidis: [60, 62, 64, 67, 69, 72, 74, 76, 79, 81, 84],
 				hitsNeeded: 8,
 				highlightKeys: C_MAJOR_PENTATONIC,
 				image: "/courses/pentatonic-scale.svg",
-				imageAlt: "C major pentatonic — C D E G A (F and B dimmed out)",
+				imageAlt: "C major pentatonic, C D E G A (F and B dimmed out)",
 			},
 		],
 	},
@@ -874,7 +874,7 @@ const COURSES_LIST: Course[] = [
 		summary: [
 			"Left hand plays the bass (lowest note of each chord)",
 			"Walked bass roots: C, A, F, G",
-			"Combined bass note then full chord — basic accompaniment shape",
+			"Combined bass note then full chord, basic accompaniment shape",
 		],
 		steps: [
 			{
@@ -973,7 +973,7 @@ const COURSES_LIST: Course[] = [
 				id: "4",
 				type: "play-sequence",
 				title: "Whole scale, both hands",
-				body: "C D E F G A B C — both hands at once.",
+				body: "C D E F G A B C, both hands at once.",
 				sequence: [
 					[48, 60],
 					[50, 62],
@@ -1003,7 +1003,7 @@ const COURSES_LIST: Course[] = [
 		summary: [
 			"A chord = 2 or more notes played together (most use 3)",
 			"Played C major, F major, G major",
-			"Played A minor — sounds sad",
+			"Played A minor, sounds sad",
 			"The four magic chords: C → Am → F → G",
 		],
 		steps: [
@@ -1013,7 +1013,7 @@ const COURSES_LIST: Course[] = [
 				title: "Two or more notes",
 				body: "A chord = 2 or more notes played together. Most use 3.",
 				image: "/courses/c-major-chord.svg",
-				imageAlt: "C major chord shape — C, E, G",
+				imageAlt: "C major chord shape, C, E, G",
 			},
 			{
 				id: "2",
@@ -1022,7 +1022,7 @@ const COURSES_LIST: Course[] = [
 				body: "C, E, G. Every other white key starting from C.",
 				highlightKeys: C_MAJOR,
 				image: "/courses/c-major-chord.svg",
-				imageAlt: "C major chord shape — C, E, G",
+				imageAlt: "C major chord shape, C, E, G",
 			},
 			{
 				id: "3",
@@ -1033,7 +1033,7 @@ const COURSES_LIST: Course[] = [
 				chordName: "C",
 				highlightKeys: C_MAJOR,
 				image: "/courses/c-major-chord.svg",
-				imageAlt: "C major — C, E, G",
+				imageAlt: "C major, C, E, G",
 			},
 			{
 				id: "4",
@@ -1044,7 +1044,7 @@ const COURSES_LIST: Course[] = [
 				chordName: "F",
 				highlightKeys: F_MAJOR,
 				image: "/courses/f-major-chord.svg",
-				imageAlt: "F major — F, A, C",
+				imageAlt: "F major, F, A, C",
 			},
 			{
 				id: "5",
@@ -1055,18 +1055,18 @@ const COURSES_LIST: Course[] = [
 				chordName: "G",
 				highlightKeys: G_MAJOR,
 				image: "/courses/g-major-chord.svg",
-				imageAlt: "G major — G, B, D",
+				imageAlt: "G major, G, B, D",
 			},
 			{
 				id: "6",
 				type: "play-chord",
 				title: "Play A minor",
-				body: "A, C, E. Listen — it sounds sad.",
+				body: "A, C, E. Listen, it sounds sad.",
 				midis: A_MINOR,
 				chordName: "Am",
 				highlightKeys: A_MINOR,
 				image: "/courses/a-minor-chord.svg",
-				imageAlt: "A minor — A, C, E",
+				imageAlt: "A minor, A, C, E",
 			},
 			{
 				id: "7",
@@ -1077,7 +1077,7 @@ const COURSES_LIST: Course[] = [
 				sequenceLabels: ["C", "Am", "F", "G"],
 				bpm: 80,
 				image: "/courses/i-iv-v.svg",
-				imageAlt: "I, IV, V — the three-chord backbone: C, F, G",
+				imageAlt: "I, IV, V, the three-chord backbone: C, F, G",
 			},
 		],
 	},
@@ -1101,7 +1101,7 @@ const COURSES_LIST: Course[] = [
 				title: "The middle note decides",
 				body: "Move the middle note of a chord down a half step → major becomes minor.",
 				image: "/courses/major-vs-minor.svg",
-				imageAlt: "C major vs C minor — the third (E) drops to E♭",
+				imageAlt: "C major vs C minor, the third (E) drops to E♭",
 			},
 			{
 				id: "2",
@@ -1129,12 +1129,12 @@ const COURSES_LIST: Course[] = [
 				id: "4",
 				type: "play-chord",
 				title: "D minor",
-				body: "D, F, A — all white keys.",
+				body: "D, F, A, all white keys.",
 				midis: D_MINOR,
 				chordName: "Dm",
 				highlightKeys: D_MINOR,
 				image: "/courses/d-minor-chord.svg",
-				imageAlt: "D minor — D, F, A",
+				imageAlt: "D minor, D, F, A",
 			},
 			{
 				id: "5",
@@ -1145,7 +1145,7 @@ const COURSES_LIST: Course[] = [
 				chordName: "Em",
 				highlightKeys: E_MINOR,
 				image: "/courses/e-minor-chord.svg",
-				imageAlt: "E minor — E, G, B",
+				imageAlt: "E minor, E, G, B",
 			},
 		],
 	},
@@ -1234,10 +1234,10 @@ const COURSES_LIST: Course[] = [
 				id: "1",
 				type: "text",
 				title: "Stack one more note",
-				body: "C E G is a triad. Add B and you get C E G B — a 7th chord.",
+				body: "C E G is a triad. Add B and you get C E G B, a 7th chord.",
 				highlightKeys: C_MAJ7,
 				image: "/courses/seventh-chords.svg",
-				imageAlt: "Cmaj7 — add B on top of C major",
+				imageAlt: "Cmaj7, add B on top of C major",
 			},
 			{
 				id: "2",
@@ -1248,13 +1248,13 @@ const COURSES_LIST: Course[] = [
 				chordName: "Cmaj7",
 				highlightKeys: C_MAJ7,
 				image: "/courses/seventh-chords.svg",
-				imageAlt: "Cmaj7 — add B on top of C major",
+				imageAlt: "Cmaj7, add B on top of C major",
 			},
 			{
 				id: "3",
 				type: "play-chord",
 				title: "G7",
-				body: "G B D F. Sounds unstable — wants to resolve.",
+				body: "G B D F. Sounds unstable, wants to resolve.",
 				midis: G7,
 				chordName: "G7",
 				highlightKeys: G7,
@@ -1278,7 +1278,7 @@ const COURSES_LIST: Course[] = [
 	{
 		id: "chords-i-iv-v",
 		category: "chords",
-		title: "I — IV — V",
+		title: "I, IV, V",
 		description: "The three chord backbone.",
 		estimatedMinutes: 4,
 		summary: ["The 3-chord backbone: I, IV, V", "In C major that's C, F, G", "Played the I → IV → V → I loop"],
@@ -1289,7 +1289,7 @@ const COURSES_LIST: Course[] = [
 				title: "Three chords",
 				body: "In C major: I = C, IV = F, V = G.",
 				image: "/courses/i-iv-v.svg",
-				imageAlt: "I, IV, V — the three-chord backbone: C, F, G",
+				imageAlt: "I, IV, V, the three-chord backbone: C, F, G",
 			},
 			{
 				id: "2",
@@ -1300,7 +1300,7 @@ const COURSES_LIST: Course[] = [
 				chordName: "C",
 				highlightKeys: C_MAJOR_HIGH,
 				image: "/courses/i-iv-v.svg",
-				imageAlt: "I, IV, V — the three-chord backbone: C, F, G",
+				imageAlt: "I, IV, V, the three-chord backbone: C, F, G",
 			},
 			{
 				id: "3",
@@ -1311,7 +1311,7 @@ const COURSES_LIST: Course[] = [
 				chordName: "F",
 				highlightKeys: F_MAJOR_HIGH,
 				image: "/courses/i-iv-v.svg",
-				imageAlt: "I, IV, V — the three-chord backbone: C, F, G",
+				imageAlt: "I, IV, V, the three-chord backbone: C, F, G",
 			},
 			{
 				id: "4",
@@ -1322,7 +1322,7 @@ const COURSES_LIST: Course[] = [
 				chordName: "G",
 				highlightKeys: G_MAJOR_HIGH,
 				image: "/courses/i-iv-v.svg",
-				imageAlt: "I, IV, V — the three-chord backbone: C, F, G",
+				imageAlt: "I, IV, V, the three-chord backbone: C, F, G",
 			},
 			{
 				id: "5",
@@ -1333,7 +1333,7 @@ const COURSES_LIST: Course[] = [
 				sequenceLabels: ["I", "IV", "V", "I"],
 				bpm: 80,
 				image: "/courses/i-iv-v.svg",
-				imageAlt: "I, IV, V — the three-chord backbone: C, F, G",
+				imageAlt: "I, IV, V, the three-chord backbone: C, F, G",
 			},
 		],
 	},
@@ -1350,7 +1350,7 @@ const COURSES_LIST: Course[] = [
 			{
 				id: "1",
 				type: "text",
-				title: "vi — IV — I — V",
+				title: "vi, IV, I, V",
 				body: "In C: Am, F, C, G. Used in 'Let It Be', 'Don't Stop Believin'', and many more.",
 				image: "/courses/pop-progression.svg",
 				imageAlt: "The vi-IV-I-V pop loop: Am, F, C, G",
@@ -1456,7 +1456,7 @@ const COURSES_LIST: Course[] = [
 				id: "4",
 				type: "text",
 				title: "Major scale recipe",
-				body: "W W H W W W H. Apply it from C — that's the C major scale.",
+				body: "W W H W W W H. Apply it from C, that's the C major scale.",
 				highlightKeys: C_MAJOR_SCALE,
 				image: "/courses/c-major-scale.svg",
 				imageAlt: "C major scale with W (whole) and H (half) step pattern",
@@ -1569,7 +1569,7 @@ const COURSES_LIST: Course[] = [
 				title: "Same note, higher",
 				body: "An octave higher = the same letter, sounding 'the same' but brighter.",
 				image: "/courses/octave-three-cs.svg",
-				imageAlt: "C2, C4, and C6 — the same note three octaves apart",
+				imageAlt: "C2, C4, and C6, the same note three octaves apart",
 			},
 			{
 				id: "2",
@@ -1580,7 +1580,7 @@ const COURSES_LIST: Course[] = [
 				sequenceLabels: ["C2", "C4", "C6"],
 				highlightKeys: [36, 60, 84],
 				image: "/courses/octave-three-cs.svg",
-				imageAlt: "C2, C4, and C6 — the same note three octaves apart",
+				imageAlt: "C2, C4, and C6, the same note three octaves apart",
 			},
 			{
 				id: "3",
@@ -1591,7 +1591,7 @@ const COURSES_LIST: Course[] = [
 				chordName: "C octave",
 				highlightKeys: [60, 72],
 				image: "/courses/octave-three-cs.svg",
-				imageAlt: "C2, C4, and C6 — the same note three octaves apart",
+				imageAlt: "C2, C4, and C6, the same note three octaves apart",
 			},
 		],
 	},
@@ -1604,7 +1604,7 @@ const COURSES_LIST: Course[] = [
 		description: "Backing track loops C – Am – F – G.",
 		estimatedMinutes: 5,
 		summary: [
-			"Stay on white keys above middle C — no wrong notes",
+			"Stay on white keys above middle C, no wrong notes",
 			"Backing loop: C – Am – F – G",
 			"End phrases on C, E, or G for a 'resolved' feeling",
 		],
@@ -1615,7 +1615,7 @@ const COURSES_LIST: Course[] = [
 				title: "No wrong notes",
 				body: "Stay on white keys and everything fits.",
 				image: "/courses/backing-loop-c-am-f-g.svg",
-				imageAlt: "Backing chord loop — C, Am, F, G",
+				imageAlt: "Backing chord loop, C, Am, F, G",
 			},
 			{
 				id: "2",
@@ -1624,7 +1624,7 @@ const COURSES_LIST: Course[] = [
 				body: "All white keys above middle C.",
 				highlightKeys: whiteKeysInRange(60, 108),
 				image: "/courses/backing-loop-c-am-f-g.svg",
-				imageAlt: "Backing chord loop — C, Am, F, G",
+				imageAlt: "Backing chord loop, C, Am, F, G",
 			},
 			{
 				id: "3",
@@ -1638,7 +1638,7 @@ const COURSES_LIST: Course[] = [
 				demoNoteDurationMs: 400,
 				demoGapMs: 120,
 				image: "/courses/backing-loop-c-am-f-g.svg",
-				imageAlt: "Backing chord loop — C, Am, F, G",
+				imageAlt: "Backing chord loop, C, Am, F, G",
 			},
 			{
 				id: "4",
@@ -1647,7 +1647,7 @@ const COURSES_LIST: Course[] = [
 				body: "Start slow. End phrases on C, E, or G. Repeat ideas.",
 				highlightKeys: C_MAJOR_SCALE,
 				image: "/courses/backing-loop-c-am-f-g.svg",
-				imageAlt: "Backing chord loop — C, Am, F, G",
+				imageAlt: "Backing chord loop, C, Am, F, G",
 			},
 			{
 				id: "5",
@@ -1666,7 +1666,7 @@ const COURSES_LIST: Course[] = [
 				loopCount: null,
 				highlightKeys: whiteKeysInRange(60, 108),
 				image: "/courses/backing-loop-c-am-f-g.svg",
-				imageAlt: "Backing chord loop — C, Am, F, G",
+				imageAlt: "Backing chord loop, C, Am, F, G",
 			},
 		],
 	},
@@ -1688,10 +1688,10 @@ const COURSES_LIST: Course[] = [
 				id: "1",
 				type: "text",
 				title: "Sad scale",
-				body: "Same white keys as C major. Backing track starts on Am — sounds sad.",
+				body: "Same white keys as C major. Backing track starts on Am, sounds sad.",
 				highlightKeys: A_NATURAL_MINOR_SCALE,
 				image: "/courses/backing-loop-am-f-c-g.svg",
-				imageAlt: "Backing chord loop — Am, F, C, G",
+				imageAlt: "Backing chord loop, Am, F, C, G",
 			},
 			{
 				id: "2",
@@ -1700,7 +1700,7 @@ const COURSES_LIST: Course[] = [
 				body: "For a 'sad-resolved' feel, end your phrases on A.",
 				highlightKeys: A_NATURAL_MINOR_SCALE,
 				image: "/courses/backing-loop-am-f-c-g.svg",
-				imageAlt: "Backing chord loop — Am, F, C, G",
+				imageAlt: "Backing chord loop, Am, F, C, G",
 			},
 			{
 				id: "3",
@@ -1719,7 +1719,7 @@ const COURSES_LIST: Course[] = [
 				loopCount: null,
 				highlightKeys: whiteKeysInRange(60, 108),
 				image: "/courses/backing-loop-am-f-c-g.svg",
-				imageAlt: "Backing chord loop — Am, F, C, G",
+				imageAlt: "Backing chord loop, Am, F, C, G",
 			},
 		],
 	},
@@ -1740,7 +1740,7 @@ const COURSES_LIST: Course[] = [
 				body: "C D E G A. Cannot go wrong.",
 				highlightKeys: C_MAJOR_PENTATONIC,
 				image: "/courses/pentatonic-scale.svg",
-				imageAlt: "C major pentatonic — C D E G A",
+				imageAlt: "C major pentatonic, C D E G A",
 			},
 			{
 				id: "2",
@@ -1759,7 +1759,7 @@ const COURSES_LIST: Course[] = [
 				loopCount: null,
 				highlightKeys: [60, 62, 64, 67, 69, 72, 74, 76, 79, 81, 84, 86, 88, 91, 93],
 				image: "/courses/pentatonic-scale.svg",
-				imageAlt: "C major pentatonic — C D E G A",
+				imageAlt: "C major pentatonic, C D E G A",
 			},
 		],
 	},
@@ -1772,8 +1772,8 @@ const COURSES_LIST: Course[] = [
 		description: "6 notes with attitude.",
 		estimatedMinutes: 4,
 		summary: [
-			"Blues scale: C E♭ F G♭ G B♭ C — 6 notes plus the 'blue' G♭",
-			"Use the blue note sparingly — lean and slide off it",
+			"Blues scale: C E♭ F G♭ G B♭ C, 6 notes plus the 'blue' G♭",
+			"Use the blue note sparingly, lean and slide off it",
 			"Improvised over a C – F – C – G blues progression",
 		],
 		steps: [
@@ -1784,7 +1784,7 @@ const COURSES_LIST: Course[] = [
 				body: "C E♭ F G♭ G B♭ C. The G♭ is the 'blue' note.",
 				highlightKeys: C_BLUES_SCALE,
 				image: "/courses/blues-scale.svg",
-				imageAlt: "C blues scale — the pink G♭ is the blue note",
+				imageAlt: "C blues scale, the pink G♭ is the blue note",
 			},
 			{
 				id: "2",
@@ -1795,7 +1795,7 @@ const COURSES_LIST: Course[] = [
 				sequenceLabels: ["C", "E♭", "F", "G♭", "G", "B♭", "C"],
 				highlightKeys: C_BLUES_SCALE,
 				image: "/courses/blues-scale.svg",
-				imageAlt: "C blues scale — the pink G♭ is the blue note",
+				imageAlt: "C blues scale, the pink G♭ is the blue note",
 			},
 			{
 				id: "3",
@@ -1814,7 +1814,7 @@ const COURSES_LIST: Course[] = [
 				loopCount: null,
 				highlightKeys: [60, 63, 65, 66, 67, 70, 72, 75, 77, 78, 79, 82, 84],
 				image: "/courses/blues-scale.svg",
-				imageAlt: "C blues scale — the pink G♭ is the blue note",
+				imageAlt: "C blues scale, the pink G♭ is the blue note",
 			},
 		],
 	},
@@ -1824,9 +1824,9 @@ const COURSES_LIST: Course[] = [
 		id: "ear-up-or-down",
 		category: "ear_training",
 		title: "Up or Down",
-		description: "Two notes — did the second one go higher or lower?",
+		description: "Two notes, did the second one go higher or lower?",
 		estimatedMinutes: 4,
-		summary: ["Trained the ear to spot which direction the pitch moved", "Worked from small steps to wide leaps", "No visual hints — sound only"],
+		summary: ["Trained the ear to spot which direction the pitch moved", "Worked from small steps to wide leaps", "No visual hints, sound only"],
 		steps: [
 			{
 				id: "1",
@@ -1834,12 +1834,12 @@ const COURSES_LIST: Course[] = [
 				title: "Listen with your ears, not your eyes",
 				body: "I'll play two notes. Tell me if the second one is higher or lower than the first.",
 				image: "/courses/ear-up-down.svg",
-				imageAlt: "First note vs second note — pitch goes up (↑) or down (↓)",
+				imageAlt: "First note vs second note, pitch goes up (↑) or down (↓)",
 			},
 			{
 				id: "2",
 				type: "ear-training",
-				title: "Round 1 — easy",
+				title: "Round 1, easy",
 				body: "Two notes. The keyboard won't show anything. Just listen.",
 				notes: [60, 64],
 				options: [
@@ -1848,7 +1848,7 @@ const COURSES_LIST: Course[] = [
 				],
 				correctOptionId: "up",
 				image: "/courses/ear-up-down.svg",
-				imageAlt: "First note vs second note — pitch goes up (↑) or down (↓)",
+				imageAlt: "First note vs second note, pitch goes up (↑) or down (↓)",
 			},
 			{
 				id: "3",
@@ -1862,12 +1862,12 @@ const COURSES_LIST: Course[] = [
 				],
 				correctOptionId: "down",
 				image: "/courses/ear-up-down.svg",
-				imageAlt: "First note vs second note — pitch goes up (↑) or down (↓)",
+				imageAlt: "First note vs second note, pitch goes up (↑) or down (↓)",
 			},
 			{
 				id: "4",
 				type: "ear-training",
-				title: "Round 3 — closer notes",
+				title: "Round 3, closer notes",
 				body: "Smaller step this time.",
 				notes: [62, 64],
 				options: [
@@ -1876,7 +1876,7 @@ const COURSES_LIST: Course[] = [
 				],
 				correctOptionId: "up",
 				image: "/courses/ear-up-down.svg",
-				imageAlt: "First note vs second note — pitch goes up (↑) or down (↓)",
+				imageAlt: "First note vs second note, pitch goes up (↑) or down (↓)",
 			},
 			{
 				id: "5",
@@ -1890,12 +1890,12 @@ const COURSES_LIST: Course[] = [
 				],
 				correctOptionId: "down",
 				image: "/courses/ear-up-down.svg",
-				imageAlt: "First note vs second note — pitch goes up (↑) or down (↓)",
+				imageAlt: "First note vs second note, pitch goes up (↑) or down (↓)",
 			},
 			{
 				id: "6",
 				type: "ear-training",
-				title: "Round 5 — wide leap",
+				title: "Round 5, wide leap",
 				body: "Big jump now.",
 				notes: [60, 72],
 				options: [
@@ -1904,7 +1904,7 @@ const COURSES_LIST: Course[] = [
 				],
 				correctOptionId: "up",
 				image: "/courses/ear-up-down.svg",
-				imageAlt: "First note vs second note — pitch goes up (↑) or down (↓)",
+				imageAlt: "First note vs second note, pitch goes up (↑) or down (↓)",
 			},
 			{
 				id: "7",
@@ -1918,7 +1918,7 @@ const COURSES_LIST: Course[] = [
 				],
 				correctOptionId: "down",
 				image: "/courses/ear-up-down.svg",
-				imageAlt: "First note vs second note — pitch goes up (↑) or down (↓)",
+				imageAlt: "First note vs second note, pitch goes up (↑) or down (↓)",
 			},
 			{
 				id: "8",
@@ -1926,7 +1926,7 @@ const COURSES_LIST: Course[] = [
 				title: "Well done",
 				body: "Your ear is starting to track pitch direction. Keep going.",
 				image: "/courses/ear-up-down.svg",
-				imageAlt: "First note vs second note — pitch goes up (↑) or down (↓)",
+				imageAlt: "First note vs second note, pitch goes up (↑) or down (↓)",
 			},
 		],
 	},
@@ -1997,7 +1997,7 @@ const COURSES_LIST: Course[] = [
 			{
 				id: "5",
 				type: "ear-training",
-				title: "Round 4 — sneaky",
+				title: "Round 4, sneaky",
 				body: "Listen closely.",
 				notes: [69, 70],
 				options: [
