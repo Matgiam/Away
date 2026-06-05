@@ -725,7 +725,7 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 				onNext={handleNext}
 			/>
 
-			<div className="stage-full-bleed-x top-0 bottom-0 flex flex-col pb-[150px] pt-72" style={{ zIndex: 10 }}>
+			<div className="stage-full-bleed-x top-0 stage-bleed-bottom flex flex-col pb-[150px] pt-72" style={{ zIndex: 10 }}>
 				<div className="relative flex-1 min-h-0">
 					{/* User's own note trails — same canvas-based Visualizer that
 					    runs in solo / multiplayer / regular-practice modes. Sits
@@ -780,7 +780,7 @@ export default function CoursePlayerClient({ course }: CoursePlayerClientProps) 
 				</div>
 			</div>
 
-			<div className="stage-full-bleed-x bottom-0 z-20">
+			<div className="stage-full-bleed-x stage-bleed-bottom z-20">
 				<Piano
 					pianoKeys={pianoKeys}
 					showKeys={true}

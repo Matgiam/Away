@@ -1101,7 +1101,7 @@ export default function JamRoom() {
 				/>
 			</div>
 			{/* Notes + piano break out to the full viewport width (see .stage-full-bleed-x). */}
-			<div className="stage-full-bleed-x top-0 bottom-0 flex flex-col pb-[150px]" style={{ zIndex: 0 }}>
+			<div className="stage-full-bleed-x top-0 stage-bleed-bottom flex flex-col pb-[150px]" style={{ zIndex: 0 }}>
 				<Visualizer
 					noteLines={noteLines}
 					enabled={settings.visualizerEnabled}
@@ -1109,7 +1109,7 @@ export default function JamRoom() {
 					cornerRadius={settings.noteCornerRadius}
 				/>
 			</div>
-			<div className="stage-full-bleed-x bottom-0 z-20">
+			<div className="stage-full-bleed-x stage-bleed-bottom z-20">
 				<Piano
 					pianoKeys={pianoKeys}
 					showKeys={showKeys}

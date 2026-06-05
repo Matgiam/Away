@@ -55,6 +55,13 @@
 	height: calc(100vh / var(--app-scale, 1));
 	transform: translate(-50%, -50%);
 }
+/* Positions a stage-full-bleed-x element at the true viewport bottom instead
+   of the stage bottom. Without this, bottom-0 is relative to the stage (since
+   the stage's CSS transform makes it the containing block for position: fixed),
+   so the element moves up/down when the viewport is resized in height. */
+.stage-bleed-bottom {
+	bottom: calc((1080px * var(--app-scale) - var(--app-h)) / (2 * var(--app-scale)));
+}
 
 /* React Three Fiber sizes its <canvas> from the container's
    getBoundingClientRect, which is the *scaled* size inside .app-stage — so
