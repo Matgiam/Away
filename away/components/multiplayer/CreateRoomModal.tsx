@@ -46,7 +46,7 @@ export default function CreateRoomModal({
 	if (!showCreate) return null;
 
 	return (
-		<div className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/40">
+		<div className="absolute stage-full-bleed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/40">
 			<div className="w-full max-w-lg mx-4 rounded-2xl border border-white/10 bg-[#0d0620]/90 backdrop-blur-xl shadow-2xl overflow-hidden">
 				<button
 					onClick={createStep === "name" ? () => setCreateStep("settings") : resetCreate}

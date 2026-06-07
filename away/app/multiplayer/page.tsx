@@ -32,7 +32,7 @@ export default function MultiplayerLobby() {
 			</div>
 
 			{createRoomProps.creating && (
-				<div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+				<div className="absolute stage-full-bleed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
 					<div className="flex flex-col items-center gap-6">
 						<div className="w-10 h-10 border-2 border-white/20 border-t-white rounded-full animate-spin" />
 						<p className="text-white/80 text-lg italic tracking-wide">Creating your room…</p>

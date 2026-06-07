@@ -31,7 +31,7 @@ export default function JoinRoomModal({
 	if (!joiningRoom) return null;
 
 	return (
-		<div className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/40">
+		<div className="absolute stage-full-bleed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/40">
 			<div className="w-full max-w-sm mx-4 rounded-2xl border border-white/10 bg-[#0d0620]/90 backdrop-blur-xl shadow-2xl px-10 py-12">
 				<h2 className="text-center text-xl font-semibold italic text-white/90 mb-2">{joiningRoom.name}</h2>
 				<p className="text-center text-xs text-white/30 mb-8">Enter room password</p>

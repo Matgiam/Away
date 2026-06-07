@@ -181,7 +181,7 @@ export const ProfileModal = ({
 	const canRequestFriend = !isSelf && hasAccount && !!myUserId && myUserId !== userId;
 
 	return (
-		<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm pb-40" onClick={onClose}>
+		<div className="fixed stage-full-bleed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm pb-40" onClick={onClose}>
 			<div
 				onClick={(e) => e.stopPropagation()}
 				className="w-full max-w-5xl mx-4 rounded-2xl border border-white/10 bg-[#0a0118]/95 backdrop-blur-xl shadow-2xl overflow-hidden flex flex-col"

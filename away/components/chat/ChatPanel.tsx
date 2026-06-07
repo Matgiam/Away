@@ -38,10 +38,20 @@ function hexToRgba(hex: string, alpha: number): string {
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, myId, myName, isLoggedIn, onSend, onClose, onLoginClick, senderColorById }) => {
 	const [input, setInput] = useState("");
-	const bottomRef = useRef<HTMLDivElement>(null);
+	const listRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
-		bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+		// Keep the latest message in view by scrolling the message list itself.
+		//
+		// We deliberately set scrollTop on this container instead of calling
+		// bottomRef.scrollIntoView(): scrollIntoView walks up the tree and scrolls
+		// EVERY scrollable ancestor to reveal the target — including the
+		// `.app-viewport` scroll container (the fixed 1920×1080 stage overflows it
+		// in layout space). That ancestor scroll shoves the whole app upward the
+		// moment the panel opens. Scrolling only this list avoids that side effect.
+		const el = listRef.current;
+		if (!el) return;
+		el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
 	}, [messages]);
 
 	const handleSend = () => {
@@ -68,7 +78,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, myId, myName, is
 				</button>
 			</div>
 
-			<div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
+			<div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
 				{messages.length === 0 && <p className="text-white/20 text-xs text-center mt-8">No messages yet. Say something!</p>}
 				{messages.map((msg) => {
 					const isMe = msg.senderId === myId;
@@ -101,7 +111,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, myId, myName, is
 						</div>
 					);
 				})}
-				<div ref={bottomRef} />
 			</div>
 
 			<div className="px-4 py-3 border-t border-white/8">
