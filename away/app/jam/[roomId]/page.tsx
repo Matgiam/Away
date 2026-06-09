@@ -720,6 +720,13 @@ export default function JamRoom() {
 			(active) => handleLocalSustainRef.current(active),
 		);
 		return () => {
+			// Nullify the local-handler refs first so that any MIDI onmidimessage
+			// handler that still holds a reference to these refs (via the async
+			// requestMIDIAccess promise chain) becomes a no-op immediately,
+			// preventing stale broadcasts to a room we've left.
+			handleLocalPlayRef.current = () => {};
+			handleLocalStopRef.current = () => {};
+			handleLocalSustainRef.current = () => {};
 			connectMIDIRef.current();
 		};
 	}, [unlockAudio]);
@@ -1012,6 +1019,12 @@ export default function JamRoom() {
 				removePeerRef.current(pid);
 			});
 			releaseAllForPlayerRef.current("self");
+
+			// Nullify broadcast refs so even if a stale MIDI handler or keyboard
+			// hook somehow fires after the channel is torn down, notes won't
+			// leak to the old room.
+			broadcastNoteSupabaseRef.current = () => {};
+			broadcastSustainSupabaseRef.current = () => {};
 
 			roomChannelRef.current = null;
 			try {
